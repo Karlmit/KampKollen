@@ -1,0 +1,55 @@
+# KampKollen — Unraid Docker Compose
+#
+# SETUP INSTRUCTIONS
+# ==================
+# 1. Copy this file to your Unraid server (e.g. /mnt/user/appdata/kampkollen/)
+# 2. Copy the .env.unraid file to the same folder, rename it to .env, and fill in your values
+# 3. Run:  docker compose up -d
+#
+# UPDATE INSTRUCTIONS
+# ===================
+# 1. Change the image tag below to the new version (see GitHub Releases for available tags)
+# 2. Run:  docker compose pull && docker compose up -d
+#
+# Image tags are published at: https://github.com/Karlmit/KampKollen/releases
+
+services:
+  kampkollen:
+    image: ghcr.io/karlmit/kampkollen:latest
+    container_name: kampkollen
+    ports:
+      - "${APP_PORT:-7666}:7666"
+    environment:
+      NODE_ENV: production
+      PORT: 7666
+      DATABASE_URL: postgresql://kampkollen:${DB_PASSWORD:-kampkollen}@kampkollen-db:5432/kampkollen
+      JWT_SECRET: ${JWT_SECRET}
+      COOKIE_SECRET: ${COOKIE_SECRET}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:7666}
+      AZURE_AI_IMAGE_ENDPOINT: ${AZURE_AI_IMAGE_ENDPOINT:-}
+      AZURE_AI_IMAGE_API_KEY: ${AZURE_AI_IMAGE_API_KEY:-}
+      AZURE_AI_IMAGE_MODEL: ${AZURE_AI_IMAGE_MODEL:-MAI-Image-2e}
+      AZURE_AI_IMAGE_API_VERSION: ${AZURE_AI_IMAGE_API_VERSION:-preview}
+      SEED_DB: ${SEED_DB:-true}
+    volumes:
+      - /mnt/user/appdata/kampkollen/uploads:/app/uploads
+    depends_on:
+      kampkollen-db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  kampkollen-db:
+    image: postgres:16-alpine
+    container_name: kampkollen-db
+    environment:
+      POSTGRES_USER: kampkollen
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-kampkollen}
+      POSTGRES_DB: kampkollen
+    volumes:
+      - /mnt/user/appdata/kampkollen/db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kampkollen"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
