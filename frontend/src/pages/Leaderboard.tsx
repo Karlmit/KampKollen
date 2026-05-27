@@ -179,14 +179,23 @@ export function CompetitionLeaderboardPage() {
                   onClick={() => toggleChallenge(cl.competitionChallengeId)}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                    <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700 }}>
-                      {cl.challengeName}
-                      {cl.lowerIsBetter && (
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '6px' }}>
-                          (lower=better)
-                        </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+                      {cl.challengeLogoUrl && (
+                        <img
+                          src={cl.challengeLogoUrl}
+                          alt=""
+                          style={{ width: 36, height: 36, borderRadius: 'var(--radius-sm)', objectFit: 'cover', flexShrink: 0 }}
+                        />
                       )}
-                    </p>
+                      <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700 }}>
+                        {cl.challengeName}
+                        {cl.lowerIsBetter && (
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '6px' }}>
+                            (lower=better)
+                          </span>
+                        )}
+                      </p>
+                    </div>
                     <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '8px', flexShrink: 0 }}>
                       {isExpanded ? '▲' : `▼ ${items.length}`}
                     </span>

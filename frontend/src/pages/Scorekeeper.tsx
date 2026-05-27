@@ -223,7 +223,9 @@ export function ScorekeeperPage() {
               key={cc.id}
               onClick={() => { setSelectedCcId(cc.id); setScores({}) }}
               style={{
-                padding: '8px 14px', borderRadius: 'var(--radius)',
+                display: 'flex', alignItems: 'center', gap: '6px',
+                padding: cc.challenge.logoUrl ? '6px 12px 6px 6px' : '8px 14px',
+                borderRadius: 'var(--radius)',
                 background: selectedCcId === cc.id ? 'var(--text-primary)' : 'var(--surface)',
                 color: selectedCcId === cc.id ? '#fff' : 'var(--text-primary)',
                 border: '1px solid var(--border-light)',
@@ -231,6 +233,9 @@ export function ScorekeeperPage() {
                 cursor: 'pointer',
               }}
             >
+              {cc.challenge.logoUrl && (
+                <img src={cc.challenge.logoUrl} alt="" style={{ width: 24, height: 24, borderRadius: '4px', objectFit: 'cover', flexShrink: 0 }} />
+              )}
               {cc.challenge.name}
             </button>
           ))}
@@ -240,12 +245,26 @@ export function ScorekeeperPage() {
       {selectedCc && (
         <>
           <Card style={{ marginBottom: '16px', background: 'var(--surface-raised)' }} padding="12px">
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-              Score type: <strong>{SCORE_TYPE_LABELS[scoreType]}</strong>
-            </p>
-            {scoreType === 'time_fastest_wins' && (
-              <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Enter time in seconds</p>
-            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {selectedCc.challenge.logoUrl && (
+                <img
+                  src={selectedCc.challenge.logoUrl}
+                  alt=""
+                  style={{ width: 48, height: 48, borderRadius: 'var(--radius-sm)', objectFit: 'cover', flexShrink: 0 }}
+                />
+              )}
+              <div>
+                <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px', marginBottom: '2px' }}>
+                  {selectedCc.challenge.name}
+                </p>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                  Score type: <strong>{SCORE_TYPE_LABELS[scoreType]}</strong>
+                </p>
+                {scoreType === 'time_fastest_wins' && (
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Enter time in seconds</p>
+                )}
+              </div>
+            </div>
           </Card>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
