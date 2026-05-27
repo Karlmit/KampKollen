@@ -16,7 +16,7 @@ services:
       AZURE_AI_IMAGE_API_KEY: ${AZURE_AI_IMAGE_API_KEY:-}
       AZURE_AI_IMAGE_MODEL: ${AZURE_AI_IMAGE_MODEL:-MAI-Image-2e}
       AZURE_AI_IMAGE_API_VERSION: ${AZURE_AI_IMAGE_API_VERSION:-preview}
-      SEED_DB: ${SEED_DB:-false}
+      SEED_DB: ${SEED_DB:-true}
     depends_on:
       db:
         condition: service_healthy

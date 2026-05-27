@@ -24,7 +24,7 @@ RUN npm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 
-RUN apk add --no-cache dumb-init
+RUN apk add --no-cache dumb-init openssl
 
 COPY --from=build-backend /app/backend/dist ./dist
 COPY --from=build-backend /app/backend/node_modules ./node_modules
