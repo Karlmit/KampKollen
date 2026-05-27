@@ -1,45 +1,55 @@
 # KampKollen
 
-Office 5-kamp scoring app — manage events, competitions, teams, and scores for Liseberg-style 5-kamp events.
+Office 5-kamp scoring app — manage competitions, teams, challenges, and live leaderboards for Liseberg-style multi-event contests.
 
 ## Quick Start (Docker)
 
 ```bash
-# 1. Clone/copy the project
-
-# 2. Start the app (first time — also seeds demo data)
-SEED_DB=true docker compose up --build
-
-# Or without seed data:
-docker compose up --build
+# Pull and start (image from GitHub Container Registry)
+docker compose up -d
 
 # App is available at:
 http://localhost:7666
 ```
 
-## Default Credentials
-
-> ⚠️ Change these before exposing the app publicly!
+The database schema is applied automatically on first start. A single admin account is created:
 
 | Role  | Username | Password    |
 |-------|----------|-------------|
 | Admin | `admin`  | `admin1234` |
-| Player | `anna`  | `player1234` |
-| Player | `bjorn` | `player1234` |
-| Player | `cecilia` | `player1234` |
-| Player | `david` | `player1234` |
-| Player | `emma`  | `player1234` |
-| Player | `fredrik` | `player1234` |
 
-## Seed Data
+> ⚠️ Change the admin password before exposing the app publicly.
 
-On first run, the database is automatically seeded with:
+## Unraid / Self-hosted
 
-- **Event:** Summer Party 2026
-- **Competition:** 5-Kamp 2026 (Active)
-- **Challenges:** Bollplanket, Träslaget, Desperados, Ringtoss, Kaninhoppning
-- **Teams:** Team Balder, Team Kaninen, Team Flumeride
-- **Players** assigned to teams with sample scores
+The app ships as a single Docker image at `ghcr.io/karlmit/kampkollen:latest`. Each GitHub release builds and pushes a new image — check for updates via Unraid's Docker tab or pull manually:
+
+```bash
+docker compose pull && docker compose up -d
+```
+
+## Features
+
+- **Competitions** — Create competitions, set a date, choose scoring mode
+- **Challenges** — Define activities with scoring types: highest score, lowest score, fastest time, ranked points, golf-style placement, manual points, or win/loss
+- **Teams** — Create teams, assign players, set team leaders and scorekeepers
+- **Guest players** — Add players by name only (no account required); convert them to a real account later
+- **Guest / spectator mode** — Anyone can browse competitions and leaderboards without an account
+- **Scoring modes** — Raw sum or placement-points (rank-based)
+- **Leaderboards** — Live team and individual standings, per-challenge breakdown
+- **Score entry** — Numpad UI for scorekeepers; scores save immediately; clear a score with one tap
+- **Image generation** — AI-generated images for profiles, teams, and challenges (requires Azure AI config)
+- **PWA** — Installable as a mobile app on iOS and Android
+
+## Roles
+
+| Role | Permissions |
+|------|-------------|
+| Guest (no account) | View competitions and leaderboards |
+| Player | Join competitions, view everything |
+| Scorekeeper | Enter and clear scores for their team |
+| Team Leader | Manage team roster, add guest players, convert guest to real player |
+| Admin | Full access — create/manage everything, delete users |
 
 ## Local Development
 
@@ -47,27 +57,20 @@ On first run, the database is automatically seeded with:
 
 - Node.js 20+
 - PostgreSQL 16+
-- pnpm or npm
 
 ### Setup
 
 ```bash
-# 1. Copy env file
-cp .env.example .env
-# Edit .env with your local database URL
-
-# 2. Install backend dependencies
+# 1. Install backend dependencies and push schema
 cd backend
 npm install
-
-# 3. Run migrations and seed
-npx prisma migrate dev
+npx prisma db push
 npm run db:seed
 
-# 4. Start backend
+# 2. Start backend (dev mode)
 npm run dev
 
-# 5. In another terminal, install and start frontend
+# 3. In another terminal, install and start frontend
 cd ../frontend
 npm install
 npm run dev
@@ -78,83 +81,88 @@ npm run dev
 
 ## Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `PORT` | Server port (default: 7666) |
-| `DATABASE_URL` | PostgreSQL connection string |
-| `JWT_SECRET` | Secret key for JWT tokens (min 32 chars) |
-| `COOKIE_SECRET` | Secret for cookie signing (min 32 chars) |
-| `AZURE_AI_IMAGE_ENDPOINT` | Azure AI Foundry image generation endpoint |
-| `AZURE_AI_IMAGE_API_KEY` | Azure AI Foundry API key |
-| `AZURE_AI_IMAGE_MODEL` | Model name (default: MAI-Image-2e) |
-| `AZURE_AI_IMAGE_API_VERSION` | API version (default: preview) |
-
-## Features
-
-- **Events** — Create events like "Summer Party 2026"
-- **Competitions** — Create 5-kamp competitions within events
-- **Challenges** — Define activities with scoring types (highest wins, fastest time, ranked points, etc.)
-- **Teams** — Assign players to teams with team leaders
-- **Player Pool** — Players who haven't been assigned to a team yet
-- **Scoring** — Enter scores per player per challenge; team scores calculated automatically
-- **Leaderboards** — Live team and individual rankings
-- **Image Generation** — Generate AI images for profiles, teams, challenges, and events
-- **PWA** — Installable as a mobile app
-
-## Roles
-
-| Role | Permissions |
-|------|-------------|
-| Player | View, join competitions, view leaderboards |
-| Scorekeeper | Enter and edit scores |
-| Team Leader | Manage team roster, generate team image |
-| Admin | Full access — create/manage everything |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `7666` | Server port |
+| `DATABASE_URL` | — | PostgreSQL connection string |
+| `JWT_SECRET` | — | JWT signing secret (min 32 chars) |
+| `COOKIE_SECRET` | — | Cookie signing secret (min 32 chars) |
+| `SEED_DB` | `true` | Create admin account on first start |
+| `AZURE_AI_IMAGE_ENDPOINT` | — | Azure AI Foundry image generation endpoint |
+| `AZURE_AI_IMAGE_API_KEY` | — | Azure AI Foundry API key |
+| `AZURE_AI_IMAGE_MODEL` | `MAI-Image-2e` | Image model name |
+| `AZURE_AI_IMAGE_API_VERSION` | `preview` | Image API version |
 
 ## Architecture
 
 ```
 KampKollen/
-├── backend/           # Fastify + TypeScript + Prisma
+├── backend/                # Fastify + TypeScript + Prisma
 │   ├── src/
-│   │   ├── routes/    # API endpoints
-│   │   ├── lib/       # Scoring, auth, image generation
-│   │   └── middleware/
-│   └── prisma/        # Schema + migrations + seed
-├── frontend/          # React + Vite + TypeScript
+│   │   ├── routes/         # auth, competitions, challenges, teams, scores, leaderboards, users, settings
+│   │   ├── lib/            # scoring logic, auth helpers, image generation
+│   │   └── middleware/     # requireAuth, requireAdmin, optionalAuth
+│   └── prisma/             # schema.prisma + seed.ts
+├── frontend/               # React + Vite + TypeScript PWA
 │   └── src/
-│       ├── pages/     # App pages
-│       ├── components/ # Reusable UI
-│       ├── contexts/  # Auth context
-│       └── api/       # API client
+│       ├── pages/          # app pages (incl. GuestCompetitionView for unauthenticated users)
+│       ├── components/     # UI components + Layout
+│       ├── contexts/       # AuthContext
+│       └── api/            # typed API client
 └── docker-compose.yml
 ```
 
 ## API
 
-All endpoints at `/api/*`:
+All endpoints at `/api/*`. Public endpoints (no auth required) are marked with `*`.
 
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `GET /api/auth/me`
-- `GET/POST /api/events`
-- `GET/POST /api/competitions`
-- `POST /api/competitions/:id/join`
-- `GET/POST /api/challenges`
-- `GET /api/teams/competition/:id`
-- `POST /api/scores/competition/:cid/challenge/:ccId`
-- `GET /api/leaderboards/competition/:id`
+```
+POST   /api/auth/register
+POST   /api/auth/login
+POST   /api/auth/logout
+GET    /api/auth/me
+
+GET *  /api/competitions
+GET *  /api/competitions/:id
+POST   /api/competitions          (admin)
+PUT    /api/competitions/:id      (admin)
+POST   /api/competitions/:id/join
+POST   /api/competitions/:id/players
+PUT    /api/competitions/:id/players/:userId
+DELETE /api/competitions/:id/players/:userId
+POST   /api/competitions/:id/players/dummy
+POST   /api/competitions/:id/players/dummy/:dummyUserId/convert
+POST   /api/competitions/:id/challenges
+DELETE /api/competitions/:id/challenges/:challengeId
+PUT    /api/competitions/:id/challenges/reorder
+
+GET *  /api/leaderboards/competition/:id
+GET *  /api/leaderboards/historical
+GET *  /api/leaderboards/challenge/:challengeId/all-time
+
+GET    /api/challenges
+POST   /api/challenges            (admin)
+GET    /api/teams/competition/:id
+GET    /api/scores/competition/:id/challenge/:ccId
+POST   /api/scores/competition/:cid/challenge/:ccId
+DELETE /api/scores/:id
+
+GET    /api/users                 (admin)
+PUT    /api/users/:id
+DELETE /api/users/:id             (admin)
+
+GET    /api/admin/settings        (admin)
+PUT    /api/admin/settings        (admin)
+```
 
 ## Docker Commands
 
 ```bash
-# Start (builds on first run)
-docker compose up
+# Start
+docker compose up -d
 
 # Rebuild after code changes
-docker compose up --build
-
-# Run database migrations manually
-docker compose exec app npx prisma migrate deploy
+docker compose build --no-cache && docker compose up -d --force-recreate app
 
 # View logs
 docker compose logs app -f
