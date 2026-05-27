@@ -79,7 +79,9 @@ export function MyTeamPage() {
     >
       {/* Team image */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '24px', gap: '12px' }}>
-        <Avatar src={team.imageUrl} name={team.name} size={80} style={{ borderRadius: 'var(--radius)' }} />
+        {!canManage && (
+          <Avatar src={team.imageUrl} name={team.name} size={80} style={{ borderRadius: 'var(--radius)' }} />
+        )}
         {canManage && (
           <ImageGenerator
             defaultPrompt={`Create a fun mascot/logo for a 5-kamp team called "${team.name}". Playful, bold, colorful, suitable as a round team profile image.`}
