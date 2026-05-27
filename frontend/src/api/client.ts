@@ -111,6 +111,7 @@ export const api = {
     competition: (id: string) => request<any>(`/leaderboards/competition/${id}`),
     historical: () => request<{ competitions: any[] }>('/leaderboards/historical'),
     allTimeChallenge: (challengeId: string) => request<any>(`/leaderboards/challenge/${challengeId}/all-time`),
+    challengesAllTime: () => request<any>('/leaderboards/challenges/all-time'),
   },
 }
 

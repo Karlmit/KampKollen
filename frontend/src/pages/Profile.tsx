@@ -11,6 +11,7 @@ import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { ImageGenerator } from '../components/ImageGenerator'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../api/client'
+import { formatScore, extractScoreValue } from '../utils'
 
 export function Profile() {
   const { id: paramId } = useParams<{ id?: string }>()
@@ -122,6 +123,59 @@ export function Profile() {
           )}
         </Card>
       )}
+
+      {/* Personal bests per challenge */}
+      {user.scores?.length > 0 && (() => {
+        // Group by challenge, keep best score per challenge
+        const bestByChallenge: Record<string, any> = {}
+        for (const s of user.scores) {
+          const cc = s.competitionChallenge
+          if (!cc) continue
+          const challenge = cc.challenge
+          const effectiveSt = cc.scoreTypeOverride ?? challenge.scoreType
+          const val = extractScoreValue(s, effectiveSt)
+          if (val === null) continue
+          const existing = bestByChallenge[challenge.id]
+          const lowerBetter = effectiveSt === 'time_fastest_wins' || effectiveSt === 'number_lowest_wins' || effectiveSt === 'placement_lowest_wins'
+          if (!existing || (lowerBetter ? val < existing.score : val > existing.score)) {
+            bestByChallenge[challenge.id] = {
+              challenge,
+              score: val,
+              competitionName: cc.competition?.name ?? '',
+              effectiveSt,
+            }
+          }
+        }
+        const bests = Object.values(bestByChallenge)
+        if (bests.length === 0) return null
+        return (
+          <section style={{ marginBottom: '16px' }}>
+            <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '12px', color: 'var(--text-muted)' }}>
+              Personal Bests
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {bests.map((b: any) => (
+                <Card key={b.challenge.id} padding="12px">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {b.challenge.logoUrl ? (
+                      <img src={b.challenge.logoUrl} alt="" style={{ width: 32, height: 32, borderRadius: 'var(--radius-sm)', objectFit: 'cover', flexShrink: 0 }} />
+                    ) : (
+                      <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-sm)', background: 'var(--surface-raised)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>🏅</div>
+                    )}
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>{b.challenge.name}</p>
+                      <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{b.competitionName}</p>
+                    </div>
+                    <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px', flexShrink: 0 }}>
+                      {formatScore(b.score, b.challenge.scoreType)}
+                    </p>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </section>
+        )
+      })()}
 
       {/* Competition history */}
       {user.competitionPlayers?.length > 0 && (

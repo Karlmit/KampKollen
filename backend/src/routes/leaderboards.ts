@@ -196,6 +196,74 @@ export async function leaderboardRoutes(app: FastifyInstance) {
     }
   })
 
+  app.get('/challenges/all-time', { preHandler: optionalAuth }, async () => {
+    const challenges = await prisma.challenge.findMany({
+      where: { competitionChallenges: { some: { scores: { some: {} } } } },
+      include: {
+        competitionChallenges: {
+          include: {
+            scores: {
+              include: {
+                player: { select: { id: true, username: true, displayName: true, profileImageUrl: true } },
+                competition: { select: { id: true, name: true, date: true } },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { name: 'asc' },
+    })
+
+    const getScoreValue = (score: any, st: ScoreType): number | null => {
+      if (st === 'time_fastest_wins') return score.timeMs ?? null
+      if (st === 'placement_lowest_wins') return score.placement ?? null
+      if (st === 'manual_points') return score.calculatedPoints ?? null
+      return score.rawScore ?? null
+    }
+
+    const result = challenges.map(challenge => {
+      const baseScoreType = challenge.scoreType as ScoreType
+      const lowerBetter = isLowerBetter(baseScoreType)
+      const bestPerPlayer: Record<string, any> = {}
+
+      for (const cc of challenge.competitionChallenges) {
+        const effectiveSt = (cc.scoreTypeOverride ?? challenge.scoreType) as ScoreType
+        for (const s of cc.scores) {
+          const val = getScoreValue(s, effectiveSt)
+          if (val === null) continue
+          const existing = bestPerPlayer[s.userId]
+          if (!existing || (lowerBetter ? val < existing.score : val > existing.score)) {
+            bestPerPlayer[s.userId] = {
+              userId: s.player.id,
+              displayName: s.player.displayName,
+              username: s.player.username,
+              profileImageUrl: s.player.profileImageUrl,
+              score: val,
+              competitionName: s.competition.name,
+              competitionDate: s.competition.date?.toISOString() ?? null,
+            }
+          }
+        }
+      }
+
+      const topScores = Object.values(bestPerPlayer)
+        .sort((a: any, b: any) => lowerBetter ? a.score - b.score : b.score - a.score)
+        .slice(0, 5)
+        .map((s: any, i: number) => ({ ...s, rank: i + 1 }))
+
+      return {
+        challengeId: challenge.id,
+        challengeName: challenge.name,
+        challengeLogoUrl: challenge.logoUrl ?? null,
+        scoreType: baseScoreType,
+        lowerIsBetter: lowerBetter,
+        topScores,
+      }
+    }).filter(c => c.topScores.length > 0)
+
+    return { challenges: result }
+  })
+
   app.get('/historical', { preHandler: optionalAuth }, async () => {
     const competitions = await prisma.competition.findMany({
       where: { status: 'COMPLETED' },
