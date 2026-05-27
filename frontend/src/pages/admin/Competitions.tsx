@@ -110,20 +110,20 @@ export function AdminCompetitions() {
           {form.scoringMode === 'placement_points' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>
-                Max points per challenge (optional)
+                Max points per challenge
               </label>
               <input
                 type="number"
                 min="10"
                 max="1000"
                 step="10"
-                placeholder={`Default: teams × 10 (${parseInt(form.teamCount, 10) * 10})`}
+                placeholder={`Leave blank = auto (${parseInt(form.teamCount, 10) * 10})`}
                 value={form.placementMaxPoints}
                 onChange={e => setForm(f => ({ ...f, placementMaxPoints: e.target.value }))}
                 style={{ padding: '10px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', fontSize: '16px' }}
               />
               <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                1st place gets this many points, each rank below gets 10 less (floor 0)
+                Leave blank to auto-calculate (teams × 10 = {parseInt(form.teamCount, 10) * 10}). Enter a number to override — e.g. 30 with 4 teams gives 30, 20, 10, 0.
               </p>
             </div>
           )}

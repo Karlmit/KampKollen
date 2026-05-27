@@ -335,9 +335,10 @@ export function AdminCompetitionManage() {
           </div>
           {comp.scoringMode === 'placement_points' && (
             <div>
-              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-muted)' }}>MAX POINTS PER CHALLENGE</p>
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, marginBottom: '4px', color: 'var(--text-muted)' }}>MAX POINTS PER CHALLENGE</p>
               <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
                 Currently: {comp.placementMaxPoints != null ? `${comp.placementMaxPoints} pts` : `auto (${comp.teams?.length ?? 0} teams × 10 = ${(comp.teams?.length ?? 0) * 10} pts)`}
+                {' — '}Enter a number to override, or leave blank / press Reset to use auto.
               </p>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
                 <div style={{ flex: 1 }}>
@@ -346,7 +347,7 @@ export function AdminCompetitionManage() {
                     min="10"
                     max="1000"
                     step="10"
-                    placeholder={`Auto: ${(comp.teams?.length ?? 0) * 10}`}
+                    placeholder={`Leave blank = auto (${(comp.teams?.length ?? 0) * 10})`}
                     value={maxPointsInput}
                     onChange={e => setMaxPointsInput(e.target.value)}
                     style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', fontSize: '16px' }}
