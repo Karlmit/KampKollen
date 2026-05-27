@@ -1,3 +1,5 @@
+declare const __APP_VERSION__: string
+
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AdminLayout } from './AdminLayout'
@@ -126,6 +128,17 @@ export function AdminSettings() {
               </p>
             </Card>
           )}
+
+          <Card padding="12px" style={{ marginTop: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontFamily: 'var(--font-ui)' }}>
+                KampKollen version
+              </p>
+              <p style={{ fontSize: '13px', fontFamily: 'var(--font-ui)', fontWeight: 700 }}>
+                v{__APP_VERSION__}
+              </p>
+            </div>
+          </Card>
         </div>
       )}
     </AdminLayout>

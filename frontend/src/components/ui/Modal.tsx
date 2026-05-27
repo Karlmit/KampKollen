@@ -1,4 +1,5 @@
 import { ReactNode, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Button } from './Button'
 
 interface ModalProps {
@@ -33,7 +34,7 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
 
   if (!rendered) return null
 
-  return (
+  return createPortal(
     <div
       className={closing ? 'modal-overlay-exit' : 'modal-overlay-enter'}
       style={{
@@ -83,6 +84,7 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
