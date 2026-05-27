@@ -6,7 +6,7 @@ import { Input } from '../components/ui/Input'
 import { ApiError } from '../api/client'
 
 export function Register() {
-  const [form, setForm] = useState({ username: '', password: '', displayName: '', realName: '' })
+  const [form, setForm] = useState({ username: '', password: '', realName: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const { register } = useAuth()
@@ -23,7 +23,6 @@ export function Register() {
       await register({
         username: form.username,
         password: form.password,
-        displayName: form.displayName || undefined,
         realName: form.realName || undefined,
       })
       navigate('/')
@@ -49,7 +48,6 @@ export function Register() {
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <Input label="Username *" value={form.username} onChange={set('username')} autoComplete="username" required />
           <Input label="Password / PIN *" type="password" value={form.password} onChange={set('password')} autoComplete="new-password" required />
-          <Input label="Display name (optional)" value={form.displayName} onChange={set('displayName')} placeholder="e.g. Anna K" />
           <Input label="Real name (optional)" value={form.realName} onChange={set('realName')} placeholder="e.g. Anna Karlsson" />
           {error && (
             <p style={{

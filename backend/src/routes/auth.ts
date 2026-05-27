@@ -6,7 +6,6 @@ import { hashPassword, verifyPassword, validatePassword, validateUsername } from
 const registerSchema = z.object({
   username: z.string().min(2).max(32),
   password: z.string().min(4).max(128),
-  displayName: z.string().max(64).optional(),
   realName: z.string().max(128).optional(),
 })
 
@@ -22,7 +21,7 @@ export async function authRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: body.error.issues[0].message })
     }
 
-    const { username, password, displayName, realName } = body.data
+    const { username, password, realName } = body.data
 
     const usernameError = validateUsername(username)
     if (usernameError) return reply.status(400).send({ error: usernameError })
@@ -37,7 +36,7 @@ export async function authRoutes(app: FastifyInstance) {
 
     const passwordHash = await hashPassword(password)
     const user = await prisma.user.create({
-      data: { username, passwordHash, displayName, realName },
+      data: { username, passwordHash, displayName: username, realName },
       select: { id: true, username: true, displayName: true, realName: true, globalRole: true, profileImageUrl: true },
     })
 
