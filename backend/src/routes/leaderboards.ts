@@ -12,7 +12,9 @@ export async function leaderboardRoutes(app: FastifyInstance) {
       where: { id },
       include: {
         teams: true,
-        players: true,
+        players: {
+          include: { user: { select: { id: true, username: true, displayName: true, profileImageUrl: true } } },
+        },
         challenges: {
           include: { challenge: true, scores: true },
           orderBy: { order: 'asc' },
@@ -93,6 +95,7 @@ export async function leaderboardRoutes(app: FastifyInstance) {
       const numTeams = competition.teams.length
       if (competition.scoringMode === 'placement_points') {
         rankedTeams.forEach((t, i) => {
+          if (t.score === 0) return  // no points awarded for zero score
           const pts = (numTeams - i) * 10
           if (teamPoints[t.teamId]) {
             teamPoints[t.teamId].challengeBreakdown[cc.id] = pts
@@ -120,12 +123,14 @@ export async function leaderboardRoutes(app: FastifyInstance) {
         teams: rankedTeams.map((t, i) => ({
           ...t,
           rank: i + 1,
-          ...(competition.scoringMode === 'placement_points' && { placementPoints: (numTeams - i) * 10 }),
+          ...(competition.scoringMode === 'placement_points' && t.score > 0
+            ? { placementPoints: (numTeams - i) * 10 }
+            : {}),
         })),
       })
     }
 
-    // Build team leaderboard (sum of all challenge team scores)
+    // Build team leaderboard
     const teamLeaderboard = competition.teams
       .map(team => ({
         teamId: team.id,
@@ -138,12 +143,15 @@ export async function leaderboardRoutes(app: FastifyInstance) {
       .sort((a, b) => b.totalPoints - a.totalPoints)
       .map((t, i) => ({ ...t, rank: i + 1 }))
 
-    // Build individual leaderboard
+    // Build individual leaderboard with user display info
     const individualLeaderboard = competition.players
       .map(cp => {
         const team = competition.teams.find(t => t.id === cp.teamId)
         return {
           userId: cp.userId,
+          displayName: cp.user?.displayName ?? null,
+          username: cp.user?.username ?? null,
+          profileImageUrl: cp.user?.profileImageUrl ?? null,
           teamId: cp.teamId,
           teamName: team?.name ?? null,
           totalPoints: playerPoints[cp.userId] ?? 0,

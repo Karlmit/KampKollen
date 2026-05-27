@@ -1,10 +1,9 @@
 import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Layout } from '../components/layout/Layout'
 import { Card } from '../components/ui/Card'
 import { Avatar } from '../components/ui/Avatar'
-import { Badge } from '../components/ui/Badge'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { api } from '../api/client'
 import { CompetitionLeaderboard, LeaderboardTeam } from '../types'
@@ -37,13 +36,14 @@ export function CompetitionLeaderboardPage() {
       <div style={{ marginBottom: '16px' }}>
         <span style={{
           display: 'inline-block', padding: '4px 10px', borderRadius: '99px',
-          background: isPlacementMode ? 'var(--surface)' : 'var(--surface)',
+          background: 'var(--surface)',
           border: '1px solid var(--border-light)',
           fontSize: '12px', fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--text-muted)',
         }}>
           {isPlacementMode ? '🏅 Placement points' : '➕ Raw sum'}
         </span>
       </div>
+
       {/* View toggle */}
       <div style={{
         display: 'flex', background: 'var(--surface)', borderRadius: 'var(--radius)',
@@ -111,9 +111,12 @@ export function CompetitionLeaderboardPage() {
                 <span style={{ fontSize: '20px', minWidth: '28px', textAlign: 'center' }}>
                   {rankEmoji(p.rank)}
                 </span>
+                <Avatar src={p.profileImageUrl} name={p.displayName ?? p.username ?? p.userId} size={36} />
                 <div style={{ flex: 1 }}>
                   <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>
-                    {p.userId}
+                    <Link to={`/profile/${p.userId}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                      {p.displayName ?? p.username ?? p.userId}
+                    </Link>
                   </p>
                   {p.teamName && <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{p.teamName}</p>}
                 </div>
@@ -145,12 +148,17 @@ export function CompetitionLeaderboardPage() {
                       <span style={{ fontSize: '13px' }}>{rankEmoji(t.rank)} {t.teamName}</span>
                       <div style={{ textAlign: 'right' }}>
                         {isPlacementMode ? (
-                          <span style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>
-                            {t.placementPoints} pts
-                          </span>
+                          <div>
+                            <span style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>
+                              {t.placementPoints != null ? `${t.placementPoints} pts` : '—'}
+                            </span>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '6px' }}>
+                              ({t.score?.toFixed(1) ?? '0'})
+                            </span>
+                          </div>
                         ) : (
                           <span style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>
-                            {t.score.toFixed(1)}
+                            {t.score?.toFixed(1) ?? '0'}
                           </span>
                         )}
                       </div>

@@ -106,8 +106,11 @@ export interface CompetitionLeaderboard {
   teamLeaderboard: LeaderboardTeam[]
   individualLeaderboard: Array<{
     userId: string
-    teamId?: string
-    teamName?: string
+    displayName?: string | null
+    username?: string | null
+    profileImageUrl?: string | null
+    teamId?: string | null
+    teamName?: string | null
     totalPoints: number
     rank: number
   }>

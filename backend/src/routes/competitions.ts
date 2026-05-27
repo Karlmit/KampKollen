@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
+import { GlobalRole } from '@prisma/client'
 import { prisma } from '../db.js'
 import { requireAuth, requireAdmin } from '../middleware/auth.js'
 import { generateImage, DEFAULT_PROMPTS } from '../lib/imageGeneration.js'
@@ -205,9 +206,28 @@ export async function competitionRoutes(app: FastifyInstance) {
     return reply.status(201).send({ player })
   })
 
-  app.put('/:id/players/:userId', { preHandler: requireAdmin }, async (request, reply) => {
+  app.put('/:id/players/:userId', { preHandler: requireAuth }, async (request, reply) => {
     const { id, userId } = request.params as { id: string; userId: string }
+    const me = request.user as { id: string; role: GlobalRole }
     const body = request.body as { teamId?: string | null; isTeamLeader?: boolean; isScorekeeper?: boolean }
+
+    if (me.role !== GlobalRole.ADMIN) {
+      const myPlayer = await prisma.competitionPlayer.findUnique({
+        where: { competitionId_userId: { competitionId: id, userId: me.id } },
+      })
+      if (!myPlayer?.isTeamLeader) {
+        return reply.status(403).send({ error: 'Admin access required' })
+      }
+      if (body.teamId !== undefined || body.isTeamLeader !== undefined) {
+        return reply.status(403).send({ error: 'Only admins can change team assignment or leader status' })
+      }
+      const targetPlayer = await prisma.competitionPlayer.findUnique({
+        where: { competitionId_userId: { competitionId: id, userId } },
+      })
+      if (!targetPlayer || targetPlayer.teamId !== myPlayer.teamId) {
+        return reply.status(403).send({ error: 'Can only manage scorekeepers on your own team' })
+      }
+    }
 
     const player = await prisma.competitionPlayer.update({
       where: { competitionId_userId: { competitionId: id, userId } },

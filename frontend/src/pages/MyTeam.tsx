@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Layout } from '../components/layout/Layout'
 import { Card } from '../components/ui/Card'
@@ -53,6 +53,12 @@ export function MyTeamPage() {
       setRemoveError(null)
     },
     onError: (err: any) => setRemoveError(err.message ?? 'Failed to remove player'),
+  })
+
+  const toggleScorekeeperMutation = useMutation({
+    mutationFn: ({ userId, isScorekeeper }: { userId: string; isScorekeeper: boolean }) =>
+      api.competitions.updatePlayer(competitionId!, userId, { isScorekeeper }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['competition', competitionId] }),
   })
 
   if (isLoading) return <Layout title="Team"><LoadingSpinner /></Layout>
@@ -111,20 +117,36 @@ export function MyTeamPage() {
                 <Avatar src={p.user.profileImageUrl} name={p.user.displayName ?? p.user.username} size={36} />
                 <div style={{ flex: 1 }}>
                   <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>
-                    {p.user.displayName ?? p.user.username}
+                    <Link to={`/profile/${p.userId}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                      {p.user.displayName ?? p.user.username}
+                    </Link>
                   </p>
-                  {p.isTeamLeader && <Badge variant="info" style={{ fontSize: '11px' }}>Leader</Badge>}
+                  <div style={{ display: 'flex', gap: '4px', marginTop: '2px' }}>
+                    {p.isTeamLeader && <Badge variant="info" style={{ fontSize: '11px' }}>Leader</Badge>}
+                    {p.isScorekeeper && <Badge variant="success" style={{ fontSize: '11px' }}>Scorekeeper</Badge>}
+                  </div>
                 </div>
                 {canManage && p.userId !== user?.id && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => removePlayerMutation.mutate(p.userId)}
-                    loading={removePlayerMutation.isPending}
-                    style={{ fontSize: '12px', padding: '4px 10px' }}
-                  >
-                    Remove
-                  </Button>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <Button
+                      size="sm"
+                      variant={p.isScorekeeper ? 'success' : 'ghost'}
+                      onClick={() => toggleScorekeeperMutation.mutate({ userId: p.userId, isScorekeeper: !p.isScorekeeper })}
+                      loading={toggleScorekeeperMutation.isPending}
+                      style={{ fontSize: '11px', padding: '4px 10px' }}
+                    >
+                      SK
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => removePlayerMutation.mutate(p.userId)}
+                      loading={removePlayerMutation.isPending}
+                      style={{ fontSize: '12px', padding: '4px 10px' }}
+                    >
+                      Remove
+                    </Button>
+                  </div>
                 )}
               </div>
             </Card>

@@ -56,6 +56,12 @@ export function AdminCompetitionManage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['competition', id] }); setAssignTeamPlayer(null) },
   })
 
+  const toggleLeaderMutation = useMutation({
+    mutationFn: ({ userId, isTeamLeader }: { userId: string; isTeamLeader: boolean }) =>
+      api.competitions.updatePlayer(id!, userId, { isTeamLeader }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['competition', id] }),
+  })
+
   const addChallengeMutation = useMutation({
     mutationFn: () => api.competitions.addChallenge(id!, { challengeId: selectedChallengeId }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['competition', id] }); setAddChallengeOpen(false); setSelectedChallengeId('') },
@@ -136,10 +142,19 @@ export function AdminCompetitionManage() {
                       {p.isTeamLeader ? ' · Leader' : ''}
                     </p>
                   </div>
-                  <div style={{ display: 'flex', gap: '4px' }}>
+                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                     <Button size="sm" variant="ghost" style={{ fontSize: '11px', padding: '4px 10px' }}
                       onClick={() => setAssignTeamPlayer(p)}>
-                      Assign Team
+                      Team
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={p.isTeamLeader ? 'success' : 'ghost'}
+                      style={{ fontSize: '11px', padding: '4px 10px' }}
+                      loading={toggleLeaderMutation.isPending}
+                      onClick={() => toggleLeaderMutation.mutate({ userId: p.userId, isTeamLeader: !p.isTeamLeader })}
+                    >
+                      {p.isTeamLeader ? '⭐ Leader' : 'Leader'}
                     </Button>
                     <Button size="sm" variant="danger" style={{ fontSize: '11px', padding: '4px 8px' }}
                       onClick={() => removePlayerMutation.mutate(p.userId)}>
