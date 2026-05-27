@@ -66,7 +66,7 @@ export function Home() {
             </p>
           </Card>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {activeCompetitions.map((comp: Competition) => (
               <Link to={`/competitions/${comp.id}`} key={comp.id} style={{ textDecoration: 'none' }}>
                 <Card>

@@ -9,9 +9,10 @@ interface CardProps {
 }
 
 export function Card({ children, style, onClick, padding = '16px', className }: CardProps) {
+  const classes = [onClick ? 'card-interactive' : '', className].filter(Boolean).join(' ')
   return (
     <div
-      className={className}
+      className={classes || undefined}
       onClick={onClick}
       style={{
         background: 'var(--surface)',
@@ -20,17 +21,8 @@ export function Card({ children, style, onClick, padding = '16px', className }: 
         padding,
         boxShadow: 'var(--shadow)',
         cursor: onClick ? 'pointer' : undefined,
-        transition: onClick ? 'transform 150ms ease, box-shadow 150ms ease' : undefined,
         ...style,
       }}
-      onMouseEnter={onClick ? (e) => {
-        e.currentTarget.style.transform = 'translateY(-1px)'
-        e.currentTarget.style.boxShadow = 'var(--shadow-md)'
-      } : undefined}
-      onMouseLeave={onClick ? (e) => {
-        e.currentTarget.style.transform = 'translateY(0)'
-        e.currentTarget.style.boxShadow = 'var(--shadow)'
-      } : undefined}
     >
       {children}
     </div>

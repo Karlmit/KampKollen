@@ -49,6 +49,7 @@ export function Layout({ children, title, back, action, noPadding }: LayoutProps
 
       {/* Main content */}
       <main
+        className="page-enter"
         style={{
           flex: 1,
           padding: noPadding ? 0 : '16px',

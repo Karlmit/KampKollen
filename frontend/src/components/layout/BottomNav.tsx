@@ -23,13 +23,21 @@ function NavItem({ to, icon, label }: { to: string; icon: string; label: string 
     >
       {({ isActive }) => (
         <>
-          {isActive && (
-            <span style={{
-              position: 'absolute', top: 0, left: '25%', right: '25%',
-              height: '2px', background: 'var(--accent)', borderRadius: '0 0 2px 2px',
-            }} />
-          )}
-          <span style={{ fontSize: '22px', lineHeight: 1 }}>{icon}</span>
+          <span style={{
+            position: 'absolute', top: 0, left: '25%', right: '25%',
+            height: '2px', background: 'var(--accent)', borderRadius: '0 0 2px 2px',
+            opacity: isActive ? 1 : 0,
+            transform: isActive ? 'scaleX(1)' : 'scaleX(0.4)',
+            transition: 'opacity 200ms var(--ease-out), transform 200ms var(--ease-out)',
+          }} />
+          <span style={{
+            fontSize: '22px', lineHeight: 1,
+            transform: isActive ? 'scale(1.12)' : 'scale(1)',
+            transition: 'transform 200ms var(--ease-out)',
+            display: 'block',
+          }}>
+            {icon}
+          </span>
           <span>{label}</span>
         </>
       )}

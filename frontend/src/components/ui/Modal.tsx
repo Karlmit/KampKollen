@@ -1,4 +1,4 @@
-import { ReactNode, useEffect } from 'react'
+import { ReactNode, useEffect, useState } from 'react'
 import { Button } from './Button'
 
 interface ModalProps {
@@ -9,18 +9,33 @@ interface ModalProps {
   footer?: ReactNode
 }
 
+const CLOSE_MS = 220
+
 export function Modal({ open, onClose, title, children, footer }: ModalProps) {
+  const [rendered, setRendered] = useState(open)
+  const [closing, setClosing] = useState(false)
+
   useEffect(() => {
     if (open) {
-      document.body.style.overflow = 'hidden'
+      setRendered(true)
+      setClosing(false)
+    } else if (rendered) {
+      setClosing(true)
+      const t = setTimeout(() => { setRendered(false); setClosing(false) }, CLOSE_MS)
+      return () => clearTimeout(t)
     }
-    return () => { document.body.style.overflow = '' }
   }, [open])
 
-  if (!open) return null
+  useEffect(() => {
+    document.body.style.overflow = rendered ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [rendered])
+
+  if (!rendered) return null
 
   return (
     <div
+      className={closing ? 'modal-overlay-exit' : 'modal-overlay-enter'}
       style={{
         position: 'fixed', inset: 0, zIndex: 1000,
         display: 'flex', alignItems: 'flex-end',
@@ -30,6 +45,7 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
       onClick={onClose}
     >
       <div
+        className={closing ? 'modal-sheet-exit' : 'modal-sheet-enter'}
         onClick={e => e.stopPropagation()}
         style={{
           background: 'var(--background)',
@@ -40,10 +56,8 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
           maxHeight: '90dvh',
           display: 'flex',
           flexDirection: 'column',
-          animation: 'slideUp 200ms ease',
         }}
       >
-        <style>{`@keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }`}</style>
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '20px 20px 0',
@@ -54,7 +68,10 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
             style={{
               fontSize: '22px', color: 'var(--text-muted)', cursor: 'pointer',
               lineHeight: 1, padding: '4px', background: 'none', border: 'none',
+              transition: 'opacity 150ms var(--ease-out)',
             }}
+            onMouseEnter={e => { e.currentTarget.style.opacity = '0.6' }}
+            onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
           >
             ×
           </button>

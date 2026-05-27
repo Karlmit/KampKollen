@@ -27,7 +27,7 @@ export function GlobalLeaderboard() {
               <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '10px' }}>
                 Live Competitions
               </h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {activeComps.map((c: any) => (
                   <Link to={`/competitions/${c.id}/leaderboard`} key={c.id} style={{ textDecoration: 'none' }}>
                     <Card>
@@ -53,7 +53,7 @@ export function GlobalLeaderboard() {
               <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '10px' }}>
                 Past Competitions
               </h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {completedComps.map((c: any) => (
                   <Link to={`/competitions/${c.id}/leaderboard`} key={c.id} style={{ textDecoration: 'none' }}>
                     <Card>

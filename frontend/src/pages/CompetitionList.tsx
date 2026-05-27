@@ -25,7 +25,7 @@ export function CompetitionList() {
           <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 0' }}>No competitions yet</p>
         </Card>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {competitions.map((comp: Competition) => (
             <Link to={`/competitions/${comp.id}`} key={comp.id} style={{ textDecoration: 'none' }}>
               <Card>

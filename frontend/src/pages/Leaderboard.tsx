@@ -93,7 +93,7 @@ export function CompetitionLeaderboardPage() {
 
       {/* Teams leaderboard */}
       {view === 'teams' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {lb.teamLeaderboard.map((team: LeaderboardTeam) => (
             <Card key={team.teamId} style={{ border: team.rank === 1 ? '2px solid #ffd700' : undefined }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -120,7 +120,7 @@ export function CompetitionLeaderboardPage() {
       {/* Individual leaderboard — top 3 only */}
       {view === 'individual' && (
         <>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {top3.map((p: any) => (
               <Card key={p.userId} padding="12px">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -165,7 +165,7 @@ export function CompetitionLeaderboardPage() {
           <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '15px', marginBottom: '12px', color: 'var(--text-muted)' }}>
             BY CHALLENGE
           </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {lb.challengeLeaderboards.map((cl: any) => {
               const isExpanded = expandedChallenge === cl.competitionChallengeId
               const items: any[] = view === 'individual' ? (cl.players ?? []) : (cl.teams ?? [])
