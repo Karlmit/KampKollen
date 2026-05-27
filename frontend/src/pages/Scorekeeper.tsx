@@ -89,6 +89,7 @@ export function ScorekeeperPage() {
   const [selectedCcId, setSelectedCcId] = useState<string | null>(null)
   const [scores, setScores] = useState<Record<string, string>>({})
   const [editingPlayer, setEditingPlayer] = useState<any>(null)
+  const [adminAllTeams, setAdminAllTeams] = useState(false)
 
   const { data: compData, isLoading } = useQuery({
     queryKey: ['competition', competitionId],
@@ -165,7 +166,8 @@ export function ScorekeeperPage() {
 
   // Determine which players to show and group by team
   const allPlayers: any[] = comp.players ?? []
-  const playersToShow = isAdmin
+  const showAllTeams = isAdmin && adminAllTeams
+  const playersToShow = showAllTeams
     ? allPlayers
     : allPlayers.filter((p: any) => p.teamId === myPlayer?.teamId)
 
@@ -184,13 +186,31 @@ export function ScorekeeperPage() {
     ...Object.values(teamMap),
     ...(poolPlayers.length > 0 ? [{ id: null as any, name: 'Player Pool', players: poolPlayers }] : []),
   ]
-  const showTeamHeaders = isAdmin || groupedTeams.length > 1
+  const showTeamHeaders = showAllTeams || groupedTeams.length > 1
 
   const pendingCount = Object.keys(scores).length
 
   return (
     <Layout title="Enter Scores" back={`/competitions/${competitionId}`}>
-      <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginBottom: '16px' }}>{comp.name}</p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+        <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>{comp.name}</p>
+        {isAdmin && (
+          <button
+            onClick={() => { setAdminAllTeams(v => !v); setScores({}) }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              padding: '5px 10px', borderRadius: 'var(--radius)',
+              border: `1.5px solid ${adminAllTeams ? 'var(--accent)' : 'var(--border-light)'}`,
+              background: adminAllTeams ? 'var(--accent)' : 'var(--surface)',
+              color: adminAllTeams ? '#fff' : 'var(--text-muted)',
+              fontSize: '12px', fontFamily: 'var(--font-ui)', fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            {adminAllTeams ? '🔓 All teams' : '🔒 My team'}
+          </button>
+        )}
+      </div>
 
       {/* Challenge selector */}
       <section style={{ marginBottom: '20px' }}>
