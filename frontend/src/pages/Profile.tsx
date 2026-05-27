@@ -124,8 +124,8 @@ export function Profile() {
       {/* Competition history */}
       {user.competitionPlayers?.length > 0 && (
         <section>
-          <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '15px', marginBottom: '12px', color: 'var(--text-muted)' }}>
-            COMPETITIONS
+          <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '12px', color: 'var(--text-muted)' }}>
+            Competitions
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {user.competitionPlayers.map((cp: any) => (

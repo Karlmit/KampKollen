@@ -188,7 +188,7 @@ export async function leaderboardRoutes(app: FastifyInstance) {
       .map((p, i) => ({ ...p, rank: i + 1 }))
 
     return {
-      competition: { id: competition.id, name: competition.name, scoringMode: competition.scoringMode },
+      competition: { id: competition.id, name: competition.name, scoringMode: competition.scoringMode, status: competition.status },
       teamLeaderboard,
       individualLeaderboard,
       challengeLeaderboards,

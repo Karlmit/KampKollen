@@ -27,8 +27,8 @@ export function CompetitionLeaderboardPage() {
   const lb: CompetitionLeaderboard = data
   if (!lb) return <Layout title="Leaderboard"><p>Not found</p></Layout>
 
-  const rankEmoji = (rank: number) => rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`
   const isPlacementMode = lb.competition.scoringMode === 'placement_points'
+  const isLive = lb.competition.status === 'ACTIVE'
 
   const toggleChallenge = (ccId: string) =>
     setExpandedChallenge(prev => prev === ccId ? null : ccId)
@@ -57,8 +57,17 @@ export function CompetitionLeaderboardPage() {
 
   return (
     <Layout title={lb.competition.name} back={`/competitions/${id}`}>
-      {/* Scoring mode badge */}
-      <div style={{ marginBottom: '16px' }}>
+      {/* Status strip */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+        {isLive && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span className="live-dot" />
+            <span style={{
+              fontSize: '11px', fontFamily: 'var(--font-ui)', fontWeight: 700,
+              letterSpacing: '0.08em', color: '#d7283d',
+            }}>LIVE</span>
+          </div>
+        )}
         <span style={{
           display: 'inline-block', padding: '4px 10px', borderRadius: '99px',
           background: 'var(--surface)', border: '1px solid var(--border-light)',
@@ -74,7 +83,6 @@ export function CompetitionLeaderboardPage() {
         background: 'var(--surface)', borderRadius: 'var(--radius)',
         padding: '4px', marginBottom: '20px', gap: '4px',
       }}>
-        {/* Sliding pill highlight */}
         <span style={{
           position: 'absolute',
           top: 4, bottom: 4,
@@ -108,55 +116,159 @@ export function CompetitionLeaderboardPage() {
       {/* Teams leaderboard */}
       {view === 'teams' && (
         <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {lb.teamLeaderboard.map((team: LeaderboardTeam) => (
-            <Card key={team.teamId} style={{ border: team.rank === 1 ? '2px solid #ffd700' : undefined }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '28px', minWidth: '36px', textAlign: 'center' }}>
-                  {rankEmoji(team.rank)}
-                </span>
-                <Avatar src={team.teamImageUrl} name={team.teamName} size={44} style={{ borderRadius: 'var(--radius-sm)' }} />
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '16px' }}>{team.teamName}</p>
-                  <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{team.playerCount} players</p>
+          {lb.teamLeaderboard.map((team: LeaderboardTeam) => {
+            const isFirst = team.rank === 1
+            const rankLabel = team.rank === 1 ? '🥇' : team.rank === 2 ? '🥈' : team.rank === 3 ? '🥉' : String(team.rank)
+            return (
+              <Card
+                key={team.teamId}
+                style={{
+                  background: isFirst ? 'var(--text-primary)' : undefined,
+                  borderColor: isFirst ? 'var(--text-primary)' : undefined,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{
+                    fontSize: isFirst ? '28px' : '22px',
+                    minWidth: '36px',
+                    textAlign: 'center',
+                    lineHeight: 1,
+                  }}>
+                    {rankLabel}
+                  </span>
+                  <Avatar
+                    src={team.teamImageUrl}
+                    name={team.teamName}
+                    size={isFirst ? 48 : 40}
+                    style={{
+                      borderRadius: 'var(--radius-sm)',
+                      border: isFirst ? '2px solid rgba(255,255,255,0.25)' : undefined,
+                    }}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{
+                      fontFamily: 'var(--font-ui)', fontWeight: 700,
+                      fontSize: isFirst ? '18px' : '16px',
+                      color: isFirst ? '#fff' : undefined,
+                    }}>
+                      {team.teamName}
+                    </p>
+                    <p style={{
+                      fontSize: '12px',
+                      color: isFirst ? 'rgba(255,255,255,0.6)' : 'var(--text-muted)',
+                    }}>
+                      {team.playerCount} players
+                    </p>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <p style={{
+                      fontFamily: 'var(--font-ui)', fontWeight: 700,
+                      fontSize: isFirst ? '32px' : '22px',
+                      color: isFirst ? '#fff' : undefined,
+                      lineHeight: 1,
+                    }}>
+                      {team.totalPoints.toFixed(0)}
+                    </p>
+                    <p style={{
+                      fontSize: '11px',
+                      color: isFirst ? 'rgba(255,255,255,0.55)' : 'var(--text-muted)',
+                      marginTop: '2px',
+                    }}>pts</p>
+                  </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '20px' }}>
-                    {team.totalPoints.toFixed(0)}
-                  </p>
-                  <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>pts</p>
-                </div>
-              </div>
-            </Card>
-          ))}
+              </Card>
+            )
+          })}
         </div>
       )}
 
-      {/* Individual leaderboard — top 3 only */}
+      {/* Individual leaderboard */}
       {view === 'individual' && (
         <>
           <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {top3.map((p: any) => (
-              <Card key={p.userId} padding="12px">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ fontSize: '20px', minWidth: '28px', textAlign: 'center' }}>
-                    {rankEmoji(p.rank)}
-                  </span>
-                  <Avatar src={p.profileImageUrl} name={p.displayName ?? p.username ?? p.userId} size={36} />
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>
-                      <Link to={`/profile/${p.userId}`} style={{ color: 'inherit', textDecoration: 'none' }}>
-                        {p.displayName ?? p.username ?? p.userId}
-                      </Link>
+            {top3.map((p: any) => {
+              const isFirst = p.rank === 1
+              const rankLabel = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : '🥉'
+              return (
+                <Card
+                  key={p.userId}
+                  padding="12px"
+                  style={{
+                    background: isFirst ? 'var(--text-primary)' : undefined,
+                    borderColor: isFirst ? 'var(--text-primary)' : undefined,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span style={{ fontSize: '20px', minWidth: '28px', textAlign: 'center', lineHeight: 1 }}>
+                      {rankLabel}
+                    </span>
+                    <Avatar
+                      src={p.profileImageUrl}
+                      name={p.displayName ?? p.username ?? p.userId}
+                      size={36}
+                      style={{ border: isFirst ? '2px solid rgba(255,255,255,0.25)' : undefined }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <p style={{
+                        fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px',
+                        color: isFirst ? '#fff' : undefined,
+                      }}>
+                        <Link to={`/profile/${p.userId}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                          {p.displayName ?? p.username ?? p.userId}
+                        </Link>
+                      </p>
+                      {p.teamName && (
+                        <p style={{ fontSize: '12px', color: isFirst ? 'rgba(255,255,255,0.6)' : 'var(--text-muted)' }}>
+                          {p.teamName}
+                        </p>
+                      )}
+                    </div>
+                    <p style={{
+                      fontFamily: 'var(--font-ui)', fontWeight: 700,
+                      fontSize: isFirst ? '24px' : '18px',
+                      color: isFirst ? '#fff' : undefined,
+                    }}>
+                      {p.totalPoints.toFixed(0)}
                     </p>
+                  </div>
+                </Card>
+              )
+            })}
+          </div>
+
+          {lb.individualLeaderboard.length > 3 && (
+            <div style={{ marginTop: '8px' }}>
+              {lb.individualLeaderboard.slice(3).map((p: any) => (
+                <div
+                  key={p.userId}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '12px',
+                    padding: '10px 16px',
+                    borderBottom: '1px solid var(--border-light)',
+                  }}
+                >
+                  <span style={{
+                    fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px',
+                    color: 'var(--text-muted)', minWidth: '24px', textAlign: 'center',
+                  }}>
+                    {p.rank}
+                  </span>
+                  <Avatar src={p.profileImageUrl} name={p.displayName ?? p.username ?? p.userId} size={28} />
+                  <div style={{ flex: 1 }}>
+                    <Link to={`/profile/${p.userId}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                      <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>
+                        {p.displayName ?? p.username ?? p.userId}
+                      </p>
+                    </Link>
                     {p.teamName && <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{p.teamName}</p>}
                   </div>
-                  <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px' }}>
+                  <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '16px' }}>
                     {p.totalPoints.toFixed(0)}
                   </p>
                 </div>
-              </Card>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
           {lb.individualLeaderboard.length > 3 && (
             <Link
@@ -165,7 +277,7 @@ export function CompetitionLeaderboardPage() {
             >
               <Card padding="12px" style={{ textAlign: 'center', background: 'var(--surface)' }}>
                 <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, color: 'var(--accent)' }}>
-                  Full individual leaderboard ({lb.individualLeaderboard.length} players) →
+                  Full individual leaderboard ({lb.individualLeaderboard.length} players) ›
                 </p>
               </Card>
             </Link>
@@ -173,11 +285,14 @@ export function CompetitionLeaderboardPage() {
         </>
       )}
 
-      {/* Challenge breakdown — mirrors active tab */}
+      {/* Challenge breakdown */}
       {lb.challengeLeaderboards.length > 0 && (
         <section style={{ marginTop: '28px' }}>
-          <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '15px', marginBottom: '12px', color: 'var(--text-muted)' }}>
-            BY CHALLENGE
+          <h2 style={{
+            fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '0.08em',
+            textTransform: 'uppercase', marginBottom: '12px', color: 'var(--text-muted)',
+          }}>
+            By Challenge
           </h2>
           <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {lb.challengeLeaderboards.map((cl: any) => {
@@ -201,14 +316,14 @@ export function CompetitionLeaderboardPage() {
                           style={{ width: 36, height: 36, borderRadius: 'var(--radius-sm)', objectFit: 'cover', flexShrink: 0 }}
                         />
                       )}
-                      <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700 }}>
-                        {cl.challengeName}
+                      <div style={{ minWidth: 0 }}>
+                        <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {cl.challengeName}
+                        </p>
                         {cl.lowerIsBetter && (
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '6px' }}>
-                            (lower=better)
-                          </span>
+                          <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>lower = better</p>
                         )}
-                      </p>
+                      </div>
                     </div>
                     <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '8px', flexShrink: 0 }}>
                       {isExpanded ? '▲' : `▼ ${items.length}`}
@@ -218,13 +333,14 @@ export function CompetitionLeaderboardPage() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {visibleItems.map((item: any) => {
                       const isPlayer = view === 'individual'
+                      const itemRankLabel = item.rank === 1 ? '🥇' : item.rank === 2 ? '🥈' : item.rank === 3 ? '🥉' : `#${item.rank}`
                       return (
                         <div
                           key={isPlayer ? item.userId : item.teamId}
                           style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
-                            <span style={{ fontSize: '13px', flexShrink: 0 }}>{rankEmoji(item.rank)}</span>
+                            <span style={{ fontSize: '13px', flexShrink: 0 }}>{itemRankLabel}</span>
                             {isPlayer && (
                               <Avatar
                                 src={item.profileImageUrl}

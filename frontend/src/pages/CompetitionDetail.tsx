@@ -149,7 +149,7 @@ export function CompetitionDetail() {
                       {team.leader ? ` · Leader: ${team.leader.displayName ?? team.leader.username}` : ''}
                     </p>
                   </div>
-                  <span style={{ color: 'var(--text-muted)' }}>→</span>
+                  <span style={{ fontSize: '18px', color: 'var(--text-muted)', lineHeight: 1 }}>›</span>
                 </div>
               </Card>
             </Link>

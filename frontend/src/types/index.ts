@@ -103,7 +103,7 @@ export interface LeaderboardTeam {
 }
 
 export interface CompetitionLeaderboard {
-  competition: { id: string; name: string; scoringMode: CompetitionScoringMode }
+  competition: { id: string; name: string; scoringMode: CompetitionScoringMode; status?: string }
   teamLeaderboard: LeaderboardTeam[]
   individualLeaderboard: Array<{
     userId: string

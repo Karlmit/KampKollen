@@ -214,6 +214,46 @@ img {
   }
 }
 
+/* ─── Live indicator ─── */
+@keyframes livePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.6); }
+}
+.live-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #d7283d;
+  animation: livePulse 1.8s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+/* ─── Numpad button ─── */
+.numpad-btn {
+  padding: 18px 12px;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--border-light);
+  background: var(--background);
+  font-size: 22px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: transform 80ms var(--ease-out), background 80ms var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  touch-action: manipulation;
+}
+.numpad-btn:active {
+  transform: scale(0.91);
+  background: var(--surface);
+}
+.numpad-btn--action {
+  background: var(--surface);
+  color: var(--text-muted);
+}
+
 /* ─── Reduced motion ─── */
 @media (prefers-reduced-motion: reduce) {
   .page-enter,
@@ -221,12 +261,16 @@ img {
   .modal-overlay-enter,
   .modal-overlay-exit,
   .modal-sheet-enter,
-  .modal-sheet-exit {
+  .modal-sheet-exit,
+  .live-dot {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
   }
   .card-interactive {
     transition: box-shadow 150ms ease;
+  }
+  .numpad-btn {
+    transition: background 80ms ease;
   }
 }

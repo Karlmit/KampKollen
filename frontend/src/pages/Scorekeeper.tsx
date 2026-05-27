@@ -11,18 +11,6 @@ import { useAuth } from '../contexts/AuthContext'
 import { api } from '../api/client'
 import { ScoreType, SCORE_TYPE_LABELS } from '../types'
 
-const numpadBtnStyle: React.CSSProperties = {
-  padding: '16px',
-  borderRadius: 'var(--radius)',
-  border: '1.5px solid var(--border-light)',
-  background: 'var(--surface)',
-  fontSize: '20px',
-  fontFamily: 'var(--font-ui)',
-  fontWeight: 700,
-  cursor: 'pointer',
-  color: 'var(--text-primary)',
-}
-
 function NumpadModal({ open, onClose, playerName, currentValue, scoreLabel, onSave, onDelete }: {
   open: boolean
   onClose: () => void
@@ -64,26 +52,52 @@ function NumpadModal({ open, onClose, playerName, currentValue, scoreLabel, onSa
         </>
       }
     >
+      {/* Score display */}
       <div style={{
-        background: 'var(--surface)', borderRadius: 'var(--radius)',
-        padding: '12px 16px', marginBottom: '8px', textAlign: 'center',
-        fontSize: '32px', fontFamily: 'var(--font-ui)', fontWeight: 700,
-        minHeight: '56px', letterSpacing: '2px',
+        background: 'var(--surface)',
+        borderRadius: 'var(--radius)',
+        padding: '16px 20px',
+        marginBottom: '6px',
+        textAlign: 'center',
+        minHeight: '76px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}>
-        {input || <span style={{ color: 'var(--text-muted)', fontSize: '24px' }}>—</span>}
+        {input ? (
+          <span style={{
+            fontSize: '52px', fontFamily: 'var(--font-ui)', fontWeight: 700,
+            lineHeight: 1, letterSpacing: '-1px', color: 'var(--text-primary)',
+          }}>
+            {input}
+          </span>
+        ) : (
+          <span style={{
+            fontSize: '28px', fontFamily: 'var(--font-ui)', fontWeight: 700,
+            color: 'var(--border-light)', letterSpacing: '4px',
+          }}>
+            — — —
+          </span>
+        )}
       </div>
-      <p style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', marginBottom: '14px' }}>
+      <p style={{
+        fontSize: '12px', color: 'var(--text-muted)',
+        textAlign: 'center', marginBottom: '16px',
+      }}>
         {scoreLabel}
       </p>
+
+      {/* Numpad grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
         {['7', '8', '9', '4', '5', '6', '1', '2', '3'].map(d => (
-          <button key={d} onClick={() => push(d)} style={numpadBtnStyle}>{d}</button>
+          <button key={d} className="numpad-btn" onClick={() => push(d)}>{d}</button>
         ))}
-        <button onClick={() => push('.')} style={numpadBtnStyle}>.</button>
-        <button onClick={() => push('0')} style={numpadBtnStyle}>0</button>
+        <button className="numpad-btn numpad-btn--action" onClick={() => push('.')}>.</button>
+        <button className="numpad-btn" onClick={() => push('0')}>0</button>
         <button
+          className="numpad-btn numpad-btn--action"
           onClick={() => setInput(s => s.slice(0, -1))}
-          style={{ ...numpadBtnStyle, color: 'var(--accent-warm)' }}
+          style={{ color: 'var(--accent-warm)' }}
         >
           ⌫
         </button>

@@ -28,20 +28,23 @@ export function CompetitionList() {
         <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {competitions.map((comp: Competition) => (
             <Link to={`/competitions/${comp.id}`} key={comp.id} style={{ textDecoration: 'none' }}>
-              <Card>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div>
-                    <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '16px', marginBottom: '4px' }}>
-                      {comp.name}
-                    </p>
+              <Card className="card-interactive">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
+                      {comp.status === 'ACTIVE' && <span className="live-dot" />}
+                      <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '16px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {comp.name}
+                      </p>
+                    </div>
                     <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
                       {comp.date ? formatDate(comp.date) + ' · ' : ''}
                       {comp.teams?.length ?? 0} teams · {comp._count?.players ?? 0} players
                     </p>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px', flexShrink: 0 }}>
                     <StatusBadge status={comp.status} />
-                    <span style={{ fontSize: '18px', color: 'var(--text-muted)' }}>→</span>
+                    <span style={{ fontSize: '18px', color: 'var(--text-muted)', lineHeight: 1 }}>›</span>
                   </div>
                 </div>
               </Card>
