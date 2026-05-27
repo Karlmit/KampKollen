@@ -2,6 +2,7 @@ import axios from 'axios'
 import fs from 'fs/promises'
 import path from 'path'
 import { config } from '../config.js'
+import { getAzureConfig } from '../routes/settings.js'
 
 export interface GenerateImageOptions {
   prompt: string
@@ -38,7 +39,7 @@ export async function generateImage(
   opts: GenerateImageOptions,
   subDir: string = 'generated'
 ): Promise<GenerateImageResult> {
-  const { imageEndpoint, imageApiKey, imageModel } = config.azure
+  const { endpoint: imageEndpoint, apiKey: imageApiKey, model: imageModel } = await getAzureConfig()
 
   if (!imageEndpoint || !imageApiKey) {
     return generatePlaceholder(opts.prompt, subDir)

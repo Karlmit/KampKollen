@@ -92,6 +92,12 @@ export const api = {
     delete: (id: string) => request(`/scores/${id}`, { method: 'DELETE' }),
   },
 
+  // Admin settings
+  settings: {
+    get: () => request<{ settings: Record<string, string>; envDefaults: Record<string, string> }>('/admin/settings'),
+    update: (data: Record<string, string>) => request('/admin/settings', { method: 'PUT', body: JSON.stringify(data) }),
+  },
+
   // Leaderboards
   leaderboards: {
     competition: (id: string) => request<any>(`/leaderboards/competition/${id}`),

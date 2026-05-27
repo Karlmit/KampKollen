@@ -7,6 +7,7 @@ const sections = [
   { to: '/admin/competitions', icon: '🏆', label: 'Competitions' },
   { to: '/admin/challenges', icon: '⚔️', label: 'Challenges' },
   { to: '/admin/users', icon: '👥', label: 'Users' },
+  { to: '/admin/settings', icon: '🔧', label: 'Settings' },
 ]
 
 export function AdminLayout({ children, title }: { children: ReactNode; title: string }) {

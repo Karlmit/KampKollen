@@ -140,6 +140,12 @@ model CompetitionPlayer {
   @@unique([competitionId, userId])
 }
 
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
 model Score {
   id                     String               @id @default(cuid())
   competitionId          String
