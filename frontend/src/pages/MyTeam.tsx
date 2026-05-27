@@ -132,6 +132,17 @@ export function MyTeamPage() {
                     {p.isScorekeeper && <Badge variant="success" style={{ fontSize: '11px' }}>Scorekeeper</Badge>}
                   </div>
                 </div>
+                {canManage && p.userId === user?.id && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => removePlayerMutation.mutate(p.userId)}
+                    loading={removePlayerMutation.isPending}
+                    style={{ fontSize: '12px', padding: '4px 10px' }}
+                  >
+                    Leave
+                  </Button>
+                )}
                 {canManage && p.userId !== user?.id && (
                   <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                     {isAdmin && (
