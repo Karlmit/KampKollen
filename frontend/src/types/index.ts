@@ -1,0 +1,142 @@
+export type GlobalRole = 'PLAYER' | 'SCOREKEEPER' | 'ADMIN'
+export type CompetitionStatus = 'DRAFT' | 'REGISTRATION' | 'ACTIVE' | 'COMPLETED' | 'ARCHIVED'
+export type ScoreType = 'number_highest_wins' | 'number_lowest_wins' | 'time_fastest_wins' | 'ranked_points' | 'placement_lowest_wins' | 'manual_points' | 'win_loss'
+export type TeamScoreMode = 'sum_all_players' | 'best_n_players' | 'average_score' | 'manual_team_score'
+export type CompetitionScoringMode = 'raw_sum' | 'placement_points'
+
+export interface User {
+  id: string
+  username: string
+  displayName?: string
+  realName?: string
+  profileImageUrl?: string
+  globalRole: GlobalRole
+  createdAt: string
+}
+
+export interface Competition {
+  id: string
+  name: string
+  date?: string
+  imageUrl?: string
+  status: CompetitionStatus
+  scoringMode?: CompetitionScoringMode
+  createdAt: string
+  teams?: Team[]
+  players?: CompetitionPlayer[]
+  challenges?: CompetitionChallenge[]
+  _count?: { players: number }
+}
+
+export interface Challenge {
+  id: string
+  name: string
+  description?: string
+  logoUrl?: string
+  scoreType: ScoreType
+  defaultTeamScoreMode: TeamScoreMode
+  bestNPlayers?: number
+  isGlobalTemplate: boolean
+  createdAt: string
+}
+
+export interface CompetitionChallenge {
+  id: string
+  competitionId: string
+  challengeId: string
+  challenge: Challenge
+  order: number
+  scoreTypeOverride?: ScoreType
+  teamScoreModeOverride?: TeamScoreMode
+  bestNPlayersOverride?: number
+}
+
+export interface Team {
+  id: string
+  competitionId: string
+  name: string
+  imageUrl?: string
+  leaderUserId?: string
+  leader?: Pick<User, 'id' | 'username' | 'displayName'>
+  players?: CompetitionPlayer[]
+  createdAt: string
+}
+
+export interface CompetitionPlayer {
+  id: string
+  competitionId: string
+  userId: string
+  user: Pick<User, 'id' | 'username' | 'displayName' | 'profileImageUrl'>
+  teamId?: string
+  team?: Pick<Team, 'id' | 'name'>
+  isTeamLeader: boolean
+  isScorekeeper: boolean
+  joinedAt: string
+}
+
+export interface Score {
+  id: string
+  competitionId: string
+  competitionChallengeId: string
+  competitionChallenge?: CompetitionChallenge
+  userId: string
+  player?: Pick<User, 'id' | 'username' | 'displayName' | 'profileImageUrl'>
+  rawScore?: number
+  timeMs?: number
+  placement?: number
+  calculatedPoints?: number
+  enteredByUserId: string
+  enteredByUser?: Pick<User, 'id' | 'username'>
+  note?: string
+  createdAt: string
+}
+
+export interface LeaderboardTeam {
+  teamId: string
+  teamName: string
+  teamImageUrl?: string
+  totalPoints: number
+  rank: number
+  challengeBreakdown: Record<string, number>
+  playerCount: number
+}
+
+export interface CompetitionLeaderboard {
+  competition: { id: string; name: string; scoringMode: CompetitionScoringMode }
+  teamLeaderboard: LeaderboardTeam[]
+  individualLeaderboard: Array<{
+    userId: string
+    teamId?: string
+    teamName?: string
+    totalPoints: number
+    rank: number
+  }>
+  challengeLeaderboards: Array<{
+    challengeId: string
+    competitionChallengeId: string
+    challengeName: string
+    challengeLogoUrl?: string
+    order: number
+    scoreType: ScoreType
+    teamScoreMode: TeamScoreMode
+    lowerIsBetter: boolean
+    teams: Array<{ teamId: string; teamName: string; score: number; rank: number; placementPoints?: number }>
+  }>
+}
+
+export const SCORE_TYPE_LABELS: Record<ScoreType, string> = {
+  number_highest_wins: 'Highest Score Wins',
+  number_lowest_wins: 'Lowest Score Wins',
+  time_fastest_wins: 'Fastest Time Wins',
+  ranked_points: 'Ranked Points (10-8-6-4-2)',
+  placement_lowest_wins: 'Placement (Golf Style)',
+  manual_points: 'Manual Points',
+  win_loss: 'Win / Loss',
+}
+
+export const TEAM_SCORE_MODE_LABELS: Record<TeamScoreMode, string> = {
+  sum_all_players: 'Sum All Players',
+  best_n_players: 'Best N Players',
+  average_score: 'Average Score',
+  manual_team_score: 'Manual Team Score',
+}

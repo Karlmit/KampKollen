@@ -1,0 +1,112 @@
+import { FastifyInstance } from 'fastify'
+import { z } from 'zod'
+import { GlobalRole } from '@prisma/client'
+import { prisma } from '../db.js'
+import { hashPassword, validatePassword } from '../lib/auth.js'
+import { requireAuth, requireAdmin } from '../middleware/auth.js'
+import { generateImage, DEFAULT_PROMPTS } from '../lib/imageGeneration.js'
+
+const updateUserSchema = z.object({
+  displayName: z.string().max(64).optional(),
+  realName: z.string().max(128).optional(),
+  globalRole: z.nativeEnum(GlobalRole).optional(),
+  password: z.string().min(4).max(128).optional(),
+})
+
+const userSelect = {
+  id: true, username: true, displayName: true, realName: true,
+  profileImageUrl: true, globalRole: true, createdAt: true,
+}
+
+export async function userRoutes(app: FastifyInstance) {
+  app.get('/', { preHandler: requireAdmin }, async () => {
+    const users = await prisma.user.findMany({ select: userSelect, orderBy: { createdAt: 'asc' } })
+    return { users }
+  })
+
+  app.get('/:id', { preHandler: requireAuth }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const me = request.user as { id: string }
+
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        ...userSelect,
+        competitionPlayers: {
+          include: {
+            competition: true,
+            team: true,
+          },
+          orderBy: { joinedAt: 'desc' },
+        },
+        scores: {
+          include: {
+            competitionChallenge: { include: { challenge: true, competition: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    })
+
+    if (!user) return reply.status(404).send({ error: 'User not found' })
+    return { user }
+  })
+
+  app.put('/:id', { preHandler: requireAuth }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const me = request.user as { id: string; role: GlobalRole }
+
+    if (me.id !== id && me.role !== GlobalRole.ADMIN) {
+      return reply.status(403).send({ error: 'Forbidden' })
+    }
+
+    const body = updateUserSchema.safeParse(request.body)
+    if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
+
+    const { password, globalRole, ...rest } = body.data
+
+    if (globalRole !== undefined && me.role !== GlobalRole.ADMIN) {
+      return reply.status(403).send({ error: 'Only admins can change roles' })
+    }
+
+    const data: Record<string, unknown> = { ...rest }
+    if (globalRole !== undefined) data.globalRole = globalRole
+    if (password) {
+      const err = validatePassword(password)
+      if (err) return reply.status(400).send({ error: err })
+      data.passwordHash = await hashPassword(password)
+    }
+
+    const user = await prisma.user.update({ where: { id }, data, select: userSelect })
+    return { user }
+  })
+
+  app.delete('/:id', { preHandler: requireAdmin }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    await prisma.user.delete({ where: { id } })
+    return { success: true }
+  })
+
+  app.post('/:id/generate-image', { preHandler: requireAuth }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const me = request.user as { id: string; role: GlobalRole }
+    const body = request.body as { prompt?: string }
+
+    if (me.id !== id && me.role !== GlobalRole.ADMIN) {
+      return reply.status(403).send({ error: 'Forbidden' })
+    }
+
+    const user = await prisma.user.findUnique({ where: { id }, select: { username: true } })
+    if (!user) return reply.status(404).send({ error: 'User not found' })
+
+    const prompt = body.prompt ?? DEFAULT_PROMPTS.profile
+    const result = await generateImage({ prompt }, 'profiles')
+    const updated = await prisma.user.update({
+      where: { id },
+      data: { profileImageUrl: result.publicUrl },
+      select: userSelect,
+    })
+
+    return { user: updated, imageUrl: result.publicUrl }
+  })
+}

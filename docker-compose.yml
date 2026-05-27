@@ -1,0 +1,44 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "7666:7666"
+    environment:
+      NODE_ENV: production
+      PORT: 7666
+      DATABASE_URL: postgresql://kampkollen:kampkollen@db:5432/kampkollen
+      JWT_SECRET: ${JWT_SECRET:-change_this_in_production_super_secret_key_min_32_chars}
+      COOKIE_SECRET: ${COOKIE_SECRET:-change_this_cookie_secret_in_production_min_32}
+      FRONTEND_URL: http://localhost:7666
+      AZURE_AI_IMAGE_ENDPOINT: ${AZURE_AI_IMAGE_ENDPOINT:-}
+      AZURE_AI_IMAGE_API_KEY: ${AZURE_AI_IMAGE_API_KEY:-}
+      AZURE_AI_IMAGE_MODEL: ${AZURE_AI_IMAGE_MODEL:-MAI-Image-2e}
+      AZURE_AI_IMAGE_API_VERSION: ${AZURE_AI_IMAGE_API_VERSION:-preview}
+      SEED_DB: ${SEED_DB:-false}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - uploads_data:/app/uploads
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: kampkollen
+      POSTGRES_PASSWORD: kampkollen
+      POSTGRES_DB: kampkollen
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kampkollen"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  uploads_data:

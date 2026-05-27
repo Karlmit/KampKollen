@@ -1,0 +1,162 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum GlobalRole {
+  PLAYER
+  SCOREKEEPER
+  ADMIN
+}
+
+enum CompetitionStatus {
+  DRAFT
+  REGISTRATION
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum ScoreType {
+  number_highest_wins
+  number_lowest_wins
+  time_fastest_wins
+  ranked_points
+  placement_lowest_wins
+  manual_points
+  win_loss
+}
+
+enum TeamScoreMode {
+  sum_all_players
+  best_n_players
+  average_score
+  manual_team_score
+}
+
+enum CompetitionScoringMode {
+  raw_sum
+  placement_points
+}
+
+model User {
+  id              String     @id @default(cuid())
+  username        String     @unique
+  passwordHash    String
+  displayName     String?
+  realName        String?
+  profileImageUrl String?
+  globalRole      GlobalRole @default(PLAYER)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  createdCompetitions Competition[]       @relation("CompetitionCreatedBy")
+  competitionPlayers  CompetitionPlayer[]
+  scores              Score[]             @relation("ScorePlayer")
+  enteredScores       Score[]             @relation("ScoreEnteredBy")
+  teamLeaderships     Team[]              @relation("TeamLeader")
+}
+
+model Competition {
+  id              String                 @id @default(cuid())
+  name            String
+  date            DateTime?
+  imageUrl        String?
+  status          CompetitionStatus      @default(DRAFT)
+  scoringMode     CompetitionScoringMode @default(raw_sum)
+  createdByUserId String
+  createdByUser   User                   @relation("CompetitionCreatedBy", fields: [createdByUserId], references: [id])
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  challenges CompetitionChallenge[]
+  teams      Team[]
+  players    CompetitionPlayer[]
+  scores     Score[]
+}
+
+model Challenge {
+  id                   String        @id @default(cuid())
+  name                 String
+  description          String?
+  logoUrl              String?
+  scoreType            ScoreType     @default(number_highest_wins)
+  defaultTeamScoreMode TeamScoreMode @default(sum_all_players)
+  bestNPlayers         Int?
+  isGlobalTemplate     Boolean       @default(false)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  competitionChallenges CompetitionChallenge[]
+}
+
+model CompetitionChallenge {
+  id                    String        @id @default(cuid())
+  competitionId         String
+  competition           Competition   @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  challengeId           String
+  challenge             Challenge     @relation(fields: [challengeId], references: [id])
+  order                 Int           @default(0)
+  scoreTypeOverride     ScoreType?
+  teamScoreModeOverride TeamScoreMode?
+  bestNPlayersOverride  Int?
+
+  scores Score[]
+
+  @@unique([competitionId, challengeId])
+}
+
+model Team {
+  id            String    @id @default(cuid())
+  competitionId String
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  name          String
+  imageUrl      String?
+  leaderUserId  String?
+  leader        User?     @relation("TeamLeader", fields: [leaderUserId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  players CompetitionPlayer[]
+}
+
+model CompetitionPlayer {
+  id            String      @id @default(cuid())
+  competitionId String
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User        @relation(fields: [userId], references: [id])
+  teamId        String?
+  team          Team?       @relation(fields: [teamId], references: [id])
+  isTeamLeader  Boolean     @default(false)
+  isScorekeeper Boolean     @default(false)
+  joinedAt      DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([competitionId, userId])
+}
+
+model Score {
+  id                     String               @id @default(cuid())
+  competitionId          String
+  competition            Competition          @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  competitionChallengeId String
+  competitionChallenge   CompetitionChallenge @relation(fields: [competitionChallengeId], references: [id], onDelete: Cascade)
+  userId                 String
+  player                 User                 @relation("ScorePlayer", fields: [userId], references: [id])
+  rawScore               Float?
+  timeMs                 Int?
+  placement              Int?
+  calculatedPoints       Float?
+  enteredByUserId        String
+  enteredByUser          User                 @relation("ScoreEnteredBy", fields: [enteredByUserId], references: [id])
+  note                   String?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+
+  @@unique([competitionChallengeId, userId])
+}
