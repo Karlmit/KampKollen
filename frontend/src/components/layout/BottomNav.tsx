@@ -1,4 +1,4 @@
-import { useRef, useState, useLayoutEffect } from 'react'
+import { useRef, useState, useLayoutEffect, useEffect } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -26,14 +26,27 @@ export function BottomNav() {
   const items = isAdmin ? [...NAV_ITEMS, ADMIN_ITEM] : NAV_ITEMS
   const activeItem = items.find(item => matchItem(item.to, location.pathname))
 
+  // Snap to initial position before first paint — no transition, no flash
   useLayoutEffect(() => {
+    if (mounted.current) return
     const nav = navRef.current
     const el = activeItem ? itemRefs.current[activeItem.to] : null
     if (!nav || !el) return
     const nr = nav.getBoundingClientRect()
     const er = el.getBoundingClientRect()
-    setInd({ left: er.left - nr.left, width: er.width, animate: mounted.current })
+    setInd({ left: er.left - nr.left, width: er.width, animate: false })
     mounted.current = true
+  }, [activeItem?.to])
+
+  // Animate on subsequent tab changes — runs after paint so CSS transition fires
+  useEffect(() => {
+    if (!mounted.current) return
+    const nav = navRef.current
+    const el = activeItem ? itemRefs.current[activeItem.to] : null
+    if (!nav || !el) return
+    const nr = nav.getBoundingClientRect()
+    const er = el.getBoundingClientRect()
+    setInd({ left: er.left - nr.left, width: er.width, animate: true })
   }, [activeItem?.to])
 
   return (

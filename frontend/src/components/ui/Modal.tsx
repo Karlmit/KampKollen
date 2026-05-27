@@ -78,7 +78,7 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
         </div>
         <div style={{ padding: '16px 20px', overflowY: 'auto', flex: 1 }}>{children}</div>
         {footer && (
-          <div style={{ padding: '12px 20px 20px', borderTop: '1px solid var(--border-light)', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+          <div style={{ padding: '12px 20px calc(20px + var(--safe-bottom))', borderTop: '1px solid var(--border-light)', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
             {footer}
           </div>
         )}
