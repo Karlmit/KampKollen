@@ -12,6 +12,7 @@ import { formatDate } from '../utils'
 import { TabBar } from '../components/ui/TabBar'
 import { api } from '../api/client'
 import { Competition, CompetitionPlayer, Team, SCORE_TYPE_LABELS } from '../types'
+import { GuestCompetitionView } from './GuestCompetitionView'
 
 type Tab = 'overview' | 'teams' | 'challenges' | 'pool'
 
@@ -35,6 +36,9 @@ export function CompetitionDetail() {
   if (isLoading) return <Layout title="Competition"><LoadingSpinner /></Layout>
   const comp: Competition = data?.competition
   if (!comp) return <Layout title="Competition"><p>Not found</p></Layout>
+
+  // Guests get a purpose-built read-only spectator view
+  if (!user) return <GuestCompetitionView id={id!} />
 
   const myPlayer = comp.players?.find((p: CompetitionPlayer) => p.userId === user?.id)
   const isJoined = !!myPlayer
