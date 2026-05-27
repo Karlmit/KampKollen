@@ -10,6 +10,7 @@ import { Profile } from './pages/Profile'
 import { CompetitionList } from './pages/CompetitionList'
 import { CompetitionDetail } from './pages/CompetitionDetail'
 import { CompetitionLeaderboardPage } from './pages/Leaderboard'
+import { IndividualLeaderboardPage } from './pages/IndividualLeaderboard'
 import { GlobalLeaderboard } from './pages/GlobalLeaderboard'
 import { MyTeamPage } from './pages/MyTeam'
 import { ScorekeeperPage } from './pages/Scorekeeper'
@@ -49,6 +50,7 @@ function AppRoutes() {
       <Route path="/competitions" element={<RequireAuth><CompetitionList /></RequireAuth>} />
       <Route path="/competitions/:id" element={<RequireAuth><CompetitionDetail /></RequireAuth>} />
       <Route path="/competitions/:id/leaderboard" element={<RequireAuth><CompetitionLeaderboardPage /></RequireAuth>} />
+      <Route path="/competitions/:id/leaderboard/individual" element={<RequireAuth><IndividualLeaderboardPage /></RequireAuth>} />
       <Route path="/competitions/:competitionId/team/:teamId" element={<RequireAuth><MyTeamPage /></RequireAuth>} />
       <Route path="/competitions/:id/scores" element={<RequireAuth><ScorekeeperPage /></RequireAuth>} />
       <Route path="/leaderboard" element={<RequireAuth><GlobalLeaderboard /></RequireAuth>} />

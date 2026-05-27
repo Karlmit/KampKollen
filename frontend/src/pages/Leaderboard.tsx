@@ -53,6 +53,8 @@ export function CompetitionLeaderboardPage() {
     )
   }
 
+  const top3 = lb.individualLeaderboard.slice(0, 3)
+
   return (
     <Layout title={lb.competition.name} back={`/competitions/${id}`}>
       {/* Scoring mode badge */}
@@ -115,31 +117,46 @@ export function CompetitionLeaderboardPage() {
         </div>
       )}
 
-      {/* Individual leaderboard */}
+      {/* Individual leaderboard — top 3 only */}
       {view === 'individual' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {lb.individualLeaderboard.map((p: any) => (
-            <Card key={p.userId} padding="12px">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '20px', minWidth: '28px', textAlign: 'center' }}>
-                  {rankEmoji(p.rank)}
-                </span>
-                <Avatar src={p.profileImageUrl} name={p.displayName ?? p.username ?? p.userId} size={36} />
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>
-                    <Link to={`/profile/${p.userId}`} style={{ color: 'inherit', textDecoration: 'none' }}>
-                      {p.displayName ?? p.username ?? p.userId}
-                    </Link>
+        <>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {top3.map((p: any) => (
+              <Card key={p.userId} padding="12px">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ fontSize: '20px', minWidth: '28px', textAlign: 'center' }}>
+                    {rankEmoji(p.rank)}
+                  </span>
+                  <Avatar src={p.profileImageUrl} name={p.displayName ?? p.username ?? p.userId} size={36} />
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>
+                      <Link to={`/profile/${p.userId}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                        {p.displayName ?? p.username ?? p.userId}
+                      </Link>
+                    </p>
+                    {p.teamName && <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{p.teamName}</p>}
+                  </div>
+                  <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px' }}>
+                    {p.totalPoints.toFixed(0)}
                   </p>
-                  {p.teamName && <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{p.teamName}</p>}
                 </div>
-                <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px' }}>
-                  {p.totalPoints.toFixed(0)}
+              </Card>
+            ))}
+          </div>
+
+          {lb.individualLeaderboard.length > 3 && (
+            <Link
+              to={`/competitions/${id}/leaderboard/individual`}
+              style={{ textDecoration: 'none', display: 'block', marginTop: '10px' }}
+            >
+              <Card padding="12px" style={{ textAlign: 'center', background: 'var(--surface)' }}>
+                <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, color: 'var(--accent)' }}>
+                  Full individual leaderboard ({lb.individualLeaderboard.length} players) →
                 </p>
-              </div>
-            </Card>
-          ))}
-        </div>
+              </Card>
+            </Link>
+          )}
+        </>
       )}
 
       {/* Challenge breakdown — mirrors active tab */}
@@ -161,7 +178,6 @@ export function CompetitionLeaderboardPage() {
                   style={{ cursor: 'pointer', userSelect: 'none' }}
                   onClick={() => toggleChallenge(cl.competitionChallengeId)}
                 >
-                  {/* Header */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                     <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700 }}>
                       {cl.challengeName}
@@ -176,7 +192,6 @@ export function CompetitionLeaderboardPage() {
                     </span>
                   </div>
 
-                  {/* Rows */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {visibleItems.map((item: any) => {
                       const isPlayer = view === 'individual'
@@ -194,17 +209,24 @@ export function CompetitionLeaderboardPage() {
                                 size={24}
                               />
                             )}
-                            <span style={{ fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {isPlayer ? (
-                                <Link
-                                  to={`/profile/${item.userId}`}
-                                  onClick={e => e.stopPropagation()}
-                                  style={{ color: 'inherit', textDecoration: 'none' }}
-                                >
-                                  {item.displayName ?? item.username ?? item.userId}
-                                </Link>
-                              ) : item.teamName}
-                            </span>
+                            <div style={{ minWidth: 0 }}>
+                              <p style={{ fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {isPlayer ? (
+                                  <Link
+                                    to={`/profile/${item.userId}`}
+                                    onClick={e => e.stopPropagation()}
+                                    style={{ color: 'inherit', textDecoration: 'none' }}
+                                  >
+                                    {item.displayName ?? item.username ?? item.userId}
+                                  </Link>
+                                ) : item.teamName}
+                              </p>
+                              {isPlayer && item.teamName && (
+                                <p style={{ fontSize: '11px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {item.teamName}
+                                </p>
+                              )}
+                            </div>
                           </div>
                           {renderScore(item.score, item.placementPoints)}
                         </div>

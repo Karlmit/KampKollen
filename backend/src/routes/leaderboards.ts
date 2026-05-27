@@ -121,11 +121,14 @@ export async function leaderboardRoutes(app: FastifyInstance) {
         .sort(([, a], [, b]) => lowerBetter ? a - b : b - a)
         .map(([userId, score], i) => {
           const cp = competition.players.find(p => p.userId === userId)
+          const team = competition.teams.find(t => t.id === cp?.teamId)
           return {
             userId,
             displayName: cp?.user?.displayName ?? null,
             username: cp?.user?.username ?? null,
             profileImageUrl: cp?.user?.profileImageUrl ?? null,
+            teamId: cp?.teamId ?? null,
+            teamName: team?.name ?? null,
             score,
             rank: i + 1,
             ...(competition.scoringMode === 'placement_points' && score > 0
