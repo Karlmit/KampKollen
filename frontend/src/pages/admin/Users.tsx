@@ -17,6 +17,7 @@ export function AdminUsers() {
   const qc = useQueryClient()
   const [editUser, setEditUser] = useState<any>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<any>(null)
+  const [deleteError, setDeleteError] = useState('')
   const [form, setForm] = useState({ globalRole: '', password: '', displayName: '' })
 
   const { data, isLoading } = useQuery({ queryKey: ['users'], queryFn: () => api.users.list() })
@@ -32,7 +33,8 @@ export function AdminUsers() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.users.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); setDeleteConfirm(null) },
+    onError: (err: any) => setDeleteError(err.message ?? 'Delete failed'),
   })
 
   const openEdit = (u: any) => {
@@ -76,18 +78,26 @@ export function AdminUsers() {
         </div>
       )}
 
-      <Modal open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="Delete User"
+      <Modal
+        open={!!deleteConfirm}
+        onClose={() => { setDeleteConfirm(null); setDeleteError('') }}
+        title="Delete User"
         footer={
           <>
-            <Button variant="ghost" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
-            <Button variant="danger" onClick={() => { deleteMutation.mutate(deleteConfirm.id); setDeleteConfirm(null) }} loading={deleteMutation.isPending}>
+            <Button variant="ghost" onClick={() => { setDeleteConfirm(null); setDeleteError('') }}>Cancel</Button>
+            <Button variant="danger" onClick={() => { setDeleteError(''); deleteMutation.mutate(deleteConfirm.id) }} loading={deleteMutation.isPending}>
               Delete
             </Button>
           </>
         }
       >
         <p style={{ fontSize: '15px' }}>Delete <strong>{deleteConfirm?.displayName ?? deleteConfirm?.username}</strong>?</p>
-        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px' }}>This cannot be undone.</p>
+        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px' }}>This cannot be undone. Their scores will be removed.</p>
+        {deleteError && (
+          <p style={{ fontSize: '13px', color: 'var(--accent-warm)', marginTop: '10px', fontFamily: 'var(--font-ui)' }}>
+            {deleteError}
+          </p>
+        )}
       </Modal>
 
       <Modal open={!!editUser} onClose={() => setEditUser(null)} title={`Edit: ${editUser?.username}`}

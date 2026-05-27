@@ -83,7 +83,22 @@ export async function userRoutes(app: FastifyInstance) {
 
   app.delete('/:id', { preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
-    await prisma.user.delete({ where: { id } })
+    const me = request.user as { id: string }
+
+    if (id === me.id) return reply.status(400).send({ error: 'Cannot delete your own account' })
+
+    await prisma.$transaction(async tx => {
+      // Reassign competitions/scores this user created so data isn't lost
+      await tx.competition.updateMany({ where: { createdByUserId: id }, data: { createdByUserId: me.id } })
+      await tx.score.updateMany({ where: { enteredByUserId: id }, data: { enteredByUserId: me.id } })
+      // Clear team leadership
+      await tx.team.updateMany({ where: { leaderUserId: id }, data: { leaderUserId: null } })
+      // Remove from all competitions and delete their own scores
+      await tx.competitionPlayer.deleteMany({ where: { userId: id } })
+      await tx.score.deleteMany({ where: { userId: id } })
+      await tx.user.delete({ where: { id } })
+    })
+
     return { success: true }
   })
 
