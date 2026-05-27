@@ -61,6 +61,12 @@ export function MyTeamPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['competition', competitionId] }),
   })
 
+  const toggleLeaderMutation = useMutation({
+    mutationFn: ({ userId, isTeamLeader }: { userId: string; isTeamLeader: boolean }) =>
+      api.competitions.updatePlayer(competitionId!, userId, { isTeamLeader }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['competition', competitionId] }),
+  })
+
   if (isLoading) return <Layout title="Team"><LoadingSpinner /></Layout>
 
   const comp = compData?.competition
@@ -127,7 +133,18 @@ export function MyTeamPage() {
                   </div>
                 </div>
                 {canManage && p.userId !== user?.id && (
-                  <div style={{ display: 'flex', gap: '4px' }}>
+                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    {isAdmin && (
+                      <Button
+                        size="sm"
+                        variant={p.isTeamLeader ? 'success' : 'ghost'}
+                        onClick={() => toggleLeaderMutation.mutate({ userId: p.userId, isTeamLeader: !p.isTeamLeader })}
+                        loading={toggleLeaderMutation.isPending}
+                        style={{ fontSize: '11px', padding: '4px 10px' }}
+                      >
+                        {p.isTeamLeader ? '⭐ Leader' : 'Leader'}
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant={p.isScorekeeper ? 'success' : 'ghost'}

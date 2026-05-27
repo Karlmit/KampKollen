@@ -85,7 +85,7 @@ export function CompetitionDetail() {
         <Link to={`/competitions/${id}/leaderboard`}>
           <Button variant="ghost" size="sm">📊 Leaderboard</Button>
         </Link>
-        {(isAdmin || myPlayer?.isScorekeeper) && (
+        {(isAdmin || myPlayer?.isTeamLeader || myPlayer?.isScorekeeper) && (
           <Link to={`/competitions/${id}/scores`}>
             <Button variant="ghost" size="sm">✏️ Enter Scores</Button>
           </Link>
