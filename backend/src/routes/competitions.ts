@@ -159,6 +159,19 @@ export async function competitionRoutes(app: FastifyInstance) {
     return { success: true }
   })
 
+  app.put('/:id/challenges/reorder', { preHandler: requireAdmin }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const { order } = request.body as { order: string[] }
+    if (!Array.isArray(order)) return reply.status(400).send({ error: 'order must be an array' })
+    await Promise.all(order.map((ccId, i) =>
+      prisma.competitionChallenge.updateMany({
+        where: { id: ccId, competitionId: id },
+        data: { order: i },
+      })
+    ))
+    return { success: true }
+  })
+
   app.post('/:id/join', { preHandler: requireAuth }, async (request, reply) => {
     const { id } = request.params as { id: string }
     const me = request.user as { id: string }

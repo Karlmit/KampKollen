@@ -1,6 +1,15 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import {
+  DndContext, closestCenter, PointerSensor, TouchSensor,
+  useSensor, useSensors, DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext, verticalListSortingStrategy,
+  useSortable, arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { AdminLayout } from './AdminLayout'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
@@ -14,6 +23,39 @@ import { api } from '../../api/client'
 import { formatDate } from '../../utils'
 
 type Tab = 'players' | 'teams' | 'challenges' | 'status'
+
+function SortableChallenge({ cc, index, onRemove }: { cc: any; index: number; onRemove: (cc: any) => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cc.id })
+  return (
+    <div ref={setNodeRef} style={{
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.4 : 1,
+    }}>
+      <Card padding="10px">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span
+            {...attributes}
+            {...listeners}
+            style={{ cursor: 'grab', touchAction: 'none', color: 'var(--text-muted)', fontSize: '18px', lineHeight: 1, padding: '0 4px', userSelect: 'none' }}
+          >
+            ⠿
+          </span>
+          <span style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, color: 'var(--text-muted)', minWidth: '20px' }}>
+            {index + 1}
+          </span>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px' }}>{cc.challenge.name}</p>
+            <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{cc.challenge.scoreType}</p>
+          </div>
+          <Button size="sm" variant="danger" style={{ fontSize: '11px', padding: '4px 8px' }} onClick={() => onRemove(cc)}>
+            Remove
+          </Button>
+        </div>
+      </Card>
+    </div>
+  )
+}
 
 export function AdminCompetitionManage() {
   const { id } = useParams<{ id: string }>()
@@ -31,6 +73,12 @@ export function AdminCompetitionManage() {
   const [newTeamName, setNewTeamName] = useState('')
   const [imageTeam, setImageTeam] = useState<any>(null)
   const [removingChallenge, setRemovingChallenge] = useState<any>(null)
+  const [localChallenges, setLocalChallenges] = useState<any[]>([])
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+  )
 
   const { data: compData, isLoading } = useQuery({
     queryKey: ['competition', id],
@@ -73,6 +121,11 @@ export function AdminCompetitionManage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['competition', id] }); setRemovingChallenge(null) },
   })
 
+  const reorderMutation = useMutation({
+    mutationFn: (order: string[]) => api.competitions.reorderChallenges(id!, order),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['competition', id] }),
+  })
+
   const renameTeamMutation = useMutation({
     mutationFn: () => api.teams.update(renamingTeam.id, { name: newTeamName }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['competition', id] }); setRenamingTeam(null) },
@@ -87,6 +140,24 @@ export function AdminCompetitionManage() {
     mutationFn: (scoringMode: string) => api.competitions.update(id!, { scoringMode }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['competition', id] }),
   })
+
+  useEffect(() => {
+    if (compData?.competition?.challenges) {
+      setLocalChallenges([...compData.competition.challenges].sort((a: any, b: any) => a.order - b.order))
+    }
+  }, [compData])
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setLocalChallenges(prev => {
+      const oldIndex = prev.findIndex(c => c.id === active.id)
+      const newIndex = prev.findIndex(c => c.id === over.id)
+      const next = arrayMove(prev, oldIndex, newIndex)
+      reorderMutation.mutate(next.map(c => c.id))
+      return next
+    })
+  }
 
   if (isLoading) return <AdminLayout title="Manage Competition"><LoadingSpinner /></AdminLayout>
   const comp = compData?.competition
@@ -202,25 +273,15 @@ export function AdminCompetitionManage() {
       {tab === 'challenges' && (
         <>
           <Button size="sm" onClick={() => setAddChallengeOpen(true)} style={{ marginBottom: '12px' }}>+ Add Challenge</Button>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {comp.challenges?.sort((a: any, b: any) => a.order - b.order).map((cc: any) => (
-              <Card key={cc.id} padding="10px">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, color: 'var(--text-muted)', minWidth: '20px' }}>
-                    {cc.order + 1}
-                  </span>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px' }}>{cc.challenge.name}</p>
-                    <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{cc.challenge.scoreType}</p>
-                  </div>
-                  <Button size="sm" variant="danger" style={{ fontSize: '11px', padding: '4px 8px' }}
-                    onClick={() => setRemovingChallenge(cc)}>
-                    Remove
-                  </Button>
-                </div>
-              </Card>
-            ))}
-          </div>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={localChallenges.map(c => c.id)} strategy={verticalListSortingStrategy}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {localChallenges.map((cc, i) => (
+                  <SortableChallenge key={cc.id} cc={cc} index={i} onRemove={setRemovingChallenge} />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         </>
       )}
 
