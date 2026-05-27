@@ -28,7 +28,7 @@ function displayToIso(display: string): string {
 export function AdminCompetitions() {
   const qc = useQueryClient()
   const [createOpen, setCreateOpen] = useState(false)
-  const [form, setForm] = useState({ name: '', dateDisplay: '', teamCount: '3', scoringMode: 'placement_points' })
+  const [form, setForm] = useState({ name: '', dateDisplay: '', teamCount: '3', scoringMode: 'placement_points', placementMaxPoints: '' })
 
   const { data: compsData, isLoading } = useQuery({ queryKey: ['competitions'], queryFn: () => api.competitions.list() })
 
@@ -40,9 +40,10 @@ export function AdminCompetitions() {
         date: iso ? new Date(iso + 'T12:00:00').toISOString() : undefined,
         teamCount: parseInt(form.teamCount, 10),
         scoringMode: form.scoringMode,
+        ...(form.placementMaxPoints ? { placementMaxPoints: parseInt(form.placementMaxPoints, 10) } : {}),
       })
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['competitions'] }); setCreateOpen(false); setForm({ name: '', dateDisplay: '', teamCount: '3', scoringMode: 'placement_points' }) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['competitions'] }); setCreateOpen(false); setForm({ name: '', dateDisplay: '', teamCount: '3', scoringMode: 'placement_points', placementMaxPoints: '' }) },
   })
 
   return (
@@ -79,7 +80,7 @@ export function AdminCompetitions() {
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Create Competition"
         footer={
           <>
-            <Button variant="ghost" onClick={() => { setCreateOpen(false); setForm({ name: '', dateDisplay: '', teamCount: '3', scoringMode: 'placement_points' }) }}>Cancel</Button>
+            <Button variant="ghost" onClick={() => { setCreateOpen(false); setForm({ name: '', dateDisplay: '', teamCount: '3', scoringMode: 'placement_points', placementMaxPoints: '' }) }}>Cancel</Button>
             <Button onClick={() => createMutation.mutate()} loading={createMutation.isPending} disabled={!form.name}>Create</Button>
           </>
         }
@@ -106,6 +107,26 @@ export function AdminCompetitions() {
               <option value="raw_sum">Raw sum — add up actual scores across challenges</option>
             </select>
           </div>
+          {form.scoringMode === 'placement_points' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>
+                Max points per challenge (optional)
+              </label>
+              <input
+                type="number"
+                min="10"
+                max="1000"
+                step="10"
+                placeholder={`Default: teams × 10 (${parseInt(form.teamCount, 10) * 10})`}
+                value={form.placementMaxPoints}
+                onChange={e => setForm(f => ({ ...f, placementMaxPoints: e.target.value }))}
+                style={{ padding: '10px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', fontSize: '16px' }}
+              />
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                1st place gets this many points, each rank below gets 10 less (floor 0)
+              </p>
+            </div>
+          )}
         </div>
       </Modal>
     </AdminLayout>

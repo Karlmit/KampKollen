@@ -75,6 +75,7 @@ export function AdminCompetitionManage() {
   const [imageTeam, setImageTeam] = useState<any>(null)
   const [removingChallenge, setRemovingChallenge] = useState<any>(null)
   const [localChallenges, setLocalChallenges] = useState<any[]>([])
+  const [maxPointsInput, setMaxPointsInput] = useState<string>('')
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -147,6 +148,17 @@ export function AdminCompetitionManage() {
       setLocalChallenges([...compData.competition.challenges].sort((a: any, b: any) => a.order - b.order))
     }
   }, [compData])
+
+  useEffect(() => {
+    if (compData?.competition) {
+      setMaxPointsInput(compData.competition.placementMaxPoints != null ? String(compData.competition.placementMaxPoints) : '')
+    }
+  }, [compData?.competition?.id])
+
+  const updateMaxPointsMutation = useMutation({
+    mutationFn: (value: number | null) => api.competitions.update(id!, { placementMaxPoints: value }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['competition', id] }),
+  })
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
@@ -321,6 +333,44 @@ export function AdminCompetitionManage() {
               ))}
             </div>
           </div>
+          {comp.scoringMode === 'placement_points' && (
+            <div>
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-muted)' }}>MAX POINTS PER CHALLENGE</p>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                Currently: {comp.placementMaxPoints != null ? `${comp.placementMaxPoints} pts` : `auto (${comp.teams?.length ?? 0} teams × 10 = ${(comp.teams?.length ?? 0) * 10} pts)`}
+              </p>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+                <div style={{ flex: 1 }}>
+                  <input
+                    type="number"
+                    min="10"
+                    max="1000"
+                    step="10"
+                    placeholder={`Auto: ${(comp.teams?.length ?? 0) * 10}`}
+                    value={maxPointsInput}
+                    onChange={e => setMaxPointsInput(e.target.value)}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', fontSize: '16px' }}
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => updateMaxPointsMutation.mutate(maxPointsInput ? parseInt(maxPointsInput, 10) : null)}
+                  loading={updateMaxPointsMutation.isPending}
+                >
+                  Save
+                </Button>
+                {comp.placementMaxPoints != null && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => { setMaxPointsInput(''); updateMaxPointsMutation.mutate(null) }}
+                  >
+                    Reset
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

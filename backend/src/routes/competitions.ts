@@ -11,6 +11,7 @@ const createCompetitionSchema = z.object({
   name: z.string().min(1).max(128),
   date: z.string().datetime().optional(),
   scoringMode: scoringModeEnum.optional(),
+  placementMaxPoints: z.number().int().min(10).max(1000).optional(),
   challengeIds: z.array(z.string()).optional(),
   teamCount: z.number().int().min(1).max(20).optional(),
   teamNames: z.array(z.string()).optional(),
@@ -21,6 +22,7 @@ const updateCompetitionSchema = z.object({
   date: z.string().datetime().nullable().optional(),
   status: z.enum(['DRAFT', 'REGISTRATION', 'ACTIVE', 'COMPLETED', 'ARCHIVED']).optional(),
   scoringMode: scoringModeEnum.optional(),
+  placementMaxPoints: z.number().int().min(10).max(1000).nullable().optional(),
 })
 
 const addChallengeSchema = z.object({
@@ -77,7 +79,7 @@ export async function competitionRoutes(app: FastifyInstance) {
     if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
 
     const me = request.user as { id: string }
-    const { name, date, scoringMode, challengeIds, teamCount, teamNames } = body.data
+    const { name, date, scoringMode, placementMaxPoints, challengeIds, teamCount, teamNames } = body.data
 
     const competition = await prisma.competition.create({
       data: {
@@ -85,6 +87,7 @@ export async function competitionRoutes(app: FastifyInstance) {
         createdByUserId: me.id,
         ...(date && { date: new Date(date) }),
         ...(scoringMode && { scoringMode }),
+        ...(placementMaxPoints !== undefined && { placementMaxPoints }),
       },
     })
 

@@ -5,6 +5,7 @@ import { Layout } from '../components/layout/Layout'
 import { Card } from '../components/ui/Card'
 import { Avatar } from '../components/ui/Avatar'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
+import { useAuth } from '../contexts/AuthContext'
 import { api } from '../api/client'
 import { CompetitionLeaderboard, LeaderboardTeam } from '../types'
 
@@ -12,6 +13,7 @@ type View = 'teams' | 'individual'
 
 export function CompetitionLeaderboardPage() {
   const { id } = useParams<{ id: string }>()
+  const { user } = useAuth()
   const [view, setView] = useState<View>('teams')
   const [expandedChallenge, setExpandedChallenge] = useState<string | null>(null)
 
@@ -26,6 +28,9 @@ export function CompetitionLeaderboardPage() {
 
   const lb: CompetitionLeaderboard = data
   if (!lb) return <Layout title="Leaderboard"><p>Not found</p></Layout>
+
+  const myEntry = user ? lb.individualLeaderboard.find((p: any) => p.userId === user.id) : null
+  const myTeamId = myEntry?.teamId
 
   const isPlacementMode = lb.competition.scoringMode === 'placement_points'
   const isLive = lb.competition.status === 'ACTIVE'
@@ -159,6 +164,16 @@ export function CompetitionLeaderboardPage() {
                     }}>
                       {team.playerCount} players
                     </p>
+                    {myTeamId && team.teamId === myTeamId && (
+                      <p style={{
+                        fontSize: '11px', fontFamily: 'var(--font-ui)', fontWeight: 700,
+                        letterSpacing: '0.06em',
+                        color: isFirst ? 'rgba(255,255,255,0.7)' : 'var(--accent)',
+                        marginTop: '2px',
+                      }}>
+                        YOUR TEAM
+                      </p>
+                    )}
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
                     <p style={{

@@ -303,21 +303,21 @@ export function ScorekeeperPage() {
                     {team.name?.toUpperCase() ?? 'PLAYER POOL'}
                   </h3>
                 )}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {team.players.map((p: any) => {
                     const existing = getExistingScore(p.userId)
                     const isSaving = upsertMutation.isPending && editingPlayer?.userId === p.userId
                     return (
                       <Card
                         key={p.userId}
-                        padding="12px"
+                        padding="16px 16px"
                         style={{ cursor: 'pointer', opacity: isSaving ? 0.6 : 1 }}
                         onClick={() => setEditingPlayer(p)}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <Avatar src={p.user.profileImageUrl} name={p.user.displayName ?? p.user.username} size={36} />
+                          <Avatar src={p.user.profileImageUrl} name={p.user.displayName ?? p.user.username} size={44} />
                           <div style={{ flex: 1 }}>
-                            <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>
+                            <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '16px' }}>
                               <Link
                                 to={`/profile/${p.userId}`}
                                 onClick={e => e.stopPropagation()}
@@ -330,11 +330,11 @@ export function ScorekeeperPage() {
                           </div>
                           <div style={{ textAlign: 'right', minWidth: '48px' }}>
                             {existing ? (
-                              <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px' }}>
+                              <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '28px' }}>
                                 {existing}
                               </p>
                             ) : (
-                              <p style={{ fontSize: '13px', color: 'var(--border-light)' }}>tap</p>
+                              <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>tap</p>
                             )}
                           </div>
                         </div>

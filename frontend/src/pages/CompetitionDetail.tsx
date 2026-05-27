@@ -6,6 +6,7 @@ import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Badge, StatusBadge } from '../components/ui/Badge'
 import { Avatar } from '../components/ui/Avatar'
+import { Modal } from '../components/ui/Modal'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { useAuth } from '../contexts/AuthContext'
 import { formatDate } from '../utils'
@@ -31,6 +32,23 @@ export function CompetitionDetail() {
   const joinMutation = useMutation({
     mutationFn: () => api.competitions.join(id!),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['competition', id] }),
+  })
+
+  const removeFromPoolMutation = useMutation({
+    mutationFn: (userId: string) => api.competitions.removePlayer(id!, userId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['competition', id] }),
+  })
+
+  const [assigningPlayer, setAssigningPlayer] = useState<any>(null)
+  const [assignTargetTeamId, setAssignTargetTeamId] = useState('')
+
+  const assignToTeamMutation = useMutation({
+    mutationFn: ({ userId, teamId }: { userId: string; teamId: string }) =>
+      api.competitions.updatePlayer(id!, userId, { teamId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['competition', id] })
+      setAssigningPlayer(null)
+    },
   })
 
   if (isLoading) return <Layout title="Competition"><LoadingSpinner /></Layout>
@@ -162,14 +180,18 @@ export function CompetitionDetail() {
           {comp.challenges?.map((cc: any, i: number) => (
             <Card key={cc.id}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{
-                  width: '36px', height: '36px', borderRadius: 'var(--radius-sm)',
-                  background: 'var(--surface-raised)', display: 'flex', alignItems: 'center',
-                  justifyContent: 'center', fontFamily: 'var(--font-ui)', fontWeight: 700,
-                  fontSize: '14px', color: 'var(--text-muted)', flexShrink: 0,
-                }}>
-                  {i + 1}
-                </div>
+                {cc.challenge.logoUrl ? (
+                  <img src={cc.challenge.logoUrl} alt="" style={{ width: 36, height: 36, borderRadius: 'var(--radius-sm)', objectFit: 'cover', flexShrink: 0 }} />
+                ) : (
+                  <div style={{
+                    width: '36px', height: '36px', borderRadius: 'var(--radius-sm)',
+                    background: 'var(--surface-raised)', display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', fontFamily: 'var(--font-ui)', fontWeight: 700,
+                    fontSize: '14px', color: 'var(--text-muted)', flexShrink: 0,
+                  }}>
+                    {i + 1}
+                  </div>
+                )}
                 <div style={{ flex: 1 }}>
                   <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px' }}>{cc.challenge.name}</p>
                   <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
@@ -198,15 +220,73 @@ export function CompetitionDetail() {
               <Card key={p.userId} padding="12px">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <Avatar src={p.user.profileImageUrl} name={p.user.displayName ?? p.user.username} size={36} />
-                  <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700 }}>
+                  <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, flex: 1 }}>
                     {p.user.displayName ?? p.user.username}
                   </p>
+                  {isAdmin && (
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      <Button size="sm" variant="ghost" style={{ fontSize: '12px', padding: '4px 10px' }}
+                        onClick={() => { setAssigningPlayer(p); setAssignTargetTeamId('') }}>
+                        Assign
+                      </Button>
+                      <Button size="sm" variant="danger" style={{ fontSize: '11px', padding: '4px 8px' }}
+                        loading={removeFromPoolMutation.isPending}
+                        onClick={() => removeFromPoolMutation.mutate(p.userId)}>
+                        ×
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </Card>
             ))
           )}
         </div>
       )}
+
+      <Modal
+        open={!!assigningPlayer}
+        onClose={() => setAssigningPlayer(null)}
+        title={`Assign ${assigningPlayer?.user?.displayName ?? assigningPlayer?.user?.username ?? ''} to team`}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setAssigningPlayer(null)}>Cancel</Button>
+            <Button
+              onClick={() => assignToTeamMutation.mutate({ userId: assigningPlayer.userId, teamId: assignTargetTeamId })}
+              disabled={!assignTargetTeamId}
+              loading={assignToTeamMutation.isPending}
+            >
+              Assign
+            </Button>
+          </>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {comp.teams?.map((team: Team) => (
+            <button
+              key={team.id}
+              onClick={() => setAssignTargetTeamId(team.id)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '12px', padding: '12px',
+                borderRadius: 'var(--radius)', cursor: 'pointer', textAlign: 'left',
+                border: assignTargetTeamId === team.id ? '2px solid var(--accent)' : '1.5px solid var(--border-light)',
+                background: assignTargetTeamId === team.id ? 'var(--surface)' : 'var(--background)',
+                width: '100%',
+              }}
+            >
+              <Avatar src={team.imageUrl} name={team.name} size={36} style={{ borderRadius: 'var(--radius-sm)' }} />
+              <div>
+                <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>{team.name}</p>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                  {comp.players?.filter((pl: CompetitionPlayer) => pl.teamId === team.id).length ?? 0} players
+                </p>
+              </div>
+              {assignTargetTeamId === team.id && (
+                <span style={{ marginLeft: 'auto', color: 'var(--accent)', fontWeight: 700 }}>✓</span>
+              )}
+            </button>
+          ))}
+        </div>
+      </Modal>
     </Layout>
   )
 }

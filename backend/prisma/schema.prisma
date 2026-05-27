@@ -68,7 +68,8 @@ model Competition {
   date            DateTime?
   imageUrl        String?
   status          CompetitionStatus      @default(DRAFT)
-  scoringMode     CompetitionScoringMode @default(raw_sum)
+  scoringMode          CompetitionScoringMode @default(raw_sum)
+  placementMaxPoints   Int?
   createdByUserId String
   createdByUser   User                   @relation("CompetitionCreatedBy", fields: [createdByUserId], references: [id])
   createdAt       DateTime               @default(now())

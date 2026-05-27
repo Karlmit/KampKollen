@@ -101,7 +101,8 @@ export async function leaderboardRoutes(app: FastifyInstance) {
       if (competition.scoringMode === 'placement_points') {
         rankedTeams.forEach((t, i) => {
           if (t.score === 0) return
-          const pts = (numTeams - i) * 10
+          const maxPts = competition.placementMaxPoints ?? numTeams * 10
+          const pts = Math.max(0, maxPts - i * 10)
           if (teamPoints[t.teamId]) {
             teamPoints[t.teamId].challengeBreakdown[cc.id] = pts
             teamPoints[t.teamId].totalPoints += pts
@@ -150,7 +151,7 @@ export async function leaderboardRoutes(app: FastifyInstance) {
           ...t,
           rank: i + 1,
           ...(competition.scoringMode === 'placement_points' && t.score > 0
-            ? { placementPoints: (numTeams - i) * 10 }
+            ? { placementPoints: Math.max(0, (competition.placementMaxPoints ?? numTeams * 10) - i * 10) }
             : {}),
         })),
         players: rankedChallengePlayers,
