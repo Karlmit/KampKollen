@@ -23,13 +23,14 @@ export async function leaderboardRoutes(app: FastifyInstance) {
     })
     if (!competition) return reply.status(404).send({ error: 'Competition not found' })
 
-    // Build team points map: teamId -> { totalPoints, challengeBreakdown }
+    const numPlayers = competition.players.length
+    const numTeams = competition.teams.length
+
+    // Mutable totals
     const teamPoints: Record<string, { totalPoints: number; challengeBreakdown: Record<string, number> }> = {}
     for (const team of competition.teams) {
       teamPoints[team.id] = { totalPoints: 0, challengeBreakdown: {} }
     }
-
-    // Build individual points map: userId -> totalPoints
     const playerPoints: Record<string, number> = {}
     for (const p of competition.players) {
       playerPoints[p.userId] = 0
@@ -41,61 +42,65 @@ export async function leaderboardRoutes(app: FastifyInstance) {
       const scoreType: ScoreType = (cc.scoreTypeOverride ?? cc.challenge.scoreType) as ScoreType
       const teamScoreMode: TeamScoreMode = (cc.teamScoreModeOverride ?? cc.challenge.defaultTeamScoreMode) as TeamScoreMode
       const bestN = cc.bestNPlayersOverride ?? cc.challenge.bestNPlayers
+      const lowerBetter = isLowerBetter(scoreType)
 
       const allScoreInputs = cc.scores.map(s => ({
-        userId: s.userId,
-        rawScore: s.rawScore,
-        timeMs: s.timeMs,
-        placement: s.placement,
-        calculatedPoints: s.calculatedPoints,
-        teamId: null,
+        userId: s.userId, rawScore: s.rawScore, timeMs: s.timeMs,
+        placement: s.placement, calculatedPoints: s.calculatedPoints, teamId: null,
       }))
 
-      // Calculate points per player for this challenge
+      // Compute raw calculated points per player for this challenge
       const playerChallengePoints: Record<string, number> = {}
       for (const s of cc.scores) {
-        const pts = computeCalculatedPoints(
+        playerChallengePoints[s.userId] = computeCalculatedPoints(
           { userId: s.userId, rawScore: s.rawScore, timeMs: s.timeMs, placement: s.placement, calculatedPoints: s.calculatedPoints, teamId: null },
           allScoreInputs,
           scoreType
         )
-        playerChallengePoints[s.userId] = pts
-        if (playerPoints[s.userId] !== undefined) {
-          playerPoints[s.userId] += pts
+      }
+
+      // Accumulate individual totals
+      if (competition.scoringMode === 'placement_points') {
+        // Rank all players who scored, award (numPlayers - rank) * 10
+        const ranked = Object.entries(playerChallengePoints)
+          .sort(([, a], [, b]) => lowerBetter ? a - b : b - a)
+        ranked.forEach(([userId, score], i) => {
+          if (score === 0) return
+          if (playerPoints[userId] !== undefined) {
+            playerPoints[userId] += (numPlayers - i) * 10
+          }
+        })
+      } else {
+        for (const [userId, pts] of Object.entries(playerChallengePoints)) {
+          if (playerPoints[userId] !== undefined) {
+            playerPoints[userId] += pts
+          }
         }
       }
 
-      // Group players by CURRENT team assignment
+      // Group players by team for team scoring
       const teamPlayerPoints: Record<string, number[]> = {}
       for (const cp of competition.players) {
         if (!cp.teamId) continue
         if (!teamPlayerPoints[cp.teamId]) teamPlayerPoints[cp.teamId] = []
-        const pts = playerChallengePoints[cp.userId] ?? 0
         if (playerChallengePoints[cp.userId] !== undefined) {
-          teamPlayerPoints[cp.teamId].push(pts)
+          teamPlayerPoints[cp.teamId].push(playerChallengePoints[cp.userId])
         }
       }
 
-      // Calculate team scores for this challenge
+      // Calculate and rank team scores for this challenge
       const teamChallengeScores: Array<{ teamId: string; teamName: string; score: number }> = []
       for (const team of competition.teams) {
         if (teamScoreMode === 'manual_team_score') continue
         const playerPts = teamPlayerPoints[team.id] ?? []
-        const teamScore = computeTeamScore(playerPts, teamScoreMode, bestN)
-        teamChallengeScores.push({ teamId: team.id, teamName: team.name, score: teamScore })
+        teamChallengeScores.push({ teamId: team.id, teamName: team.name, score: computeTeamScore(playerPts, teamScoreMode, bestN) })
       }
+      const rankedTeams = [...teamChallengeScores].sort((a, b) => lowerBetter ? a.score - b.score : b.score - a.score)
 
-      // Rank teams for this challenge
-      const lowerBetter = isLowerBetter(scoreType)
-      const rankedTeams = [...teamChallengeScores].sort((a, b) =>
-        lowerBetter ? a.score - b.score : b.score - a.score
-      )
-
-      // Accumulate team totals based on competition scoring mode
-      const numTeams = competition.teams.length
+      // Accumulate team totals
       if (competition.scoringMode === 'placement_points') {
         rankedTeams.forEach((t, i) => {
-          if (t.score === 0) return  // no points awarded for zero score
+          if (t.score === 0) return
           const pts = (numTeams - i) * 10
           if (teamPoints[t.teamId]) {
             teamPoints[t.teamId].challengeBreakdown[cc.id] = pts
@@ -110,6 +115,24 @@ export async function leaderboardRoutes(app: FastifyInstance) {
           }
         }
       }
+
+      // Build per-player challenge breakdown (ranked by score)
+      const rankedChallengePlayers = Object.entries(playerChallengePoints)
+        .sort(([, a], [, b]) => lowerBetter ? a - b : b - a)
+        .map(([userId, score], i) => {
+          const cp = competition.players.find(p => p.userId === userId)
+          return {
+            userId,
+            displayName: cp?.user?.displayName ?? null,
+            username: cp?.user?.username ?? null,
+            profileImageUrl: cp?.user?.profileImageUrl ?? null,
+            score,
+            rank: i + 1,
+            ...(competition.scoringMode === 'placement_points' && score > 0
+              ? { placementPoints: (numPlayers - i) * 10 }
+              : {}),
+          }
+        })
 
       challengeLeaderboards.push({
         challengeId: cc.challengeId,
@@ -127,10 +150,11 @@ export async function leaderboardRoutes(app: FastifyInstance) {
             ? { placementPoints: (numTeams - i) * 10 }
             : {}),
         })),
+        players: rankedChallengePlayers,
       })
     }
 
-    // Build team leaderboard
+    // Team leaderboard
     const teamLeaderboard = competition.teams
       .map(team => ({
         teamId: team.id,
@@ -143,7 +167,7 @@ export async function leaderboardRoutes(app: FastifyInstance) {
       .sort((a, b) => b.totalPoints - a.totalPoints)
       .map((t, i) => ({ ...t, rank: i + 1 }))
 
-    // Build individual leaderboard with user display info
+    // Individual leaderboard
     const individualLeaderboard = competition.players
       .map(cp => {
         const team = competition.teams.find(t => t.id === cp.teamId)

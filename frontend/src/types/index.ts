@@ -124,6 +124,7 @@ export interface CompetitionLeaderboard {
     teamScoreMode: TeamScoreMode
     lowerIsBetter: boolean
     teams: Array<{ teamId: string; teamName: string; score: number; rank: number; placementPoints?: number }>
+    players: Array<{ userId: string; displayName?: string | null; username?: string | null; profileImageUrl?: string | null; score: number; rank: number; placementPoints?: number }>
   }>
 }
 
