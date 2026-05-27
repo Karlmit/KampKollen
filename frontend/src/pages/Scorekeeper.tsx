@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Layout } from '../components/layout/Layout'
 import { Card } from '../components/ui/Card'
@@ -318,13 +318,7 @@ export function ScorekeeperPage() {
                           <Avatar src={p.user.profileImageUrl} name={p.user.displayName ?? p.user.username} size={44} />
                           <div style={{ flex: 1 }}>
                             <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '16px' }}>
-                              <Link
-                                to={`/profile/${p.userId}`}
-                                onClick={e => e.stopPropagation()}
-                                style={{ color: 'inherit', textDecoration: 'none' }}
-                              >
-                                {p.user.displayName ?? p.user.username}
-                              </Link>
+                              {p.user.displayName ?? p.user.username}
                             </p>
                             {p.team && <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{p.team.name}</p>}
                           </div>

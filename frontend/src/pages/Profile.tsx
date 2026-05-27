@@ -72,8 +72,9 @@ export function Profile() {
         </div>
 
         {(isSelf || isAdmin) && (
+          <div style={{ width: '100%' }}>
           <ImageGenerator
-            defaultPrompt="A fun friendly avatar for an office sports competition player. Cheerful character, simple design, colorful."
+            defaultPrompt="A fun random animal avatar. Colorful, playful, simple."
             onGenerate={async (prompt) => {
               const res = await api.users.generateImage(userId!, prompt)
               qc.invalidateQueries({ queryKey: ['user', userId] })
@@ -82,6 +83,7 @@ export function Profile() {
             }}
             label="Profile Image"
           />
+          </div>
         )}
       </div>
 
