@@ -23,13 +23,14 @@ const numpadBtnStyle: React.CSSProperties = {
   color: 'var(--text-primary)',
 }
 
-function NumpadModal({ open, onClose, playerName, currentValue, scoreLabel, onSave }: {
+function NumpadModal({ open, onClose, playerName, currentValue, scoreLabel, onSave, onDelete }: {
   open: boolean
   onClose: () => void
   playerName: string
   currentValue: string
   scoreLabel: string
   onSave: (val: string) => void
+  onDelete?: () => void
 }) {
   const [input, setInput] = useState('')
 
@@ -50,6 +51,15 @@ function NumpadModal({ open, onClose, playerName, currentValue, scoreLabel, onSa
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          {onDelete && (
+            <Button
+              variant="ghost"
+              onClick={() => { onDelete(); onClose() }}
+              style={{ color: 'var(--accent-warm)' }}
+            >
+              Clear
+            </Button>
+          )}
           <Button onClick={() => { onSave(input); onClose() }}>Save</Button>
         </>
       }
@@ -103,6 +113,14 @@ export function ScorekeeperPage() {
     enabled: !!competitionId && !!selectedCcId,
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: (scoreId: string) => api.scores.delete(scoreId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['scores', competitionId, selectedCcId] })
+      qc.invalidateQueries({ queryKey: ['leaderboard', competitionId] })
+    },
+  })
+
   const submitMutation = useMutation({
     mutationFn: async () => {
       if (!selectedCcId) return
@@ -123,6 +141,7 @@ export function ScorekeeperPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['scores', competitionId, selectedCcId] })
+      qc.invalidateQueries({ queryKey: ['leaderboard', competitionId] })
       setScores({})
     },
   })
@@ -349,6 +368,13 @@ export function ScorekeeperPage() {
         onSave={(val) => {
           if (editingPlayer) setScores(s => ({ ...s, [editingPlayer.userId]: val }))
         }}
+        onDelete={editingPlayer ? (() => {
+          const existing = existingScores.find((s: any) => s.userId === editingPlayer.userId)
+          if (existing) {
+            deleteMutation.mutate(existing.id)
+            setScores(s => { const n = { ...s }; delete n[editingPlayer.userId]; return n })
+          }
+        }) : undefined}
       />
     </Layout>
   )
