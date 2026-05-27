@@ -6,6 +6,7 @@ import { StatusBadge } from '../components/ui/Badge'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { api } from '../api/client'
 import { Competition } from '../types'
+import { formatDate } from '../utils'
 
 export function CompetitionList() {
   const { data, isLoading } = useQuery({
@@ -34,7 +35,7 @@ export function CompetitionList() {
                       {comp.name}
                     </p>
                     <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                      {comp.date ? new Date(comp.date).toLocaleDateString() + ' · ' : ''}
+                      {comp.date ? formatDate(comp.date) + ' · ' : ''}
                       {comp.teams?.length ?? 0} teams · {comp._count?.players ?? 0} players
                     </p>
                   </div>

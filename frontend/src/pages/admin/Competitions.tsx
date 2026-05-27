@@ -10,22 +10,39 @@ import { Avatar } from '../../components/ui/Avatar'
 import { Badge, StatusBadge } from '../../components/ui/Badge'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { api } from '../../api/client'
+import { formatDate } from '../../utils'
+
+function maskDateInput(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 8)
+  if (digits.length <= 2) return digits
+  if (digits.length <= 4) return `${digits.slice(0, 2)}-${digits.slice(2)}`
+  return `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4)}`
+}
+
+function displayToIso(display: string): string {
+  const m = display.match(/^(\d{2})-(\d{2})-(\d{4})$/)
+  if (!m) return ''
+  return `${m[3]}-${m[2]}-${m[1]}`
+}
 
 export function AdminCompetitions() {
   const qc = useQueryClient()
   const [createOpen, setCreateOpen] = useState(false)
-  const [form, setForm] = useState({ name: '', date: '', teamCount: '3', scoringMode: 'placement_points' })
+  const [form, setForm] = useState({ name: '', dateDisplay: '', teamCount: '3', scoringMode: 'placement_points' })
 
   const { data: compsData, isLoading } = useQuery({ queryKey: ['competitions'], queryFn: () => api.competitions.list() })
 
   const createMutation = useMutation({
-    mutationFn: () => api.competitions.create({
-      name: form.name,
-      date: form.date || undefined,
-      teamCount: parseInt(form.teamCount, 10),
-      scoringMode: form.scoringMode,
-    }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['competitions'] }); setCreateOpen(false) },
+    mutationFn: () => {
+      const iso = displayToIso(form.dateDisplay)
+      return api.competitions.create({
+        name: form.name,
+        date: iso ? new Date(iso + 'T12:00:00').toISOString() : undefined,
+        teamCount: parseInt(form.teamCount, 10),
+        scoringMode: form.scoringMode,
+      })
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['competitions'] }); setCreateOpen(false); setForm({ name: '', dateDisplay: '', teamCount: '3', scoringMode: 'placement_points' }) },
   })
 
   return (
@@ -42,7 +59,7 @@ export function AdminCompetitions() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                 <div>
                   <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '16px' }}>{c.name}</p>
-                  {c.date && <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{new Date(c.date).toLocaleDateString()}</p>}
+                  {c.date && <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{formatDate(c.date)}</p>}
                 </div>
                 <StatusBadge status={c.status} />
               </div>
@@ -62,14 +79,21 @@ export function AdminCompetitions() {
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Create Competition"
         footer={
           <>
-            <Button variant="ghost" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button variant="ghost" onClick={() => { setCreateOpen(false); setForm({ name: '', dateDisplay: '', teamCount: '3', scoringMode: 'placement_points' }) }}>Cancel</Button>
             <Button onClick={() => createMutation.mutate()} loading={createMutation.isPending} disabled={!form.name}>Create</Button>
           </>
         }
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <Input label="Competition name *" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
-          <Input label="Date (optional)" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value ? new Date(e.target.value).toISOString() : '' }))} />
+          <Input
+            label="Date (optional)"
+            type="text"
+            inputMode="numeric"
+            placeholder="DD-MM-YYYY"
+            value={form.dateDisplay}
+            onChange={e => setForm(f => ({ ...f, dateDisplay: maskDateInput(e.target.value) }))}
+          />
           <Input label="Number of teams" type="number" min="1" max="20" value={form.teamCount} onChange={e => setForm(f => ({ ...f, teamCount: e.target.value }))} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>Scoring mode</label>

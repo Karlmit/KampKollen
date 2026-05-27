@@ -8,6 +8,7 @@ import { Badge, StatusBadge } from '../components/ui/Badge'
 import { Avatar } from '../components/ui/Avatar'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { useAuth } from '../contexts/AuthContext'
+import { formatDate } from '../utils'
 import { api } from '../api/client'
 import { Competition, CompetitionPlayer, Team, SCORE_TYPE_LABELS } from '../types'
 
@@ -60,7 +61,7 @@ export function CompetitionDetail() {
     >
       {/* Status row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-        {comp.date && <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>{new Date(comp.date).toLocaleDateString()}</span>}
+        {comp.date && <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>{formatDate(comp.date)}</span>}
         <StatusBadge status={comp.status} />
         {isJoined && <Badge variant="success">✓ Joined</Badge>}
       </div>

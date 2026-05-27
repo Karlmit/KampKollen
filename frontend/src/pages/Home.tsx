@@ -7,6 +7,7 @@ import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../api/client'
 import { Competition } from '../types'
+import { formatDate } from '../utils'
 
 export function Home() {
   const { user } = useAuth()
@@ -75,7 +76,7 @@ export function Home() {
                         {comp.name}
                       </p>
                       <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                        {comp.date ? new Date(comp.date).toLocaleDateString() + ' · ' : ''}{comp._count?.players ?? 0} players
+                        {comp.date ? formatDate(comp.date) + ' · ' : ''}{comp._count?.players ?? 0} players
                       </p>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>

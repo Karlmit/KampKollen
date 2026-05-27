@@ -11,6 +11,7 @@ import { StatusBadge } from '../../components/ui/Badge'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { ImageGenerator } from '../../components/ImageGenerator'
 import { api } from '../../api/client'
+import { formatDate } from '../../utils'
 
 type Tab = 'players' | 'teams' | 'challenges' | 'status'
 
@@ -109,7 +110,7 @@ export function AdminCompetitionManage() {
   return (
     <AdminLayout title={comp.name}>
       <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '12px' }}>
-        {comp.date ? new Date(comp.date).toLocaleDateString() + ' · ' : ''}<StatusBadge status={comp.status} />
+        {comp.date ? formatDate(comp.date) + ' · ' : ''}<StatusBadge status={comp.status} />
       </p>
 
       {/* Tabs */}

@@ -5,6 +5,7 @@ import { Card } from '../components/ui/Card'
 import { StatusBadge } from '../components/ui/Badge'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { api } from '../api/client'
+import { formatDate } from '../utils'
 
 export function GlobalLeaderboard() {
   const { data: compsData, isLoading: compsLoading } = useQuery({
@@ -33,7 +34,7 @@ export function GlobalLeaderboard() {
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div>
                           <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700 }}>{c.name}</p>
-                          {c.date && <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{new Date(c.date).toLocaleDateString()}</p>}
+                          {c.date && <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{formatDate(c.date)}</p>}
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
                           <StatusBadge status={c.status} />
@@ -59,7 +60,7 @@ export function GlobalLeaderboard() {
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div>
                           <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700 }}>{c.name}</p>
-                          {c.date && <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{new Date(c.date).toLocaleDateString()}</p>}
+                          {c.date && <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{formatDate(c.date)}</p>}
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
                           <StatusBadge status={c.status} />
