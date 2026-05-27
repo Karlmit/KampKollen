@@ -60,7 +60,7 @@ export async function authRoutes(app: FastifyInstance) {
 
     const { username, password } = body.data
     const user = await prisma.user.findUnique({ where: { username } })
-    if (!user) {
+    if (!user || user.isDummy || !user.passwordHash) {
       return reply.status(401).send({ error: 'Invalid username or password' })
     }
 

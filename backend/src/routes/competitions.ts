@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { GlobalRole } from '@prisma/client'
 import { prisma } from '../db.js'
-import { requireAuth, requireAdmin } from '../middleware/auth.js'
+import { requireAuth, requireAdmin, optionalAuth } from '../middleware/auth.js'
 import { generateImage, DEFAULT_PROMPTS } from '../lib/imageGeneration.js'
 
 const scoringModeEnum = z.enum(['raw_sum', 'placement_points'])
@@ -32,7 +32,7 @@ const addChallengeSchema = z.object({
 })
 
 export async function competitionRoutes(app: FastifyInstance) {
-  app.get('/', { preHandler: requireAuth }, async () => {
+  app.get('/', { preHandler: optionalAuth }, async () => {
     const competitions = await prisma.competition.findMany({
       include: {
         teams: { select: { id: true, name: true } },
@@ -43,7 +43,7 @@ export async function competitionRoutes(app: FastifyInstance) {
     return { competitions }
   })
 
-  app.get('/:id', { preHandler: requireAuth }, async (request, reply) => {
+  app.get('/:id', { preHandler: optionalAuth }, async (request, reply) => {
     const { id } = request.params as { id: string }
     const competition = await prisma.competition.findUnique({
       where: { id },
@@ -52,7 +52,7 @@ export async function competitionRoutes(app: FastifyInstance) {
           include: {
             leader: { select: { id: true, username: true, displayName: true } },
             players: {
-              include: { user: { select: { id: true, username: true, displayName: true, profileImageUrl: true } } },
+              include: { user: { select: { id: true, username: true, displayName: true, profileImageUrl: true, isDummy: true } } },
             },
           },
         },
@@ -62,7 +62,7 @@ export async function competitionRoutes(app: FastifyInstance) {
         },
         players: {
           include: {
-            user: { select: { id: true, username: true, displayName: true, profileImageUrl: true } },
+            user: { select: { id: true, username: true, displayName: true, profileImageUrl: true, isDummy: true } },
             team: { select: { id: true, name: true } },
           },
         },
@@ -258,6 +258,137 @@ export async function competitionRoutes(app: FastifyInstance) {
     await prisma.competitionPlayer.delete({
       where: { competitionId_userId: { competitionId: id, userId } },
     })
+    return { success: true }
+  })
+
+  // ── Dummy / guest player endpoints ─────────────────────────────────────────
+
+  app.post('/:id/players/dummy', { preHandler: requireAuth }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const me = request.user as { id: string; role: string }
+    const body = request.body as { name?: string; teamId?: string }
+
+    if (!body.name?.trim()) return reply.status(400).send({ error: 'Name is required' })
+
+    // Permission: admin, or team leader in this competition
+    if (me.role !== 'ADMIN') {
+      const myPlayer = await prisma.competitionPlayer.findUnique({
+        where: { competitionId_userId: { competitionId: id, userId: me.id } },
+      })
+      if (!myPlayer?.isTeamLeader) {
+        return reply.status(403).send({ error: 'Only admins and team leaders can add guest players' })
+      }
+      // Team leaders can only add to their own team (or pool if no teamId)
+      if (body.teamId && myPlayer.teamId !== body.teamId) {
+        return reply.status(403).send({ error: 'You can only add players to your own team' })
+      }
+    }
+
+    const comp = await prisma.competition.findUnique({ where: { id } })
+    if (!comp) return reply.status(404).send({ error: 'Competition not found' })
+
+    // Create a dummy User and immediately add as competition player
+    const dummyUsername = `_guest_${crypto.randomUUID().replace(/-/g, '').substring(0, 16)}`
+    const user = await prisma.user.create({
+      data: {
+        username: dummyUsername,
+        displayName: body.name.trim(),
+        isDummy: true,
+        globalRole: 'PLAYER',
+      },
+    })
+
+    const player = await prisma.competitionPlayer.create({
+      data: {
+        competitionId: id,
+        userId: user.id,
+        teamId: body.teamId ?? null,
+      },
+      include: {
+        user: { select: { id: true, username: true, displayName: true, profileImageUrl: true, isDummy: true } },
+        team: { select: { id: true, name: true } },
+      },
+    })
+
+    return { player }
+  })
+
+  app.post('/:id/players/dummy/:dummyUserId/convert', { preHandler: requireAuth }, async (request, reply) => {
+    const { id, dummyUserId } = request.params as { id: string; dummyUserId: string }
+    const me = request.user as { id: string; role: string }
+    const body = request.body as { realUserId: string }
+
+    if (!body.realUserId) return reply.status(400).send({ error: 'realUserId is required' })
+
+    // Permission check
+    if (me.role !== 'ADMIN') {
+      const myPlayer = await prisma.competitionPlayer.findUnique({
+        where: { competitionId_userId: { competitionId: id, userId: me.id } },
+      })
+      if (!myPlayer?.isTeamLeader) return reply.status(403).send({ error: 'Only admins and team leaders can convert guest players' })
+    }
+
+    const dummyUser = await prisma.user.findUnique({ where: { id: dummyUserId } })
+    if (!dummyUser?.isDummy) return reply.status(400).send({ error: 'Player is not a guest player' })
+
+    const dummyPlayer = await prisma.competitionPlayer.findUnique({
+      where: { competitionId_userId: { competitionId: id, userId: dummyUserId } },
+    })
+    if (!dummyPlayer) return reply.status(404).send({ error: 'Guest player not found in this competition' })
+
+    // Ensure real user exists
+    const realUser = await prisma.user.findUnique({ where: { id: body.realUserId } })
+    if (!realUser || realUser.isDummy) return reply.status(400).send({ error: 'Invalid real user' })
+
+    // Scores the dummy has (for conflict detection)
+    const dummyScores = await prisma.score.findMany({
+      where: { competitionId: id, userId: dummyUserId },
+      select: { id: true, competitionChallengeId: true },
+    })
+
+    await prisma.$transaction(async tx => {
+      // Delete any conflicting scores the real player already has in same challenges
+      if (dummyScores.length > 0) {
+        const challengeIds = dummyScores.map(s => s.competitionChallengeId)
+        await tx.score.deleteMany({
+          where: { competitionId: id, userId: body.realUserId, competitionChallengeId: { in: challengeIds } },
+        })
+        // Transfer dummy's scores to real user
+        await tx.score.updateMany({
+          where: { competitionId: id, userId: dummyUserId },
+          data: { userId: body.realUserId },
+        })
+      }
+
+      // Ensure real player is in the competition
+      const existingRealPlayer = await tx.competitionPlayer.findUnique({
+        where: { competitionId_userId: { competitionId: id, userId: body.realUserId } },
+      })
+      if (existingRealPlayer) {
+        // Move real player to dummy's team
+        await tx.competitionPlayer.update({
+          where: { competitionId_userId: { competitionId: id, userId: body.realUserId } },
+          data: { teamId: dummyPlayer.teamId, isTeamLeader: dummyPlayer.isTeamLeader, isScorekeeper: dummyPlayer.isScorekeeper },
+        })
+      } else {
+        await tx.competitionPlayer.create({
+          data: {
+            competitionId: id,
+            userId: body.realUserId,
+            teamId: dummyPlayer.teamId,
+            isTeamLeader: dummyPlayer.isTeamLeader,
+            isScorekeeper: dummyPlayer.isScorekeeper,
+          },
+        })
+      }
+
+      // Remove dummy from competition and delete dummy user
+      await tx.competitionPlayer.delete({
+        where: { competitionId_userId: { competitionId: id, userId: dummyUserId } },
+      })
+      await tx.user.delete({ where: { id: dummyUserId } })
+    })
+
     return { success: true }
   })
 }

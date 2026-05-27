@@ -1,11 +1,11 @@
 import { FastifyInstance } from 'fastify'
 import { ScoreType, TeamScoreMode } from '@prisma/client'
 import { prisma } from '../db.js'
-import { requireAuth } from '../middleware/auth.js'
+import { optionalAuth } from '../middleware/auth.js'
 import { computeCalculatedPoints, computeTeamScore, isLowerBetter } from '../lib/scoring.js'
 
 export async function leaderboardRoutes(app: FastifyInstance) {
-  app.get('/competition/:id', { preHandler: requireAuth }, async (request, reply) => {
+  app.get('/competition/:id', { preHandler: optionalAuth }, async (request, reply) => {
     const { id } = request.params as { id: string }
 
     const competition = await prisma.competition.findUnique({
@@ -195,7 +195,7 @@ export async function leaderboardRoutes(app: FastifyInstance) {
     }
   })
 
-  app.get('/historical', { preHandler: requireAuth }, async () => {
+  app.get('/historical', { preHandler: optionalAuth }, async () => {
     const competitions = await prisma.competition.findMany({
       where: { status: 'COMPLETED' },
       include: { teams: true },
@@ -204,7 +204,7 @@ export async function leaderboardRoutes(app: FastifyInstance) {
     return { competitions }
   })
 
-  app.get('/challenge/:challengeId/all-time', { preHandler: requireAuth }, async (request, reply) => {
+  app.get('/challenge/:challengeId/all-time', { preHandler: optionalAuth }, async (request, reply) => {
     const { challengeId } = request.params as { challengeId: string }
 
     const challenge = await prisma.challenge.findUnique({ where: { id: challengeId } })

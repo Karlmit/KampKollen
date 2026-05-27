@@ -47,13 +47,13 @@ function AppRoutes() {
       <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
       <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
       <Route path="/profile/:id" element={<RequireAuth><Profile /></RequireAuth>} />
-      <Route path="/competitions" element={<RequireAuth><CompetitionList /></RequireAuth>} />
-      <Route path="/competitions/:id" element={<RequireAuth><CompetitionDetail /></RequireAuth>} />
-      <Route path="/competitions/:id/leaderboard" element={<RequireAuth><CompetitionLeaderboardPage /></RequireAuth>} />
-      <Route path="/competitions/:id/leaderboard/individual" element={<RequireAuth><IndividualLeaderboardPage /></RequireAuth>} />
+      <Route path="/competitions" element={<CompetitionList />} />
+      <Route path="/competitions/:id" element={<CompetitionDetail />} />
+      <Route path="/competitions/:id/leaderboard" element={<CompetitionLeaderboardPage />} />
+      <Route path="/competitions/:id/leaderboard/individual" element={<IndividualLeaderboardPage />} />
       <Route path="/competitions/:competitionId/team/:teamId" element={<RequireAuth><MyTeamPage /></RequireAuth>} />
       <Route path="/competitions/:id/scores" element={<RequireAuth><ScorekeeperPage /></RequireAuth>} />
-      <Route path="/leaderboard" element={<RequireAuth><GlobalLeaderboard /></RequireAuth>} />
+      <Route path="/leaderboard" element={<GlobalLeaderboard />} />
 
       {/* Admin */}
       <Route path="/admin" element={<RequireAuth><Navigate to="/admin/competitions" replace /></RequireAuth>} />
@@ -63,7 +63,7 @@ function AppRoutes() {
       <Route path="/admin/users" element={<RequireAuth><AdminUsers /></RequireAuth>} />
       <Route path="/admin/settings" element={<RequireAuth><AdminSettings /></RequireAuth>} />
 
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<Navigate to={user ? '/' : '/competitions'} replace />} />
     </Routes>
   )
 }

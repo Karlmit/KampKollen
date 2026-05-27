@@ -46,11 +46,12 @@ enum CompetitionScoringMode {
 model User {
   id              String     @id @default(cuid())
   username        String     @unique
-  passwordHash    String
+  passwordHash    String?
   displayName     String?
   realName        String?
   profileImageUrl String?
   globalRole      GlobalRole @default(PLAYER)
+  isDummy         Boolean    @default(false)
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 

@@ -21,6 +21,13 @@ export function MyTeamPage() {
   const [renameOpen, setRenameOpen] = useState(false)
   const [newName, setNewName] = useState('')
 
+  // Dummy player state
+  const [addGuestOpen, setAddGuestOpen] = useState(false)
+  const [guestName, setGuestName] = useState('')
+  const [convertOpen, setConvertOpen] = useState(false)
+  const [convertingDummy, setConvertingDummy] = useState<CompetitionPlayer | null>(null)
+  const [selectedRealUserId, setSelectedRealUserId] = useState('')
+
   const { data: compData, isLoading } = useQuery({
     queryKey: ['competition', competitionId],
     queryFn: () => api.competitions.get(competitionId!),
@@ -67,6 +74,25 @@ export function MyTeamPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['competition', competitionId] }),
   })
 
+  const addGuestMutation = useMutation({
+    mutationFn: () => api.competitions.createDummyPlayer(competitionId!, { name: guestName.trim(), teamId: teamId! }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['competition', competitionId] })
+      setAddGuestOpen(false)
+      setGuestName('')
+    },
+  })
+
+  const convertMutation = useMutation({
+    mutationFn: () => api.competitions.convertDummyPlayer(competitionId!, convertingDummy!.userId, { realUserId: selectedRealUserId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['competition', competitionId] })
+      setConvertOpen(false)
+      setConvertingDummy(null)
+      setSelectedRealUserId('')
+    },
+  })
+
   if (isLoading) return <Layout title="Team"><LoadingSpinner /></Layout>
 
   const comp = compData?.competition
@@ -75,9 +101,17 @@ export function MyTeamPage() {
 
   const teamPlayers = comp.players?.filter((p: CompetitionPlayer) => p.teamId === team.id) ?? []
   const poolPlayers = comp.players?.filter((p: CompetitionPlayer) => !p.teamId) ?? []
+  // Real (non-dummy) players in the pool — candidates for converting a dummy
+  const realPoolPlayers = poolPlayers.filter((p: CompetitionPlayer) => !p.user?.isDummy)
 
   const myPlayer = comp.players?.find((p: CompetitionPlayer) => p.userId === user?.id)
   const canManage = isAdmin || myPlayer?.isTeamLeader || team.leaderUserId === user?.id
+
+  function openConvert(p: CompetitionPlayer) {
+    setConvertingDummy(p)
+    setSelectedRealUserId('')
+    setConvertOpen(true)
+  }
 
   return (
     <Layout
@@ -110,9 +144,16 @@ export function MyTeamPage() {
 
       {/* Players */}
       <section style={{ marginBottom: '24px' }}>
-        <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '15px', marginBottom: '12px' }}>
-          Players ({teamPlayers.length})
-        </h2>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+          <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '15px' }}>
+            Players ({teamPlayers.length})
+          </h2>
+          {canManage && (
+            <Button size="sm" variant="ghost" onClick={() => { setGuestName(''); setAddGuestOpen(true) }} style={{ fontSize: '12px', padding: '4px 10px' }}>
+              + Guest
+            </Button>
+          )}
+        </div>
         {removeError && (
           <p style={{ fontSize: '13px', color: 'var(--accent-warm)', marginBottom: '8px' }}>{removeError}</p>
         )}
@@ -123,16 +164,42 @@ export function MyTeamPage() {
                 <Avatar src={p.user.profileImageUrl} name={p.user.displayName ?? p.user.username} size={36} />
                 <div style={{ flex: 1 }}>
                   <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>
-                    <Link to={`/profile/${p.userId}`} style={{ color: 'inherit', textDecoration: 'none' }}>
-                      {p.user.displayName ?? p.user.username}
-                    </Link>
+                    {p.user?.isDummy ? (
+                      <span style={{ color: 'inherit' }}>{p.user.displayName ?? p.user.username}</span>
+                    ) : (
+                      <Link to={`/profile/${p.userId}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                        {p.user.displayName ?? p.user.username}
+                      </Link>
+                    )}
                   </p>
                   <div style={{ display: 'flex', gap: '4px', marginTop: '2px' }}>
+                    {p.user?.isDummy && <Badge style={{ fontSize: '11px', background: 'var(--border-light)', color: 'var(--text-muted)' }}>Guest</Badge>}
                     {p.isTeamLeader && <Badge variant="info" style={{ fontSize: '11px' }}>Leader</Badge>}
                     {p.isScorekeeper && <Badge variant="success" style={{ fontSize: '11px' }}>Scorekeeper</Badge>}
                   </div>
                 </div>
-                {canManage && p.userId === user?.id && (
+                {canManage && p.user?.isDummy && (
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => openConvert(p)}
+                      style={{ fontSize: '12px', padding: '4px 10px' }}
+                    >
+                      Convert
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => removePlayerMutation.mutate(p.userId)}
+                      loading={removePlayerMutation.isPending}
+                      style={{ fontSize: '12px', padding: '4px 10px' }}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                )}
+                {canManage && !p.user?.isDummy && p.userId === user?.id && (
                   <Button
                     size="sm"
                     variant="ghost"
@@ -143,7 +210,7 @@ export function MyTeamPage() {
                     Leave
                   </Button>
                 )}
-                {canManage && p.userId !== user?.id && (
+                {canManage && !p.user?.isDummy && p.userId !== user?.id && (
                   <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                     {isAdmin && (
                       <Button
@@ -197,6 +264,9 @@ export function MyTeamPage() {
                     <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>
                       {p.user.displayName ?? p.user.username}
                     </p>
+                    {p.user?.isDummy && (
+                      <Badge style={{ fontSize: '11px', background: 'var(--border-light)', color: 'var(--text-muted)' }}>Guest</Badge>
+                    )}
                   </div>
                   <Button
                     size="sm"
@@ -232,6 +302,91 @@ export function MyTeamPage() {
           onChange={e => setNewName(e.target.value)}
           autoFocus
         />
+      </Modal>
+
+      {/* Add guest player modal */}
+      <Modal
+        open={addGuestOpen}
+        onClose={() => setAddGuestOpen(false)}
+        title="Add Guest Player"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setAddGuestOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => addGuestMutation.mutate()}
+              loading={addGuestMutation.isPending}
+              disabled={!guestName.trim()}
+            >
+              Add
+            </Button>
+          </>
+        }
+      >
+        <Input
+          label="Player name"
+          value={guestName}
+          onChange={e => setGuestName(e.target.value)}
+          autoFocus
+          placeholder="Enter name..."
+        />
+        <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px', fontFamily: 'var(--font-ui)' }}>
+          Guest players don't need an account. You can convert them to a registered user later.
+        </p>
+      </Modal>
+
+      {/* Convert guest to real user modal */}
+      <Modal
+        open={convertOpen}
+        onClose={() => { setConvertOpen(false); setConvertingDummy(null) }}
+        title={`Convert "${convertingDummy?.user?.displayName ?? 'Guest'}"`}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => { setConvertOpen(false); setConvertingDummy(null) }}>Cancel</Button>
+            <Button
+              onClick={() => convertMutation.mutate()}
+              loading={convertMutation.isPending}
+              disabled={!selectedRealUserId}
+            >
+              Convert
+            </Button>
+          </>
+        }
+      >
+        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px', fontFamily: 'var(--font-ui)' }}>
+          Select the registered player to replace this guest. The guest's scores will transfer to the selected player. Any existing scores the selected player already has in this competition will be overwritten.
+        </p>
+        {realPoolPlayers.length === 0 ? (
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontFamily: 'var(--font-ui)', textAlign: 'center', padding: '16px 0' }}>
+            No players in the pool to convert to.
+          </p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {realPoolPlayers.map((p: CompetitionPlayer) => (
+              <div
+                key={p.userId}
+                onClick={() => setSelectedRealUserId(p.userId)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '10px',
+                  padding: '10px 12px', borderRadius: 'var(--radius-sm)',
+                  border: `2px solid ${selectedRealUserId === p.userId ? 'var(--accent)' : 'var(--border-light)'}`,
+                  cursor: 'pointer',
+                  background: selectedRealUserId === p.userId ? 'color-mix(in srgb, var(--accent) 8%, transparent)' : 'transparent',
+                  transition: 'border-color 120ms, background 120ms',
+                }}
+              >
+                <Avatar src={p.user.profileImageUrl} name={p.user.displayName ?? p.user.username} size={32} />
+                <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: '14px' }}>
+                  {p.user.displayName ?? p.user.username}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+        {convertMutation.isError && (
+          <p style={{ fontSize: '13px', color: 'var(--accent-warm)', marginTop: '8px', fontFamily: 'var(--font-ui)' }}>
+            {(convertMutation.error as any)?.message ?? 'Conversion failed'}
+          </p>
+        )}
       </Modal>
     </Layout>
   )

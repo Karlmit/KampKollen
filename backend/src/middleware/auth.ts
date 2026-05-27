@@ -21,6 +21,10 @@ export async function requireAdmin(request: FastifyRequest, reply: FastifyReply)
   }
 }
 
+export async function optionalAuth(request: FastifyRequest) {
+  try { await request.jwtVerify() } catch { /* unauthenticated — request continues */ }
+}
+
 export async function requireAdminOrScorekeeper(request: FastifyRequest, reply: FastifyReply) {
   try {
     await request.jwtVerify()

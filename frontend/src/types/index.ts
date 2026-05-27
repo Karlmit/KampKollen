@@ -11,6 +11,7 @@ export interface User {
   realName?: string
   profileImageUrl?: string
   globalRole: GlobalRole
+  isDummy?: boolean
   createdAt: string
 }
 
@@ -66,7 +67,7 @@ export interface CompetitionPlayer {
   id: string
   competitionId: string
   userId: string
-  user: Pick<User, 'id' | 'username' | 'displayName' | 'profileImageUrl'>
+  user: Pick<User, 'id' | 'username' | 'displayName' | 'profileImageUrl' | 'isDummy'>
   teamId?: string
   team?: Pick<Team, 'id' | 'name'>
   isTeamLeader: boolean

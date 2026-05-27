@@ -80,6 +80,20 @@ export function Login() {
             Create one
           </Link>
         </p>
+
+        <div style={{ marginTop: '16px', textAlign: 'center' }}>
+          <Link
+            to="/competitions"
+            style={{
+              fontSize: '13px', color: 'var(--text-muted)',
+              fontFamily: 'var(--font-ui)', textDecoration: 'none',
+              borderBottom: '1px solid var(--border-light)',
+              paddingBottom: '1px',
+            }}
+          >
+            Browse as Guest
+          </Link>
+        </div>
       </div>
     </div>
   )

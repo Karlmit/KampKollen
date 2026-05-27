@@ -59,6 +59,10 @@ export const api = {
     addPlayer: (id: string, data: any) => request(`/competitions/${id}/players`, { method: 'POST', body: JSON.stringify(data) }),
     updatePlayer: (id: string, userId: string, data: any) => request(`/competitions/${id}/players/${userId}`, { method: 'PUT', body: JSON.stringify(data) }),
     removePlayer: (id: string, userId: string) => request(`/competitions/${id}/players/${userId}`, { method: 'DELETE' }),
+    createDummyPlayer: (id: string, data: { name: string; teamId?: string }) =>
+      request<{ player: any }>(`/competitions/${id}/players/dummy`, { method: 'POST', body: JSON.stringify(data) }),
+    convertDummyPlayer: (id: string, dummyUserId: string, data: { realUserId: string }) =>
+      request<{ success: boolean }>(`/competitions/${id}/players/dummy/${dummyUserId}/convert`, { method: 'POST', body: JSON.stringify(data) }),
   },
 
   // Challenges

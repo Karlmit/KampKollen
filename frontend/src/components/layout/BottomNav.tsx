@@ -9,6 +9,11 @@ const NAV_ITEMS = [
   { to: '/profile',     icon: '👤', label: 'Profile' },
 ]
 const ADMIN_ITEM = { to: '/admin', icon: '⚙️', label: 'Admin' }
+const GUEST_NAV_ITEMS = [
+  { to: '/competitions', icon: '🏆', label: 'Compete' },
+  { to: '/leaderboard', icon: '📊', label: 'Scores' },
+  { to: '/login',       icon: '👤', label: 'Sign In' },
+]
 
 function matchItem(to: string, pathname: string) {
   if (to === '/') return pathname === '/'
@@ -16,14 +21,14 @@ function matchItem(to: string, pathname: string) {
 }
 
 export function BottomNav() {
-  const { isAdmin } = useAuth()
+  const { user, isAdmin } = useAuth()
   const location = useLocation()
   const navRef = useRef<HTMLElement>(null)
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const [ind, setInd] = useState({ left: 0, width: 0, animate: false })
   const mounted = useRef(false)
 
-  const items = isAdmin ? [...NAV_ITEMS, ADMIN_ITEM] : NAV_ITEMS
+  const items = !user ? GUEST_NAV_ITEMS : isAdmin ? [...NAV_ITEMS, ADMIN_ITEM] : NAV_ITEMS
   const activeItem = items.find(item => matchItem(item.to, location.pathname))
 
   // Snap to initial position before first paint — no transition, no flash
