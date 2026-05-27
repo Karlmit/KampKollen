@@ -97,7 +97,6 @@ export function ScorekeeperPage() {
   const { user, isAdmin } = useAuth()
   const qc = useQueryClient()
   const [selectedCcId, setSelectedCcId] = useState<string | null>(null)
-  const [scores, setScores] = useState<Record<string, string>>({})
   const [editingPlayer, setEditingPlayer] = useState<any>(null)
   const [adminAllTeams, setAdminAllTeams] = useState(false)
 
@@ -121,28 +120,23 @@ export function ScorekeeperPage() {
     },
   })
 
-  const submitMutation = useMutation({
-    mutationFn: async () => {
+  const upsertMutation = useMutation({
+    mutationFn: async ({ userId, val }: { userId: string; val: string }) => {
       if (!selectedCcId) return
+      const num = parseFloat(val)
+      if (isNaN(num)) return
       const cc = comp?.challenges.find((c: any) => c.id === selectedCcId)
       const scoreType: ScoreType = cc?.scoreTypeOverride ?? cc?.challenge.scoreType
-
-      const entries = Object.entries(scores).filter(([, v]) => v !== '')
-      for (const [userId, val] of entries) {
-        const num = parseFloat(val)
-        if (isNaN(num)) continue
-        const data: any = { userId }
-        if (scoreType === 'time_fastest_wins') data.timeMs = Math.round(num * 1000)
-        else if (scoreType === 'placement_lowest_wins') data.placement = num
-        else if (scoreType === 'manual_points') data.calculatedPoints = num
-        else data.rawScore = num
-        await api.scores.upsert(competitionId!, selectedCcId!, data)
-      }
+      const data: any = { userId }
+      if (scoreType === 'time_fastest_wins') data.timeMs = Math.round(num * 1000)
+      else if (scoreType === 'placement_lowest_wins') data.placement = num
+      else if (scoreType === 'manual_points') data.calculatedPoints = num
+      else data.rawScore = num
+      return api.scores.upsert(competitionId!, selectedCcId!, data)
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['scores', competitionId, selectedCcId] })
       qc.invalidateQueries({ queryKey: ['leaderboard', competitionId] })
-      setScores({})
     },
   })
 
@@ -207,15 +201,13 @@ export function ScorekeeperPage() {
   ]
   const showTeamHeaders = showAllTeams || groupedTeams.length > 1
 
-  const pendingCount = Object.keys(scores).length
-
   return (
     <Layout title="Enter Scores" back={`/competitions/${competitionId}`}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
         <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>{comp.name}</p>
         {isAdmin && (
           <button
-            onClick={() => { setAdminAllTeams(v => !v); setScores({}) }}
+            onClick={() => setAdminAllTeams(v => !v)}
             style={{
               display: 'flex', alignItems: 'center', gap: '6px',
               padding: '5px 10px', borderRadius: 'var(--radius)',
@@ -240,7 +232,7 @@ export function ScorekeeperPage() {
           {comp.challenges?.map((cc: any) => (
             <button
               key={cc.id}
-              onClick={() => { setSelectedCcId(cc.id); setScores({}) }}
+              onClick={() => setSelectedCcId(cc.id)}
               style={{
                 display: 'flex', alignItems: 'center', gap: '6px',
                 padding: cc.challenge.logoUrl ? '6px 12px 6px 6px' : '8px 14px',
@@ -300,13 +292,12 @@ export function ScorekeeperPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {team.players.map((p: any) => {
                     const existing = getExistingScore(p.userId)
-                    const staged = scores[p.userId]
-                    const hasValue = staged !== undefined || existing
+                    const isSaving = upsertMutation.isPending && editingPlayer?.userId === p.userId
                     return (
                       <Card
                         key={p.userId}
                         padding="12px"
-                        style={{ cursor: 'pointer' }}
+                        style={{ cursor: 'pointer', opacity: isSaving ? 0.6 : 1 }}
                         onClick={() => setEditingPlayer(p)}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -324,15 +315,8 @@ export function ScorekeeperPage() {
                             {p.team && <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{p.team.name}</p>}
                           </div>
                           <div style={{ textAlign: 'right', minWidth: '48px' }}>
-                            {staged !== undefined ? (
-                              <p style={{
-                                fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px',
-                                color: 'var(--accent)',
-                              }}>
-                                {staged || '—'}
-                              </p>
-                            ) : existing ? (
-                              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '16px', color: 'var(--text-muted)' }}>
+                            {existing ? (
+                              <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px' }}>
                                 {existing}
                               </p>
                             ) : (
@@ -348,14 +332,6 @@ export function ScorekeeperPage() {
             ))}
           </div>
 
-          <Button
-            fullWidth
-            onClick={() => submitMutation.mutate()}
-            loading={submitMutation.isPending}
-            disabled={pendingCount === 0}
-          >
-            {pendingCount > 0 ? `Save ${pendingCount} score${pendingCount > 1 ? 's' : ''}` : 'Save Scores'}
-          </Button>
         </>
       )}
 
@@ -363,17 +339,16 @@ export function ScorekeeperPage() {
         open={!!editingPlayer}
         onClose={() => setEditingPlayer(null)}
         playerName={editingPlayer?.user?.displayName ?? editingPlayer?.user?.username ?? ''}
-        currentValue={editingPlayer ? (scores[editingPlayer.userId] ?? getExistingScore(editingPlayer.userId)) : ''}
+        currentValue={editingPlayer ? getExistingScore(editingPlayer.userId) : ''}
         scoreLabel={scoreLabel}
         onSave={(val) => {
-          if (editingPlayer) setScores(s => ({ ...s, [editingPlayer.userId]: val }))
+          if (editingPlayer && val.trim()) {
+            upsertMutation.mutate({ userId: editingPlayer.userId, val })
+          }
         }}
         onDelete={editingPlayer ? (() => {
           const existing = existingScores.find((s: any) => s.userId === editingPlayer.userId)
-          if (existing) {
-            deleteMutation.mutate(existing.id)
-            setScores(s => { const n = { ...s }; delete n[editingPlayer.userId]; return n })
-          }
+          if (existing) deleteMutation.mutate(existing.id)
         }) : undefined}
       />
     </Layout>
