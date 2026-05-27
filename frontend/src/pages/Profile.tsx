@@ -59,7 +59,7 @@ export function Profile() {
     >
       {/* Profile header */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '24px', gap: '12px' }}>
-        <Avatar src={user.profileImageUrl} name={user.displayName ?? user.username} size={80} />
+        <Avatar src={user.profileImageUrl} name={user.displayName ?? user.username} size={96} />
         <div style={{ textAlign: 'center' }}>
           <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '22px' }}>
             {user.displayName ?? user.username}
@@ -74,7 +74,6 @@ export function Profile() {
         {(isSelf || isAdmin) && (
           <ImageGenerator
             defaultPrompt="A fun friendly avatar for an office sports competition player. Cheerful character, simple design, colorful."
-            currentImageUrl={user.profileImageUrl}
             onGenerate={async (prompt) => {
               const res = await api.users.generateImage(userId!, prompt)
               qc.invalidateQueries({ queryKey: ['user', userId] })
