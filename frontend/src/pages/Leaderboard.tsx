@@ -70,20 +70,34 @@ export function CompetitionLeaderboardPage() {
 
       {/* View toggle */}
       <div style={{
-        display: 'flex', background: 'var(--surface)', borderRadius: 'var(--radius)',
+        position: 'relative', display: 'flex',
+        background: 'var(--surface)', borderRadius: 'var(--radius)',
         padding: '4px', marginBottom: '20px', gap: '4px',
       }}>
+        {/* Sliding pill highlight */}
+        <span style={{
+          position: 'absolute',
+          top: 4, bottom: 4,
+          left: view === 'teams' ? 4 : 'calc(50% + 2px)',
+          width: 'calc(50% - 6px)',
+          background: 'var(--background)',
+          borderRadius: '10px',
+          boxShadow: 'var(--shadow-sm)',
+          transition: 'left 220ms var(--ease-out)',
+          pointerEvents: 'none',
+        }} />
         {(['teams', 'individual'] as View[]).map(v => (
           <button
             key={v}
             onClick={() => setView(v)}
             style={{
               flex: 1, padding: '8px', borderRadius: '10px',
-              background: view === v ? 'var(--background)' : 'transparent',
+              background: 'transparent',
               color: view === v ? 'var(--text-primary)' : 'var(--text-muted)',
               fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px',
-              boxShadow: view === v ? 'var(--shadow-sm)' : 'none',
-              cursor: 'pointer', border: 'none', transition: 'all 150ms ease',
+              cursor: 'pointer', border: 'none',
+              position: 'relative', zIndex: 1,
+              transition: 'color 200ms var(--ease-out)',
             }}
           >
             {v === 'teams' ? '🛡️ Teams' : '👤 Individual'}

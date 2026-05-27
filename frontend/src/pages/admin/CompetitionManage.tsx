@@ -19,6 +19,7 @@ import { Avatar } from '../../components/ui/Avatar'
 import { StatusBadge } from '../../components/ui/Badge'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { ImageGenerator } from '../../components/ImageGenerator'
+import { TabBar } from '../../components/ui/TabBar'
 import { api } from '../../api/client'
 import { formatDate } from '../../utils'
 
@@ -185,18 +186,12 @@ export function AdminCompetitionManage() {
       </p>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', borderBottom: '1px solid var(--border-light)', marginBottom: '16px', overflowX: 'auto' }}>
-        {tabs.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)} style={{
-            padding: '8px 12px', fontSize: '12px', fontFamily: 'var(--font-ui)', fontWeight: 700,
-            cursor: 'pointer', background: 'none', border: 'none', whiteSpace: 'nowrap',
-            borderBottom: tab === t.key ? '2px solid var(--accent)' : '2px solid transparent',
-            color: tab === t.key ? 'var(--accent)' : 'var(--text-muted)',
-          }}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <TabBar
+        tabs={tabs}
+        active={tab}
+        onChange={key => setTab(key as Tab)}
+        style={{ marginBottom: '16px' }}
+      />
 
       {/* Players tab */}
       {tab === 'players' && (

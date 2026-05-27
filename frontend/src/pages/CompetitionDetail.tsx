@@ -9,6 +9,7 @@ import { Avatar } from '../components/ui/Avatar'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { useAuth } from '../contexts/AuthContext'
 import { formatDate } from '../utils'
+import { TabBar } from '../components/ui/TabBar'
 import { api } from '../api/client'
 import { Competition, CompetitionPlayer, Team, SCORE_TYPE_LABELS } from '../types'
 
@@ -94,26 +95,15 @@ export function CompetitionDetail() {
       </div>
 
       {/* Tabs */}
-      <div style={{
-        display: 'flex', borderBottom: '1px solid var(--border-light)',
-        marginBottom: '16px', gap: '0',
-      }}>
-        {tabs.map(t => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            style={{
-              padding: '8px 14px', fontSize: '13px', fontFamily: 'var(--font-ui)',
-              fontWeight: 700, cursor: 'pointer', background: 'none', border: 'none',
-              borderBottom: tab === t.key ? '2px solid var(--accent)' : '2px solid transparent',
-              color: tab === t.key ? 'var(--accent)' : 'var(--text-muted)',
-              transition: 'color 150ms',
-            }}
-          >
-            {t.label}{t.count !== undefined ? ` (${t.count})` : ''}
-          </button>
-        ))}
-      </div>
+      <TabBar
+        tabs={tabs.map(t => ({
+          key: t.key,
+          label: t.count !== undefined ? `${t.label} (${t.count})` : t.label,
+        }))}
+        active={tab}
+        onChange={key => setTab(key as Tab)}
+        style={{ marginBottom: '16px' }}
+      />
 
       {/* Tab content */}
       {tab === 'overview' && (
