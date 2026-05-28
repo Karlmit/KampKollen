@@ -75,7 +75,11 @@ export function Button({
       onPointerCancel={e => { e.currentTarget.style.transform = 'scale(1)' }}
       {...props}
     >
-      {loading ? <span>…</span> : children}
+      {loading ? (
+        <span className="loading-dots">
+          <span /><span /><span />
+        </span>
+      ) : children}
     </button>
   )
 }
