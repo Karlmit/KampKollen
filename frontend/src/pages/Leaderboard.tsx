@@ -17,7 +17,7 @@ export function CompetitionLeaderboardPage() {
   const [view, setView] = useState<View>('teams')
   const [expandedChallenge, setExpandedChallenge] = useState<string | null>(null)
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['leaderboard', id],
     queryFn: () => api.leaderboards.competition(id!),
     enabled: !!id,
@@ -61,7 +61,26 @@ export function CompetitionLeaderboardPage() {
   const top3 = lb.individualLeaderboard.slice(0, 3)
 
   return (
-    <Layout title={lb.competition.name} back={`/competitions/${id}`}>
+    <Layout
+      title={lb.competition.name}
+      back={`/competitions/${id}`}
+      action={
+        <button
+          onClick={() => refetch()}
+          disabled={isFetching}
+          style={{
+            background: 'none', border: 'none', cursor: isFetching ? 'default' : 'pointer',
+            fontSize: '22px', lineHeight: 1, padding: '4px',
+            opacity: isFetching ? 0.4 : 1,
+            transition: 'opacity 150ms ease',
+            display: 'flex', alignItems: 'center',
+          }}
+          aria-label="Refresh leaderboard"
+        >
+          ↻
+        </button>
+      }
+    >
       {/* Status strip */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
         {isLive && (
