@@ -7,6 +7,7 @@ const sections = [
   { to: '/admin/competitions', icon: '🏆', label: 'Competitions' },
   { to: '/admin/challenges', icon: '⚔️', label: 'Challenges' },
   { to: '/admin/users', icon: '👥', label: 'Users' },
+  { to: '/admin/image-options', icon: '🎨', label: 'Image Options' },
   { to: '/admin/settings', icon: '🔧', label: 'Settings' },
 ]
 

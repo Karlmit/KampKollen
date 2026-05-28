@@ -1,20 +1,22 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Button } from './ui/Button'
+import { api } from '../api/client'
 
-const SUBJECTS = [
+const FALLBACK_SUBJECTS = [
   'Farmyard Animal', 'Forest Animal', 'Fish', 'Fruit',
   'Vegetable', 'Finance Symbol', 'Yellow Bear',
 ]
 
-const CLOTHES = [
-  'a T-shirt', 'a suit and tie', 'a hoodie', 'a lab coat',
+const FALLBACK_CLOTHES = [
+  'None', 'a T-shirt', 'a suit and tie', 'a hoodie', 'a lab coat',
   'a cowboy outfit', 'a superhero cape', "a chef's apron",
   'viking armor', 'a tuxedo', 'a sports jersey',
   'a pirate costume', 'a wizard robe', 'a ninja outfit',
   'a space suit', 'a Hawaiian shirt',
 ]
 
-const ACCESSORIES = [
+const FALLBACK_ACCESSORIES = [
   'None', 'a top hat', 'a bow tie', 'a crown', 'a scarf',
   'a monocle', 'a party hat', 'a pair of headphones', 'a wizard hat',
   'a pirate hat', 'a santa hat', 'a cowboy hat', 'a flower crown',
@@ -24,6 +26,11 @@ const ACCESSORIES = [
 
 function randomFrom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]
+}
+
+function randomNonNone(arr: string[]): string {
+  const options = arr.filter(v => v !== 'None')
+  return options.length > 0 ? randomFrom(options) : arr[0]
 }
 
 function resolveUrl(src: string): string {
@@ -64,10 +71,20 @@ export function ProfileImageGenerator({ onGenerate, currentImageUrl }: {
   onGenerate: (prompt: string) => Promise<string>
   currentImageUrl?: string | null
 }) {
+  const { data: optData } = useQuery({
+    queryKey: ['image-options'],
+    queryFn: () => api.imageOptions.get(),
+    staleTime: Infinity,
+  })
+
+  const subjects = optData?.subjects ?? FALLBACK_SUBJECTS
+  const clothesList = optData?.clothes ?? FALLBACK_CLOTHES
+  const accessories = optData?.accessories ?? FALLBACK_ACCESSORIES
+
   const [mode, setMode] = useState<'help' | 'custom'>('help')
-  const [subject, setSubject] = useState(() => randomFrom(SUBJECTS))
-  const [clothes, setClothes] = useState(() => randomFrom(CLOTHES))
-  const [accessory, setAccessory] = useState(() => randomFrom(ACCESSORIES))
+  const [subject, setSubject] = useState(() => randomFrom(FALLBACK_SUBJECTS))
+  const [clothes, setClothes] = useState(() => randomNonNone(FALLBACK_CLOTHES))
+  const [accessory, setAccessory] = useState(() => randomFrom(FALLBACK_ACCESSORIES))
   const [customPrompt, setCustomPrompt] = useState('')
   const [loading, setLoading] = useState(false)
   const [imageUrl, setImageUrl] = useState<string | null>(currentImageUrl ?? null)
@@ -76,8 +93,9 @@ export function ProfileImageGenerator({ onGenerate, currentImageUrl }: {
   const resolvedImageUrl = imageUrl ? resolveUrl(imageUrl) : null
 
   const buildPrompt = () => {
-    const acc = accessory === 'None' ? '' : ` and ${accessory}`
-    return `A fun random ${subject} avatar, wearing ${clothes}${acc}. Colorful, playful, simple.`
+    const wearingPart = clothes === 'None' ? '' : `, wearing ${clothes}`
+    const accPart = accessory === 'None' ? '' : (clothes === 'None' ? ` with ${accessory}` : ` and ${accessory}`)
+    return `A fun random ${subject} avatar${wearingPart}${accPart}. Colorful, playful, simple.`
   }
 
   const handleGenerate = async () => {
@@ -130,15 +148,19 @@ export function ProfileImageGenerator({ onGenerate, currentImageUrl }: {
         }}>
           <span>A fun random </span>
           <select value={subject} onChange={e => setSubject(e.target.value)} style={selectStyle}>
-            {SUBJECTS.map(s => <option key={s}>{s}</option>)}
+            {subjects.map(s => <option key={s}>{s}</option>)}
           </select>
-          <span> avatar, wearing </span>
+          <span> avatar</span>
+          {clothes !== 'None' && <span>, wearing </span>}
+          {clothes === 'None' && <span> </span>}
           <select value={clothes} onChange={e => setClothes(e.target.value)} style={selectStyle}>
-            {CLOTHES.map(c => <option key={c}>{c}</option>)}
+            {clothesList.map(c => <option key={c}>{c}</option>)}
           </select>
-          {accessory !== 'None' && <span> and </span>}
+          {accessory !== 'None' && (
+            <span>{clothes === 'None' ? ' with ' : ' and '}</span>
+          )}
           <select value={accessory} onChange={e => setAccessory(e.target.value)} style={selectStyle}>
-            {ACCESSORIES.map(a => <option key={a}>{a}</option>)}
+            {accessories.map(a => <option key={a}>{a}</option>)}
           </select>
           <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>.</span>
         </div>

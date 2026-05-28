@@ -106,6 +106,13 @@ export const api = {
     update: (data: Record<string, string>) => request('/admin/settings', { method: 'PUT', body: JSON.stringify(data) }),
   },
 
+  // Image prompt options (subjects/clothes/accessories)
+  imageOptions: {
+    get: () => request<{ subjects: string[]; clothes: string[]; accessories: string[] }>('/image-options'),
+    update: (data: { subjects?: string[]; clothes?: string[]; accessories?: string[] }) =>
+      request<{ success: boolean }>('/image-options', { method: 'PUT', body: JSON.stringify(data) }),
+  },
+
   // Leaderboards
   leaderboards: {
     competition: (id: string) => request<any>(`/leaderboards/competition/${id}`),
