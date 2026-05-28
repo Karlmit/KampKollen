@@ -207,12 +207,13 @@ export function CompetitionDetail() {
                   <img
                     src={cc.challenge.logoUrl}
                     alt={cc.challenge.name}
-                    style={{ width: 120, height: 120, flexShrink: 0, objectFit: 'cover', display: 'block' }}
+                    style={{ width: 132, height: 132, flexShrink: 0, objectFit: 'cover', display: 'block', borderRadius: 'var(--radius)', margin: '8px 8px 8px 0' }}
                   />
                 ) : (
                   <div style={{
-                    width: 120, height: 120, flexShrink: 0,
+                    width: 132, height: 132, flexShrink: 0,
                     background: 'var(--surface-raised)',
+                    borderRadius: 'var(--radius)', margin: '8px 8px 8px 0',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
                     <span style={{ fontFamily: 'var(--font-ui)', fontSize: '36px', color: 'var(--border-light)' }}>
