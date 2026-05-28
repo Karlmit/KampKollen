@@ -229,10 +229,12 @@ export function CompetitionDetail() {
                 {playerPool.map((p: CompetitionPlayer) => (
                   <Card key={p.userId} padding="12px">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <Avatar src={p.user.profileImageUrl} name={p.user.displayName ?? p.user.username} size={36} />
-                      <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, flex: 1 }}>
-                        {p.user.displayName ?? p.user.username}
-                      </p>
+                      <Link to={`/profile/${p.userId}`} style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, textDecoration: 'none', color: 'inherit', minWidth: 0 }}>
+                        <Avatar src={p.user.profileImageUrl} name={p.user.displayName ?? p.user.username} size={36} />
+                        <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700 }}>
+                          {p.user.displayName ?? p.user.username}
+                        </p>
+                      </Link>
                       {isAdmin && (
                         <div style={{ display: 'flex', gap: '4px' }}>
                           <Button size="sm" variant="ghost" style={{ fontSize: '12px', padding: '4px 10px' }}
@@ -266,17 +268,19 @@ export function CompetitionDetail() {
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {teamPlayers.map((p: CompetitionPlayer) => (
-                      <Card key={p.userId} padding="12px">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <Avatar src={p.user.profileImageUrl} name={p.user.displayName ?? p.user.username} size={36} />
-                          <div style={{ flex: 1 }}>
-                            <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700 }}>
-                              {p.user.displayName ?? p.user.username}
-                            </p>
-                            {p.isTeamLeader && <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Leader</p>}
+                      <Link key={p.userId} to={`/profile/${p.userId}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                        <Card padding="12px" className="card-interactive">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <Avatar src={p.user.profileImageUrl} name={p.user.displayName ?? p.user.username} size={36} />
+                            <div style={{ flex: 1 }}>
+                              <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700 }}>
+                                {p.user.displayName ?? p.user.username}
+                              </p>
+                              {p.isTeamLeader && <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Leader</p>}
+                            </div>
                           </div>
-                        </div>
-                      </Card>
+                        </Card>
+                      </Link>
                     ))}
                   </div>
                 )}
