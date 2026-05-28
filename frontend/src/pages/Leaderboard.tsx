@@ -68,16 +68,10 @@ export function CompetitionLeaderboardPage() {
         <button
           onClick={() => refetch()}
           disabled={isFetching}
-          style={{
-            background: 'none', border: 'none', cursor: isFetching ? 'default' : 'pointer',
-            fontSize: '22px', lineHeight: 1, padding: '4px',
-            opacity: isFetching ? 0.4 : 1,
-            transition: 'opacity 150ms ease',
-            display: 'flex', alignItems: 'center',
-          }}
+          className={`refresh-btn${isFetching ? ' spinning' : ''}`}
           aria-label="Refresh leaderboard"
         >
-          ↻
+          <span className="refresh-icon">↻</span>
         </button>
       }
     >

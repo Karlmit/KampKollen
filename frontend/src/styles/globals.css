@@ -253,6 +253,54 @@ img {
   .loading-dots span { animation: none; opacity: 0.6; }
 }
 
+/* ─── Spin animation ─── */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ─── Refresh button ─── */
+.refresh-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 22px;
+  line-height: 1;
+  transition: background 150ms var(--ease-out), color 150ms var(--ease-out), transform 120ms var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .refresh-btn:not(:disabled):hover {
+    background: var(--surface);
+    color: var(--text-primary);
+  }
+}
+.refresh-btn:not(:disabled):active {
+  transform: scale(0.85);
+}
+.refresh-btn:disabled {
+  cursor: default;
+}
+.refresh-btn .refresh-icon {
+  display: inline-block;
+}
+.refresh-btn.spinning .refresh-icon {
+  animation: spin 700ms linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .refresh-btn.spinning .refresh-icon {
+    animation: none;
+    opacity: 0.45;
+  }
+}
+
 /* ─── Shimmer skeleton ─── */
 @keyframes shimmer {
   0% { background-position: -200% center; }
