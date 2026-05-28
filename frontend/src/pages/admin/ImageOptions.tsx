@@ -24,23 +24,21 @@ const CATEGORY_HINTS: Record<Category, string> = {
 function OptionList({
   category,
   items,
-  onChange,
+  onAdd,
+  onRemove,
 }: {
   category: Category
   items: string[]
-  onChange: (items: string[]) => void
+  onAdd: (item: string) => void
+  onRemove: (item: string) => void
 }) {
   const [newValue, setNewValue] = useState('')
 
   const handleAdd = () => {
     const trimmed = newValue.trim()
     if (!trimmed || items.includes(trimmed)) return
-    onChange([...items, trimmed])
+    onAdd(trimmed)
     setNewValue('')
-  }
-
-  const handleRemove = (item: string) => {
-    onChange(items.filter(i => i !== item))
   }
 
   return (
@@ -65,7 +63,7 @@ function OptionList({
                 {item}
               </span>
               <button
-                onClick={() => handleRemove(item)}
+                onClick={() => onRemove(item)}
                 disabled={isProtected}
                 style={{
                   width: 28, height: 28, borderRadius: 'var(--radius-sm)',
@@ -101,7 +99,7 @@ function OptionList({
           variant="ghost"
           onClick={handleAdd}
           disabled={!newValue.trim() || items.includes(newValue.trim())}
-          style={{ marginBottom: '0', alignSelf: 'flex-end', height: '40px' }}
+          style={{ alignSelf: 'flex-end', height: '40px' }}
         >
           Add
         </Button>
@@ -131,32 +129,70 @@ export function AdminImageOptions() {
   }, [data])
 
   const saveMutation = useMutation({
-    mutationFn: () => api.imageOptions.update({ subjects, clothes, accessories }),
+    mutationFn: (opts: { subjects: string[]; clothes: string[]; accessories: string[] }) =>
+      api.imageOptions.update(opts),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['image-options'] })
       setSaved(true)
-      setTimeout(() => setSaved(false), 2500)
+      setTimeout(() => setSaved(false), 2000)
     },
   })
+
+  const save = (next: { subjects: string[]; clothes: string[]; accessories: string[] }) => {
+    saveMutation.mutate(next)
+  }
+
+  const handleAdd = (category: Category, item: string) => {
+    const next = {
+      subjects: category === 'subjects' ? [...subjects, item] : subjects,
+      clothes: category === 'clothes' ? [...clothes, item] : clothes,
+      accessories: category === 'accessories' ? [...accessories, item] : accessories,
+    }
+    setSubjects(next.subjects)
+    setClothes(next.clothes)
+    setAccessories(next.accessories)
+    save(next)
+  }
+
+  const handleRemove = (category: Category, item: string) => {
+    const next = {
+      subjects: category === 'subjects' ? subjects.filter(i => i !== item) : subjects,
+      clothes: category === 'clothes' ? clothes.filter(i => i !== item) : clothes,
+      accessories: category === 'accessories' ? accessories.filter(i => i !== item) : accessories,
+    }
+    setSubjects(next.subjects)
+    setClothes(next.clothes)
+    setAccessories(next.accessories)
+    save(next)
+  }
 
   return (
     <AdminLayout title="Image Options">
       {isLoading ? <LoadingSpinner /> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <OptionList category="subjects" items={subjects} onChange={setSubjects} />
-          <OptionList category="clothes" items={clothes} onChange={setClothes} />
-          <OptionList category="accessories" items={accessories} onChange={setAccessories} />
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <Button onClick={() => saveMutation.mutate()} loading={saveMutation.isPending}>
-              Save Changes
-            </Button>
-            {saved && (
-              <p style={{ fontSize: '14px', color: 'var(--accent-green)', fontFamily: 'var(--font-ui)' }}>
-                Saved
-              </p>
-            )}
-          </div>
+          {saved && (
+            <p style={{ fontSize: '13px', color: 'var(--accent-green)', fontFamily: 'var(--font-ui)', textAlign: 'right' }}>
+              Saved ✓
+            </p>
+          )}
+          <OptionList
+            category="subjects"
+            items={subjects}
+            onAdd={item => handleAdd('subjects', item)}
+            onRemove={item => handleRemove('subjects', item)}
+          />
+          <OptionList
+            category="clothes"
+            items={clothes}
+            onAdd={item => handleAdd('clothes', item)}
+            onRemove={item => handleRemove('clothes', item)}
+          />
+          <OptionList
+            category="accessories"
+            items={accessories}
+            onAdd={item => handleAdd('accessories', item)}
+            onRemove={item => handleRemove('accessories', item)}
+          />
         </div>
       )}
     </AdminLayout>
