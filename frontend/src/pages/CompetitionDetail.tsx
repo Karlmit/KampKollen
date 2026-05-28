@@ -189,11 +189,11 @@ export function CompetitionDetail() {
                 <img
                   src={cc.challenge.logoUrl}
                   alt={cc.challenge.name}
-                  style={{ width: '100%', height: 200, objectFit: 'cover', display: 'block' }}
+                  style={{ width: '100%', aspectRatio: '1 / 1', objectFit: 'cover', display: 'block' }}
                 />
               ) : (
                 <div style={{
-                  width: '100%', height: 200,
+                  width: '100%', aspectRatio: '1 / 1',
                   background: 'var(--surface-raised)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
