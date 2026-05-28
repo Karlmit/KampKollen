@@ -104,10 +104,8 @@ export function CompetitionDetail() {
                 <p style={{ fontSize: '12px', opacity: 0.7, marginBottom: '2px' }}>YOUR TEAM</p>
                 <p style={{ fontFamily: 'var(--font-ui)', fontSize: '18px' }}>{myTeam.name}</p>
               </div>
-              {myTeam.imageUrl ? (
+              {myTeam.imageUrl && (
                 <img src={myTeam.imageUrl} alt={myTeam.name} style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-              ) : (
-                <span style={{ fontSize: '24px' }}>🛡️</span>
               )}
             </div>
           </Card>
