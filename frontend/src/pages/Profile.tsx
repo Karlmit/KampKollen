@@ -62,9 +62,9 @@ export function Profile() {
       {/* Profile header */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '24px', gap: '12px' }}>
         {isGenerating ? (
-          <div className="shimmer" style={{ width: 96, height: 96, borderRadius: '50%', flexShrink: 0 }} />
+          <div className="shimmer" style={{ width: 120, height: 120, borderRadius: '50%', flexShrink: 0 }} />
         ) : (
-          <Avatar src={user.profileImageUrl} name={user.displayName ?? user.username} size={96} />
+          <Avatar src={user.profileImageUrl} name={user.displayName ?? user.username} size={120} />
         )}
         <div style={{ textAlign: 'center' }}>
           <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '22px' }}>
