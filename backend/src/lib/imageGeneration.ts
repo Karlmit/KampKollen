@@ -2,7 +2,8 @@ import axios from 'axios'
 import fs from 'fs/promises'
 import path from 'path'
 import { config } from '../config.js'
-import { getAzureConfig } from '../routes/settings.js'
+import { getAzureConfig, getImageOptions } from '../routes/settings.js'
+import { prisma } from '../db.js'
 
 export interface GenerateImageOptions {
   prompt: string
@@ -103,4 +104,26 @@ export const DEFAULT_PROMPTS = {
   team: (teamName: string) => `A fun mascot or logo for a sports team called "${teamName}". Bold, colorful, playful.`,
   challenge: (challengeName: string) => `An app icon for a sports challenge called "${challengeName}". Simple, bold, colorful icon style.`,
   competition: (competitionName: string) => `A banner illustration for an office sports competition called "${competitionName}". Cheerful, energetic, team-themed.`,
+}
+
+function randomFrom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)]
+}
+
+export async function generateRandomProfileImage(userId: string): Promise<void> {
+  const opts = await getImageOptions()
+
+  const subject = randomFrom(opts.subjects)
+  const clothes = randomFrom(opts.clothes)
+  const accessory = randomFrom(opts.accessories)
+
+  const wearingPart = clothes === 'None' ? '' : `, wearing ${clothes}`
+  const accPart = accessory === 'None' ? '' : (clothes === 'None' ? ` with ${accessory}` : ` and ${accessory}`)
+  const prompt = `Close-up portrait of a ${subject} avatar${wearingPart}${accPart}. Face and shoulders only, centered, large in frame. Colorful, playful, simple.`
+
+  const result = await generateImage({ prompt }, 'profiles')
+  await prisma.user.update({
+    where: { id: userId },
+    data: { profileImageUrl: result.publicUrl },
+  })
 }

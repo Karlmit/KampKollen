@@ -33,11 +33,6 @@ function randomNonNone(arr: string[]): string {
   return options.length > 0 ? randomFrom(options) : arr[0]
 }
 
-function resolveUrl(src: string): string {
-  if (src.startsWith('/uploads/')) return src.slice(1)
-  return src
-}
-
 const selectStyle: React.CSSProperties = {
   display: 'inline',
   fontFamily: 'var(--font-ui)',
@@ -67,9 +62,8 @@ const textareaStyle: React.CSSProperties = {
   outline: 'none',
 }
 
-export function ProfileImageGenerator({ onGenerate, currentImageUrl }: {
+export function ProfileImageGenerator({ onGenerate }: {
   onGenerate: (prompt: string) => Promise<string>
-  currentImageUrl?: string | null
 }) {
   const { data: optData } = useQuery({
     queryKey: ['image-options'],
@@ -87,10 +81,7 @@ export function ProfileImageGenerator({ onGenerate, currentImageUrl }: {
   const [accessory, setAccessory] = useState(() => randomFrom(FALLBACK_ACCESSORIES))
   const [customPrompt, setCustomPrompt] = useState('')
   const [loading, setLoading] = useState(false)
-  const [imageUrl, setImageUrl] = useState<string | null>(currentImageUrl ?? null)
   const [error, setError] = useState<string | null>(null)
-
-  const resolvedImageUrl = imageUrl ? resolveUrl(imageUrl) : null
 
   const buildPrompt = () => {
     const wearingPart = clothes === 'None' ? '' : `, wearing ${clothes}`
@@ -104,8 +95,7 @@ export function ProfileImageGenerator({ onGenerate, currentImageUrl }: {
     setLoading(true)
     setError(null)
     try {
-      const url = await onGenerate(prompt)
-      setImageUrl(url)
+      await onGenerate(prompt)
     } catch (err: any) {
       setError(err.message ?? 'Image generation failed')
     } finally {
@@ -117,13 +107,6 @@ export function ProfileImageGenerator({ onGenerate, currentImageUrl }: {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
-      {/* Image preview */}
-      {loading ? (
-        <div className="shimmer" style={{ width: 120, height: 120, borderRadius: 'var(--radius)', alignSelf: 'center', flexShrink: 0 }} />
-      ) : resolvedImageUrl ? (
-        <img src={resolvedImageUrl} alt="Profile" style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 'var(--radius)', border: '2px solid var(--border-light)', alignSelf: 'center' }} />
-      ) : null}
-
       {/* Mode selector */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
         <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', fontFamily: 'var(--font-ui)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>

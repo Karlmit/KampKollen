@@ -23,6 +23,7 @@ export function Profile() {
 
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({ displayName: '', realName: '', password: '' })
+  const [isGenerating, setIsGenerating] = useState(false)
 
   const { data, isLoading } = useQuery({
     queryKey: ['user', userId],
@@ -60,7 +61,11 @@ export function Profile() {
     >
       {/* Profile header */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '24px', gap: '12px' }}>
-        <Avatar src={user.profileImageUrl} name={user.displayName ?? user.username} size={96} />
+        {isGenerating ? (
+          <div className="shimmer" style={{ width: 96, height: 96, borderRadius: '50%', flexShrink: 0 }} />
+        ) : (
+          <Avatar src={user.profileImageUrl} name={user.displayName ?? user.username} size={96} />
+        )}
         <div style={{ textAlign: 'center' }}>
           <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '22px' }}>
             {user.displayName ?? user.username}
@@ -74,12 +79,16 @@ export function Profile() {
 
         {(isSelf || isAdmin) && (
           <ProfileImageGenerator
-            currentImageUrl={user.profileImageUrl}
             onGenerate={async (prompt) => {
-              const res = await api.users.generateImage(userId!, prompt)
-              qc.invalidateQueries({ queryKey: ['user', userId] })
-              if (isSelf) refreshUser()
-              return res.imageUrl
+              setIsGenerating(true)
+              try {
+                const res = await api.users.generateImage(userId!, prompt)
+                await qc.invalidateQueries({ queryKey: ['user', userId] })
+                if (isSelf) await refreshUser()
+                return res.imageUrl
+              } finally {
+                setIsGenerating(false)
+              }
             }}
           />
         )}

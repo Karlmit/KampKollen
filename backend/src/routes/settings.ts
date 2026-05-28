@@ -33,6 +33,18 @@ const updateSchema = z.object({
   azure_image_model: z.string().optional(),
 })
 
+export async function getImageOptions(): Promise<{ subjects: string[]; clothes: string[]; accessories: string[] }> {
+  const rows = await prisma.setting.findMany({
+    where: { key: { in: ['image_subjects', 'image_clothes', 'image_accessories'] } },
+  })
+  const db: Record<string, string> = Object.fromEntries(rows.map(r => [r.key, r.value]))
+  return {
+    subjects: db['image_subjects'] ? JSON.parse(db['image_subjects']) : DEFAULT_SUBJECTS,
+    clothes: db['image_clothes'] ? JSON.parse(db['image_clothes']) : DEFAULT_CLOTHES,
+    accessories: db['image_accessories'] ? JSON.parse(db['image_accessories']) : DEFAULT_ACCESSORIES,
+  }
+}
+
 export async function imageOptionRoutes(app: FastifyInstance) {
   app.get('/', async () => {
     const rows = await prisma.setting.findMany({

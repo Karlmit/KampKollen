@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { prisma } from '../db.js'
 import { hashPassword, verifyPassword, validatePassword, validateUsername } from '../lib/auth.js'
+import { generateRandomProfileImage } from '../lib/imageGeneration.js'
 
 const registerSchema = z.object({
   username: z.string().min(2).max(32),
@@ -48,6 +49,9 @@ export async function authRoutes(app: FastifyInstance) {
       path: '/',
       maxAge: 60 * 60 * 24 * 30,
     })
+
+    // Fire-and-forget: generate a profile image in the background
+    generateRandomProfileImage(user.id).catch(() => {})
 
     return reply.status(201).send({ user, token })
   })
