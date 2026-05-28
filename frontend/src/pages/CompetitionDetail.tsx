@@ -74,13 +74,6 @@ export function CompetitionDetail() {
     <Layout
       title={comp.name}
       back="/competitions"
-      action={
-        !isJoined && ['REGISTRATION', 'ACTIVE'].includes(comp.status) ? (
-          <Button size="sm" onClick={() => joinMutation.mutate()} loading={joinMutation.isPending}>
-            Join
-          </Button>
-        ) : null
-      }
     >
       {/* Status row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
@@ -88,6 +81,19 @@ export function CompetitionDetail() {
         <StatusBadge status={comp.status} />
         {isJoined && <Badge variant="success">✓ Joined</Badge>}
       </div>
+
+      {/* Join CTA */}
+      {!isJoined && ['REGISTRATION', 'ACTIVE'].includes(comp.status) && (
+        <Button
+          fullWidth
+          size="lg"
+          onClick={() => joinMutation.mutate()}
+          loading={joinMutation.isPending}
+          style={{ marginBottom: '16px' }}
+        >
+          Join Competition
+        </Button>
+      )}
 
       {/* My team banner */}
       {myTeam && (
