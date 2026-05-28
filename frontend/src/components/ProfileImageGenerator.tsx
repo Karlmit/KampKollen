@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Button } from './ui/Button'
 import { api } from '../api/client'
@@ -80,6 +80,17 @@ export function ProfileImageGenerator({ onGenerate }: {
   const [clothes, setClothes] = useState(() => randomNonNone(FALLBACK_CLOTHES))
   const [accessory, setAccessory] = useState(() => randomFrom(FALLBACK_ACCESSORIES))
   const [customPrompt, setCustomPrompt] = useState('')
+
+  // Re-randomize once when server options first arrive (may include options beyond the fallback list)
+  const seededFromServer = useRef(false)
+  useEffect(() => {
+    if (!seededFromServer.current && optData) {
+      seededFromServer.current = true
+      setSubject(randomFrom(optData.subjects))
+      setClothes(randomNonNone(optData.clothes))
+      setAccessory(randomFrom(optData.accessories))
+    }
+  }, [optData])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
