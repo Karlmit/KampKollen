@@ -67,7 +67,7 @@ export function CompetitionDetail() {
     { key: 'overview', label: 'Overview' },
     { key: 'teams', label: 'Teams', count: comp.teams?.length },
     { key: 'challenges', label: 'Challenges', count: comp.challenges?.length },
-    { key: 'pool', label: 'Player Pool', count: playerPool.length },
+    { key: 'pool', label: 'Player Pool', count: comp.players?.length },
   ]
 
   return (
@@ -210,36 +210,73 @@ export function CompetitionDetail() {
       )}
 
       {tab === 'pool' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {playerPool.length === 0 ? (
-            <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '24px 0' }}>
-              No players in the pool
-            </p>
-          ) : (
-            playerPool.map((p: CompetitionPlayer) => (
-              <Card key={p.userId} padding="12px">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <Avatar src={p.user.profileImageUrl} name={p.user.displayName ?? p.user.username} size={36} />
-                  <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, flex: 1 }}>
-                    {p.user.displayName ?? p.user.username}
-                  </p>
-                  {isAdmin && (
-                    <div style={{ display: 'flex', gap: '4px' }}>
-                      <Button size="sm" variant="ghost" style={{ fontSize: '12px', padding: '4px 10px' }}
-                        onClick={() => { setAssigningPlayer(p); setAssignTargetTeamId('') }}>
-                        Assign
-                      </Button>
-                      <Button size="sm" variant="danger" style={{ fontSize: '11px', padding: '4px 8px' }}
-                        loading={removeFromPoolMutation.isPending}
-                        onClick={() => removeFromPoolMutation.mutate(p.userId)}>
-                        ×
-                      </Button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Unassigned */}
+          <div>
+            <h3 style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px' }}>
+              Unassigned ({playerPool.length})
+            </h3>
+            {playerPool.length === 0 ? (
+              <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Everyone is assigned to a team</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {playerPool.map((p: CompetitionPlayer) => (
+                  <Card key={p.userId} padding="12px">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <Avatar src={p.user.profileImageUrl} name={p.user.displayName ?? p.user.username} size={36} />
+                      <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, flex: 1 }}>
+                        {p.user.displayName ?? p.user.username}
+                      </p>
+                      {isAdmin && (
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <Button size="sm" variant="ghost" style={{ fontSize: '12px', padding: '4px 10px' }}
+                            onClick={() => { setAssigningPlayer(p); setAssignTargetTeamId('') }}>
+                            Assign
+                          </Button>
+                          <Button size="sm" variant="danger" style={{ fontSize: '11px', padding: '4px 8px' }}
+                            loading={removeFromPoolMutation.isPending}
+                            onClick={() => removeFromPoolMutation.mutate(p.userId)}>
+                            ×
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              </Card>
-            ))
-          )}
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Players by team */}
+          {comp.teams?.map((team: Team) => {
+            const teamPlayers = comp.players?.filter((p: CompetitionPlayer) => p.teamId === team.id) ?? []
+            return (
+              <div key={team.id}>
+                <h3 style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                  {team.name} ({teamPlayers.length})
+                </h3>
+                {teamPlayers.length === 0 ? (
+                  <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>No players yet</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {teamPlayers.map((p: CompetitionPlayer) => (
+                      <Card key={p.userId} padding="12px">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <Avatar src={p.user.profileImageUrl} name={p.user.displayName ?? p.user.username} size={36} />
+                          <div style={{ flex: 1 }}>
+                            <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700 }}>
+                              {p.user.displayName ?? p.user.username}
+                            </p>
+                            {p.isTeamLeader && <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Leader</p>}
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
 
