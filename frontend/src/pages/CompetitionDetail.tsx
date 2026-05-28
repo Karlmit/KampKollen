@@ -187,39 +187,45 @@ export function CompetitionDetail() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {comp.challenges?.map((cc: any, i: number) => (
             <Card key={cc.id} padding="0" style={{ overflow: 'hidden' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                {/* Text pane */}
-                <div style={{ flex: 1, minWidth: 0, padding: '14px 16px' }}>
-                  <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px' }}>
-                    {cc.challenge.name}
-                  </p>
-                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '3px' }}>
-                    {SCORE_TYPE_LABELS[cc.challenge.scoreType as keyof typeof SCORE_TYPE_LABELS]}
-                  </p>
-                  {cc.challenge.description && (
-                    <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: 1.5 }}>
-                      {cc.challenge.description}
-                    </p>
-                  )}
-                </div>
-                {/* Image pane — fixed 1:1 square, anchored top-right */}
+              {/* overflow:hidden on this div contains the float */}
+              <div style={{ padding: '14px 16px', overflow: 'hidden' }}>
+                {/* Image floated right — must precede text in DOM for float to work */}
                 {cc.challenge.logoUrl ? (
                   <img
                     src={cc.challenge.logoUrl}
                     alt={cc.challenge.name}
-                    style={{ width: 132, height: 132, flexShrink: 0, objectFit: 'cover', display: 'block', borderRadius: 'var(--radius)', margin: '8px 8px 8px 0' }}
+                    style={{
+                      float: 'right', display: 'block',
+                      width: 132, height: 132,
+                      objectFit: 'cover',
+                      borderRadius: 'var(--radius)',
+                      marginLeft: 12, marginBottom: 6,
+                    }}
                   />
                 ) : (
                   <div style={{
-                    width: 132, height: 132, flexShrink: 0,
+                    float: 'right',
+                    width: 132, height: 132,
+                    borderRadius: 'var(--radius)',
+                    marginLeft: 12, marginBottom: 6,
                     background: 'var(--surface-raised)',
-                    borderRadius: 'var(--radius)', margin: '8px 8px 8px 0',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
                     <span style={{ fontFamily: 'var(--font-ui)', fontSize: '36px', color: 'var(--border-light)' }}>
                       {i + 1}
                     </span>
                   </div>
+                )}
+                <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px' }}>
+                  {cc.challenge.name}
+                </p>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '3px' }}>
+                  {SCORE_TYPE_LABELS[cc.challenge.scoreType as keyof typeof SCORE_TYPE_LABELS]}
+                </p>
+                {cc.challenge.description && (
+                  <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: 1.5 }}>
+                    {cc.challenge.description}
+                  </p>
                 )}
               </div>
             </Card>
