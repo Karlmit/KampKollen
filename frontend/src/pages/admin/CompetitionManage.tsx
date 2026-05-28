@@ -253,7 +253,7 @@ export function AdminCompetitionManage() {
           {comp.teams?.map((team: any) => (
             <Card key={team.id}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                <Avatar src={team.imageUrl} name={team.name} size={44} style={{ borderRadius: 'var(--radius-sm)' }} />
+                <Avatar src={team.imageUrl} name={team.name} size={44} style={{ borderRadius: '50%' }} />
                 <div style={{ flex: 1 }}>
                   <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700 }}>{team.name}</p>
                   <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
@@ -435,7 +435,7 @@ export function AdminCompetitionManage() {
                 width: '100%',
               }}
             >
-              <Avatar src={team.imageUrl} name={team.name} size={36} style={{ borderRadius: 'var(--radius-sm)' }} />
+              <Avatar src={team.imageUrl} name={team.name} size={36} style={{ borderRadius: '50%' }} />
               <div>
                 <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>{team.name}</p>
                 <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>

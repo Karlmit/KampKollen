@@ -6,6 +6,7 @@ interface ImageGeneratorProps {
   onGenerate: (prompt: string) => Promise<string>
   currentImageUrl?: string | null
   label?: string
+  shape?: 'circle' | 'square'
 }
 
 function resolveUrl(src: string): string {
@@ -13,7 +14,7 @@ function resolveUrl(src: string): string {
   return src
 }
 
-export function ImageGenerator({ defaultPrompt, onGenerate, currentImageUrl, label = 'Image' }: ImageGeneratorProps) {
+export function ImageGenerator({ defaultPrompt, onGenerate, currentImageUrl, label = 'Image', shape = 'square' }: ImageGeneratorProps) {
   const [prompt, setPrompt] = useState(defaultPrompt)
   const [loading, setLoading] = useState(false)
   const [imageUrl, setImageUrl] = useState<string | null>(currentImageUrl ?? null)
@@ -42,7 +43,7 @@ export function ImageGenerator({ defaultPrompt, onGenerate, currentImageUrl, lab
           alt={label}
           style={{
             width: '120px', height: '120px',
-            objectFit: 'cover', borderRadius: 'var(--radius)',
+            objectFit: 'cover', borderRadius: shape === 'circle' ? '50%' : 'var(--radius)',
             border: '2px solid var(--border-light)',
             alignSelf: 'center',
           }}

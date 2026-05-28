@@ -153,7 +153,7 @@ export function GuestCompetitionView({ id }: { id: string }) {
                       src={team.teamImageUrl}
                       name={team.teamName}
                       size={40}
-                      style={{ borderRadius: 'var(--radius-sm)', flexShrink: 0 }}
+                      style={{ borderRadius: '50%', flexShrink: 0 }}
                     />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '16px' }}>

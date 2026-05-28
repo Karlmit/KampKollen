@@ -146,7 +146,7 @@ export function CompetitionLeaderboardPage() {
                     name={team.teamName}
                     size={isFirst ? 48 : 40}
                     style={{
-                      borderRadius: 'var(--radius-sm)',
+                      borderRadius: '50%',
                       border: isFirst ? '2px solid rgba(255,255,255,0.25)' : undefined,
                     }}
                   />
