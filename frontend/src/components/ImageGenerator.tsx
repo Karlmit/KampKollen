@@ -37,7 +37,16 @@ export function ImageGenerator({ defaultPrompt, onGenerate, currentImageUrl, lab
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      {resolvedImageUrl && (
+      {loading ? (
+        <div
+          className="shimmer"
+          style={{
+            width: '120px', height: '120px',
+            borderRadius: shape === 'circle' ? '50%' : 'var(--radius)',
+            alignSelf: 'center', flexShrink: 0,
+          }}
+        />
+      ) : resolvedImageUrl ? (
         <img
           src={resolvedImageUrl}
           alt={label}
@@ -48,7 +57,7 @@ export function ImageGenerator({ defaultPrompt, onGenerate, currentImageUrl, lab
             alignSelf: 'center',
           }}
         />
-      )}
+      ) : null}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
         <label style={{
           fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)',

@@ -229,6 +229,20 @@ img {
   flex-shrink: 0;
 }
 
+/* ─── Shimmer skeleton ─── */
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+.shimmer {
+  background: linear-gradient(90deg, var(--surface) 25%, var(--border-light) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .shimmer { animation: none; background: var(--surface); }
+}
+
 /* ─── Numpad button ─── */
 .numpad-btn {
   padding: 18px 12px;
