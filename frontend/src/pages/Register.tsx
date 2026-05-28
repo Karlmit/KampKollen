@@ -41,7 +41,7 @@ export function Register() {
     }}>
       <div style={{ width: '100%', maxWidth: '360px' }}>
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <img src="logo.png" alt="KampKollen" style={{ height: '80px', objectFit: 'contain', marginBottom: '8px' }} />
+          <img src="logo.png" alt="KampKollen" style={{ display: 'block', margin: '0 auto 8px', width: '80%', maxWidth: '280px', height: 'auto' }} />
           <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Create your account</p>
         </div>
 
