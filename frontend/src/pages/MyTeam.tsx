@@ -117,11 +117,6 @@ export function MyTeamPage() {
     <Layout
       title={team.name}
       back={`/competitions/${competitionId}`}
-      action={canManage ? (
-        <Button size="sm" variant="ghost" onClick={() => { setNewName(team.name); setRenameOpen(true) }}>
-          Rename
-        </Button>
-      ) : null}
     >
       {/* Team image */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '24px', gap: '12px' }}>
@@ -129,16 +124,21 @@ export function MyTeamPage() {
           <Avatar src={team.imageUrl} name={team.name} size={80} style={{ borderRadius: 'var(--radius)' }} />
         )}
         {canManage && (
-          <ImageGenerator
-            defaultPrompt={`Create a fun mascot/logo for a 5-kamp team called "${team.name}". Playful, bold, colorful, suitable as a round team profile image.`}
-            currentImageUrl={team.imageUrl}
-            onGenerate={async (prompt) => {
-              const res = await api.teams.generateImage(team.id, prompt)
-              qc.invalidateQueries({ queryKey: ['team', teamId] })
-              return res.imageUrl
-            }}
-            label="Team Image"
-          />
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <ImageGenerator
+              defaultPrompt={`Create a fun mascot/logo for a 5-kamp team called "${team.name}". Playful, bold, colorful, suitable as a round team profile image.`}
+              currentImageUrl={team.imageUrl}
+              onGenerate={async (prompt) => {
+                const res = await api.teams.generateImage(team.id, prompt)
+                qc.invalidateQueries({ queryKey: ['team', teamId] })
+                return res.imageUrl
+              }}
+              label="Team Image"
+            />
+            <Button variant="ghost" size="sm" onClick={() => { setNewName(team.name); setRenameOpen(true) }}>
+              Rename Team
+            </Button>
+          </div>
         )}
       </div>
 
