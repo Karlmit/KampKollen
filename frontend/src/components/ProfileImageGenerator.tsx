@@ -1,0 +1,166 @@
+import { useState } from 'react'
+import { Button } from './ui/Button'
+
+const SUBJECTS = [
+  'Farmyard Animal', 'Forest Animal', 'Fish', 'Fruit',
+  'Vegetable', 'Finance Symbol', 'Yellow Bear',
+]
+
+const CLOTHES = [
+  'a T-shirt', 'a suit and tie', 'a hoodie', 'a lab coat',
+  'a cowboy outfit', 'a superhero cape', "a chef's apron",
+  'viking armor', 'a tuxedo', 'a sports jersey',
+  'a pirate costume', 'a wizard robe', 'a ninja outfit',
+  'a space suit', 'a Hawaiian shirt',
+]
+
+const ACCESSORIES = [
+  'None', 'a top hat', 'a bow tie', 'a crown', 'a scarf',
+  'a monocle', 'a party hat', 'a pair of headphones', 'a wizard hat',
+  'a pirate hat', 'a santa hat', 'a cowboy hat', 'a flower crown',
+  'a cape', 'a pair of sunglasses', 'a magnifying glass',
+  'a skateboard', 'a briefcase', 'a tiny umbrella',
+]
+
+function randomFrom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)]
+}
+
+function resolveUrl(src: string): string {
+  if (src.startsWith('/uploads/')) return src.slice(1)
+  return src
+}
+
+const selectStyle: React.CSSProperties = {
+  display: 'inline',
+  fontFamily: 'var(--font-ui)',
+  fontWeight: 700,
+  fontSize: '14px',
+  color: 'var(--text-primary)',
+  background: 'var(--surface)',
+  border: '1.5px solid var(--border-light)',
+  borderRadius: 'var(--radius-sm)',
+  padding: '2px 4px',
+  cursor: 'pointer',
+  outline: 'none',
+}
+
+const textareaStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '10px 12px',
+  fontSize: '13px',
+  fontFamily: 'var(--font-ui)',
+  color: 'var(--text-primary)',
+  background: 'var(--surface)',
+  border: '1.5px solid var(--border-light)',
+  borderRadius: 'var(--radius)',
+  resize: 'vertical',
+  lineHeight: 1.5,
+  boxSizing: 'border-box',
+  outline: 'none',
+}
+
+export function ProfileImageGenerator({ onGenerate, currentImageUrl }: {
+  onGenerate: (prompt: string) => Promise<string>
+  currentImageUrl?: string | null
+}) {
+  const [mode, setMode] = useState<'help' | 'custom'>('help')
+  const [subject, setSubject] = useState(() => randomFrom(SUBJECTS))
+  const [clothes, setClothes] = useState(() => randomFrom(CLOTHES))
+  const [accessory, setAccessory] = useState(() => randomFrom(ACCESSORIES))
+  const [customPrompt, setCustomPrompt] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [imageUrl, setImageUrl] = useState<string | null>(currentImageUrl ?? null)
+  const [error, setError] = useState<string | null>(null)
+
+  const resolvedImageUrl = imageUrl ? resolveUrl(imageUrl) : null
+
+  const buildPrompt = () => {
+    const acc = accessory === 'None' ? '' : ` and ${accessory}`
+    return `A fun random ${subject} avatar, wearing ${clothes}${acc}. Colorful, playful, simple.`
+  }
+
+  const handleGenerate = async () => {
+    const prompt = mode === 'help' ? buildPrompt() : customPrompt.trim()
+    if (!prompt) return
+    setLoading(true)
+    setError(null)
+    try {
+      const url = await onGenerate(prompt)
+      setImageUrl(url)
+    } catch (err: any) {
+      setError(err.message ?? 'Image generation failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const canSubmit = mode === 'help' || customPrompt.trim().length > 0
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
+      {/* Image preview */}
+      {loading ? (
+        <div className="shimmer" style={{ width: 120, height: 120, borderRadius: 'var(--radius)', alignSelf: 'center', flexShrink: 0 }} />
+      ) : resolvedImageUrl ? (
+        <img src={resolvedImageUrl} alt="Profile" style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 'var(--radius)', border: '2px solid var(--border-light)', alignSelf: 'center' }} />
+      ) : null}
+
+      {/* Mode selector */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', fontFamily: 'var(--font-ui)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          Image Prompt
+        </label>
+        <select
+          value={mode}
+          onChange={e => setMode(e.target.value as 'help' | 'custom')}
+          style={{ padding: '10px 12px', borderRadius: 'var(--radius)', border: '1.5px solid var(--border-light)', fontSize: '15px', fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--text-primary)', background: 'var(--surface)', cursor: 'pointer', outline: 'none' }}
+        >
+          <option value="help">Help me</option>
+          <option value="custom">Custom prompt</option>
+        </select>
+      </div>
+
+      {/* Help me builder */}
+      {mode === 'help' && (
+        <div style={{
+          fontSize: '14px', lineHeight: 2, color: 'var(--text-primary)',
+          background: 'var(--surface)', borderRadius: 'var(--radius)',
+          padding: '12px 14px', border: '1.5px solid var(--border-light)',
+        }}>
+          <span>A fun random </span>
+          <select value={subject} onChange={e => setSubject(e.target.value)} style={selectStyle}>
+            {SUBJECTS.map(s => <option key={s}>{s}</option>)}
+          </select>
+          <span> avatar, wearing </span>
+          <select value={clothes} onChange={e => setClothes(e.target.value)} style={selectStyle}>
+            {CLOTHES.map(c => <option key={c}>{c}</option>)}
+          </select>
+          {accessory !== 'None' && <span> and </span>}
+          <select value={accessory} onChange={e => setAccessory(e.target.value)} style={selectStyle}>
+            {ACCESSORIES.map(a => <option key={a}>{a}</option>)}
+          </select>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>.</span>
+        </div>
+      )}
+
+      {/* Custom prompt */}
+      {mode === 'custom' && (
+        <textarea
+          value={customPrompt}
+          onChange={e => setCustomPrompt(e.target.value)}
+          rows={3}
+          placeholder="Describe your profile image..."
+          style={textareaStyle}
+          onFocus={e => { e.currentTarget.style.borderColor = 'var(--primary)' }}
+          onBlur={e => { e.currentTarget.style.borderColor = 'var(--border-light)' }}
+        />
+      )}
+
+      <Button onClick={handleGenerate} loading={loading} disabled={!canSubmit} variant="ghost" size="sm">
+        ✨ Generate Profile Image
+      </Button>
+      {error && <p style={{ color: 'var(--danger-text)', fontSize: '13px' }}>{error}</p>}
+    </div>
+  )
+}

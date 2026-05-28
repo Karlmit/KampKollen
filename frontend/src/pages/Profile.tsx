@@ -8,7 +8,7 @@ import { Input } from '../components/ui/Input'
 import { Avatar } from '../components/ui/Avatar'
 import { Badge, RoleBadge } from '../components/ui/Badge'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
-import { ImageGenerator } from '../components/ImageGenerator'
+import { ProfileImageGenerator } from '../components/ProfileImageGenerator'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../api/client'
 import { formatScore, extractScoreValue } from '../utils'
@@ -73,18 +73,15 @@ export function Profile() {
         </div>
 
         {(isSelf || isAdmin) && (
-          <div style={{ width: '100%' }}>
-          <ImageGenerator
-            defaultPrompt="A fun random animal avatar. Colorful, playful, simple."
+          <ProfileImageGenerator
+            currentImageUrl={user.profileImageUrl}
             onGenerate={async (prompt) => {
               const res = await api.users.generateImage(userId!, prompt)
               qc.invalidateQueries({ queryKey: ['user', userId] })
               if (isSelf) refreshUser()
               return res.imageUrl
             }}
-            label="Profile Image"
           />
-          </div>
         )}
       </div>
 
