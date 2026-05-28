@@ -46,7 +46,15 @@ export function Register() {
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <Input label="Username *" value={form.username} onChange={set('username')} autoComplete="username" required />
+          <Input label="Username *" value={form.username} onChange={set('username')} autoComplete="username" placeholder="e.g. peter" required />
+          {form.username.includes('@') && (
+            <p style={{
+              background: 'var(--surface)', color: 'var(--text-primary)',
+              padding: '10px 12px', borderRadius: 'var(--radius-sm)', fontSize: '14px',
+            }}>
+              ⚠️ Looks like you're typing an email address. Use a simple username instead, like <strong>"{form.username.split('@')[0]}"</strong>.
+            </p>
+          )}
           <Input label="Password / PIN *" type="password" value={form.password} onChange={set('password')} autoComplete="new-password" required />
           <Input label="Real name (optional)" value={form.realName} onChange={set('realName')} placeholder="e.g. Anna Karlsson" />
           {error && (
