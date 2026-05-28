@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Layout } from '../components/layout/Layout'
 import { Card } from '../components/ui/Card'
+import { Button } from '../components/ui/Button'
 import { Avatar } from '../components/ui/Avatar'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { useAuth } from '../contexts/AuthContext'
@@ -65,14 +66,9 @@ export function CompetitionLeaderboardPage() {
       title={lb.competition.name}
       back={`/competitions/${id}`}
       action={
-        <button
-          onClick={() => refetch()}
-          disabled={isFetching}
-          className={`refresh-btn${isFetching ? ' spinning' : ''}`}
-          aria-label="Refresh leaderboard"
-        >
-          <span className="refresh-icon">↻</span>
-        </button>
+        <Button variant="ghost" size="sm" onClick={() => refetch()} loading={isFetching}>
+          ↻ Refresh
+        </Button>
       }
     >
       {/* Status strip */}
