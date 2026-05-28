@@ -119,7 +119,7 @@ export async function generateRandomProfileImage(userId: string): Promise<void> 
 
   const wearingPart = clothes === 'None' ? '' : `, wearing ${clothes}`
   const accPart = accessory === 'None' ? '' : (clothes === 'None' ? ` with ${accessory}` : ` and ${accessory}`)
-  const prompt = `Close-up portrait of a ${subject} avatar${wearingPart}${accPart}. Face and shoulders only, centered, large in frame. Colorful, playful, simple.`
+  const prompt = `Close-up portrait of a ${subject} avatar${wearingPart}${accPart}. Face and shoulders only, centered, large in frame. Colorful, playful, simple. Colorful background.`
 
   const result = await generateImage({ prompt }, 'profiles')
   await prisma.user.update({

@@ -86,7 +86,7 @@ export function ProfileImageGenerator({ onGenerate }: {
   const buildPrompt = () => {
     const wearingPart = clothes === 'None' ? '' : `, wearing ${clothes}`
     const accPart = accessory === 'None' ? '' : (clothes === 'None' ? ` with ${accessory}` : ` and ${accessory}`)
-    return `Close-up portrait of a ${subject} avatar${wearingPart}${accPart}. Face and shoulders only, centered, large in frame. Colorful, playful, simple.`
+    return `Close-up portrait of a ${subject} avatar${wearingPart}${accPart}. Face and shoulders only, centered, large in frame. Colorful, playful, simple. Colorful background.`
   }
 
   const handleGenerate = async () => {
