@@ -12,7 +12,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { formatDate } from '../utils'
 import { TabBar } from '../components/ui/TabBar'
 import { api } from '../api/client'
-import { Competition, CompetitionPlayer, Team, SCORE_TYPE_LABELS } from '../types'
+import { Competition, CompetitionPlayer, Team, SCORE_TYPE_LABELS, LeaderboardTeam } from '../types'
 import { GuestCompetitionView } from './GuestCompetitionView'
 
 type Tab = 'overview' | 'teams' | 'challenges' | 'pool'
@@ -27,6 +27,13 @@ export function CompetitionDetail() {
     queryKey: ['competition', id],
     queryFn: () => api.competitions.get(id!),
     enabled: !!id,
+  })
+
+  const { data: lbData } = useQuery({
+    queryKey: ['leaderboard', id],
+    queryFn: () => api.leaderboards.competition(id!),
+    enabled: !!id,
+    refetchInterval: 30_000,
   })
 
   const joinMutation = useMutation({
@@ -137,7 +144,7 @@ export function CompetitionDetail() {
 
       {/* Tab content */}
       {tab === 'overview' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <Card>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               {[
@@ -153,6 +160,83 @@ export function CompetitionDetail() {
               ))}
             </div>
           </Card>
+
+          {/* Compact team standings */}
+          {lbData?.teamLeaderboard && lbData.teamLeaderboard.length > 0 && (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <h2 style={{
+                  fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '0.08em',
+                  textTransform: 'uppercase', color: 'var(--text-muted)',
+                }}>
+                  Team Standings
+                </h2>
+                <Link to={`/competitions/${id}/leaderboard`} style={{ textDecoration: 'none' }}>
+                  <span style={{ fontSize: '12px', fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--accent)' }}>
+                    Full leaderboard ›
+                  </span>
+                </Link>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {lbData.teamLeaderboard.map((team: LeaderboardTeam) => {
+                  const isFirst = team.rank === 1
+                  const rankLabel = team.rank === 1 ? '🥇' : team.rank === 2 ? '🥈' : team.rank === 3 ? '🥉' : String(team.rank)
+                  const isMyTeam = myTeam?.id === team.teamId
+                  return (
+                    <Card
+                      key={team.teamId}
+                      padding="12px"
+                      style={{
+                        background: isFirst ? 'var(--text-primary)' : undefined,
+                        borderColor: isFirst ? 'var(--text-primary)' : undefined,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: isFirst ? '22px' : '18px', minWidth: '28px', textAlign: 'center', lineHeight: 1 }}>
+                          {rankLabel}
+                        </span>
+                        <Avatar
+                          src={team.teamImageUrl}
+                          name={team.teamName}
+                          size={isFirst ? 40 : 34}
+                          style={{ borderRadius: '50%', border: isFirst ? '2px solid rgba(255,255,255,0.25)' : undefined }}
+                        />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{
+                            fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px',
+                            color: isFirst ? '#fff' : undefined,
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                          }}>
+                            {team.teamName}
+                          </p>
+                          {isMyTeam && (
+                            <p style={{
+                              fontSize: '10px', fontFamily: 'var(--font-ui)', fontWeight: 700,
+                              letterSpacing: '0.06em',
+                              color: isFirst ? 'rgba(255,255,255,0.7)' : 'var(--accent)',
+                            }}>
+                              YOUR TEAM
+                            </p>
+                          )}
+                        </div>
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <p style={{
+                            fontFamily: 'var(--font-ui)', fontWeight: 700,
+                            fontSize: isFirst ? '24px' : '18px',
+                            color: isFirst ? '#fff' : undefined,
+                            lineHeight: 1,
+                          }}>
+                            {team.totalPoints.toFixed(0)}
+                          </p>
+                          <p style={{ fontSize: '10px', color: isFirst ? 'rgba(255,255,255,0.55)' : 'var(--text-muted)', marginTop: '1px' }}>pts</p>
+                        </div>
+                      </div>
+                    </Card>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
