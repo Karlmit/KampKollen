@@ -43,7 +43,7 @@ function NumpadModal({ open, onClose, playerName, currentValue, scoreLabel, onSa
     if (!input.trim()) return
     setSaved(true)
     onSave(input)
-    setTimeout(onClose, 420)
+    setTimeout(onClose, 210)
   }
 
   return (

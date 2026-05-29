@@ -10,7 +10,7 @@ interface ModalProps {
   footer?: ReactNode
 }
 
-const CLOSE_MS = 220
+const CLOSE_MS = 300
 
 export function Modal({ open, onClose, title, children, footer }: ModalProps) {
   const [rendered, setRendered] = useState(open)
