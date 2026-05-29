@@ -21,14 +21,29 @@ function NumpadModal({ open, onClose, playerName, currentValue, scoreLabel, onSa
   onDelete?: () => void
 }) {
   const [input, setInput] = useState('')
+  const [saved, setSaved] = useState(false)
+  const [shakeKey, setShakeKey] = useState(0)
 
   useEffect(() => {
-    if (open) setInput(currentValue || '')
+    if (open) { setInput(currentValue || ''); setSaved(false) }
   }, [open, currentValue])
 
   const push = (d: string) => {
     if (d === '.' && input.includes('.')) return
     setInput(s => s + d)
+  }
+
+  const handleClear = () => {
+    setShakeKey(k => k + 1)
+    setInput('')
+    setTimeout(() => { onDelete!(); onClose() }, 300)
+  }
+
+  const handleSave = () => {
+    if (!input.trim()) return
+    setSaved(true)
+    onSave(input)
+    setTimeout(onClose, 420)
   }
 
   return (
@@ -42,33 +57,54 @@ function NumpadModal({ open, onClose, playerName, currentValue, scoreLabel, onSa
           {onDelete && (
             <Button
               variant="ghost"
-              onClick={() => { onDelete(); onClose() }}
+              onClick={handleClear}
               style={{ color: 'var(--accent-warm)' }}
             >
               Clear
             </Button>
           )}
-          <Button onClick={() => { onSave(input); onClose() }}>Save</Button>
+          <Button
+            onClick={handleSave}
+            disabled={!input.trim() || saved}
+            style={saved ? {
+              background: 'var(--accent-green)',
+              borderColor: 'var(--accent-green)',
+              transition: 'background 180ms var(--ease-out), border-color 180ms var(--ease-out)',
+              animation: 'scoreSaved 200ms var(--ease-out) both',
+            } : {}}
+          >
+            {saved ? '✓' : 'Save'}
+          </Button>
         </>
       }
     >
-      {/* Score display */}
-      <div style={{
-        background: 'var(--surface)',
-        borderRadius: 'var(--radius)',
-        padding: '16px 20px',
-        marginBottom: '6px',
-        textAlign: 'center',
-        minHeight: '76px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}>
+      {/* Score display — key triggers shake animation on clear */}
+      <div
+        key={shakeKey}
+        style={{
+          background: 'var(--surface)',
+          borderRadius: 'var(--radius)',
+          padding: '16px 20px',
+          marginBottom: '6px',
+          textAlign: 'center',
+          minHeight: '76px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          animation: shakeKey > 0 ? 'numpadDisplayShake 300ms var(--ease-out) both' : undefined,
+        }}
+      >
         {input ? (
-          <span style={{
-            fontSize: '52px', fontFamily: 'var(--font-ui)', fontWeight: 700,
-            lineHeight: 1, letterSpacing: '-1px', color: 'var(--text-primary)',
-          }}>
+          /* key={input} remounts on every change, replaying the pop animation */
+          <span
+            key={input}
+            style={{
+              fontSize: '52px', fontFamily: 'var(--font-ui)', fontWeight: 700,
+              lineHeight: 1, letterSpacing: '-1px', color: 'var(--text-primary)',
+              animation: 'numpadDigitPop 130ms cubic-bezier(0.25, 1, 0.5, 1) both',
+              display: 'block',
+            }}
+          >
             {input}
           </span>
         ) : (
@@ -230,6 +266,7 @@ export function ScorekeeperPage() {
               color: adminAllTeams ? '#fff' : 'var(--text-muted)',
               fontSize: '12px', fontFamily: 'var(--font-ui)', fontWeight: 700,
               cursor: 'pointer',
+              transition: 'background 180ms var(--ease-out), border-color 180ms var(--ease-out), color 180ms var(--ease-out)',
             }}
           >
             {adminAllTeams ? '🔓 All teams' : '🔒 My team'}
@@ -256,6 +293,7 @@ export function ScorekeeperPage() {
                 border: '1px solid var(--border-light)',
                 fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700,
                 cursor: 'pointer',
+                transition: 'background 180ms var(--ease-out), color 180ms var(--ease-out), transform 80ms var(--ease-out)',
               }}
             >
               {cc.challenge.logoUrl && (
@@ -324,7 +362,13 @@ export function ScorekeeperPage() {
                           </div>
                           <div style={{ textAlign: 'right', minWidth: '48px' }}>
                             {existing ? (
-                              <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '28px' }}>
+                              <p
+                                key={existing}
+                                style={{
+                                  fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '28px',
+                                  animation: 'scoreFlash 500ms var(--ease-out) both',
+                                }}
+                              >
                                 {existing}
                               </p>
                             ) : (

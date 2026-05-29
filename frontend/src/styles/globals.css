@@ -278,10 +278,16 @@ img {
   font-weight: 700;
   cursor: pointer;
   color: var(--text-primary);
-  transition: transform 80ms var(--ease-out), background 80ms var(--ease-out);
+  transition: transform 80ms var(--ease-out), background 120ms var(--ease-out), border-color 120ms var(--ease-out);
   -webkit-tap-highlight-color: transparent;
   user-select: none;
   touch-action: manipulation;
+}
+@media (hover: hover) and (pointer: fine) {
+  .numpad-btn:hover:not(:active) {
+    background: var(--surface);
+    border-color: var(--border);
+  }
 }
 .numpad-btn:active {
   transform: scale(0.91);
@@ -290,6 +296,28 @@ img {
 .numpad-btn--action {
   background: var(--surface);
   color: var(--text-muted);
+}
+
+/* ─── Numpad display animations ─── */
+@keyframes numpadDigitPop {
+  0%   { transform: scale(1.18); opacity: 0.6; }
+  100% { transform: scale(1);    opacity: 1; }
+}
+@keyframes numpadDisplayShake {
+  0%,100% { transform: translateX(0); }
+  18%     { transform: translateX(-7px); }
+  40%     { transform: translateX(6px); }
+  62%     { transform: translateX(-5px); }
+  82%     { transform: translateX(3px); }
+}
+@keyframes scoreSaved {
+  0%   { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+@keyframes scoreFlash {
+  0%   { color: var(--accent-green); transform: scale(1.2); }
+  60%  { color: var(--accent-green); }
+  100% { color: var(--text-primary); transform: scale(1); }
 }
 
 /* ─── Reduced motion ─── */
@@ -310,5 +338,12 @@ img {
   }
   .numpad-btn {
     transition: background 80ms ease;
+  }
+  [style*="numpadDigitPop"],
+  [style*="numpadDisplayShake"],
+  [style*="scoreSaved"],
+  [style*="scoreFlash"] {
+    animation: none !important;
+    transform: none !important;
   }
 }
