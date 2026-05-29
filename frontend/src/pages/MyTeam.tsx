@@ -99,7 +99,8 @@ export function MyTeamPage() {
   const team: Team = teamData?.team
   if (!comp || !team) return <Layout title="Team"><p>Not found</p></Layout>
 
-  const teamPlayers = comp.players?.filter((p: CompetitionPlayer) => p.teamId === team.id) ?? []
+  const teamPlayers = (comp.players?.filter((p: CompetitionPlayer) => p.teamId === team.id) ?? [])
+    .sort((a: CompetitionPlayer, b: CompetitionPlayer) => (b.isTeamLeader ? 1 : 0) - (a.isTeamLeader ? 1 : 0))
   const poolPlayers = comp.players?.filter((p: CompetitionPlayer) => !p.teamId) ?? []
   // Real (non-dummy) players in the pool — candidates for converting a dummy
   const realPoolPlayers = poolPlayers.filter((p: CompetitionPlayer) => !p.user?.isDummy)
