@@ -152,40 +152,45 @@ export function CompetitionLeaderboardPage() {
                   }}>
                     {rankLabel}
                   </span>
-                  <Avatar
-                    src={team.teamImageUrl}
-                    name={team.teamName}
-                    size={isFirst ? 48 : 40}
-                    style={{
-                      borderRadius: '50%',
-                      border: isFirst ? '2px solid rgba(255,255,255,0.25)' : undefined,
-                    }}
-                  />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{
-                      fontFamily: 'var(--font-ui)', fontWeight: 700,
-                      fontSize: isFirst ? '18px' : '16px',
-                      color: isFirst ? '#fff' : undefined,
-                    }}>
-                      {team.teamName}
-                    </p>
-                    <p style={{
-                      fontSize: '12px',
-                      color: isFirst ? 'rgba(255,255,255,0.6)' : 'var(--text-muted)',
-                    }}>
-                      {team.playerCount} players
-                    </p>
-                    {myTeamId && team.teamId === myTeamId && (
+                  <Link
+                    to={`/competitions/${id}/team/${team.teamId}`}
+                    style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0, textDecoration: 'none' }}
+                  >
+                    <Avatar
+                      src={team.teamImageUrl}
+                      name={team.teamName}
+                      size={isFirst ? 48 : 40}
+                      style={{
+                        borderRadius: '50%',
+                        border: isFirst ? '2px solid rgba(255,255,255,0.25)' : undefined,
+                      }}
+                    />
+                    <div style={{ minWidth: 0 }}>
                       <p style={{
-                        fontSize: '11px', fontFamily: 'var(--font-ui)', fontWeight: 700,
-                        letterSpacing: '0.06em',
-                        color: isFirst ? 'rgba(255,255,255,0.7)' : 'var(--accent)',
-                        marginTop: '2px',
+                        fontFamily: 'var(--font-ui)', fontWeight: 700,
+                        fontSize: isFirst ? '18px' : '16px',
+                        color: isFirst ? '#fff' : undefined,
                       }}>
-                        YOUR TEAM
+                        {team.teamName}
                       </p>
-                    )}
-                  </div>
+                      <p style={{
+                        fontSize: '12px',
+                        color: isFirst ? 'rgba(255,255,255,0.6)' : 'var(--text-muted)',
+                      }}>
+                        {team.playerCount} players
+                      </p>
+                      {myTeamId && team.teamId === myTeamId && (
+                        <p style={{
+                          fontSize: '11px', fontFamily: 'var(--font-ui)', fontWeight: 700,
+                          letterSpacing: '0.06em',
+                          color: isFirst ? 'rgba(255,255,255,0.7)' : 'var(--accent)',
+                          marginTop: '2px',
+                        }}>
+                          YOUR TEAM
+                        </p>
+                      )}
+                    </div>
+                  </Link>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
                     <p style={{
                       fontFamily: 'var(--font-ui)', fontWeight: 700,

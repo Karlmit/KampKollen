@@ -197,30 +197,35 @@ export function CompetitionDetail() {
                         <span style={{ fontSize: isFirst ? '22px' : '18px', minWidth: '28px', textAlign: 'center', lineHeight: 1 }}>
                           {rankLabel}
                         </span>
-                        <Avatar
-                          src={team.teamImageUrl}
-                          name={team.teamName}
-                          size={isFirst ? 40 : 34}
-                          style={{ borderRadius: '50%', border: isFirst ? '2px solid rgba(255,255,255,0.25)' : undefined }}
-                        />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{
-                            fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px',
-                            color: isFirst ? '#fff' : undefined,
-                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                          }}>
-                            {team.teamName}
-                          </p>
-                          {isMyTeam && (
+                        <Link
+                          to={`/competitions/${id}/team/${team.teamId}`}
+                          style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0, textDecoration: 'none' }}
+                        >
+                          <Avatar
+                            src={team.teamImageUrl}
+                            name={team.teamName}
+                            size={isFirst ? 40 : 34}
+                            style={{ borderRadius: '50%', border: isFirst ? '2px solid rgba(255,255,255,0.25)' : undefined }}
+                          />
+                          <div style={{ minWidth: 0 }}>
                             <p style={{
-                              fontSize: '10px', fontFamily: 'var(--font-ui)', fontWeight: 700,
-                              letterSpacing: '0.06em',
-                              color: isFirst ? 'rgba(255,255,255,0.7)' : 'var(--accent)',
+                              fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px',
+                              color: isFirst ? '#fff' : undefined,
+                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                             }}>
-                              YOUR TEAM
+                              {team.teamName}
                             </p>
-                          )}
-                        </div>
+                            {isMyTeam && (
+                              <p style={{
+                                fontSize: '10px', fontFamily: 'var(--font-ui)', fontWeight: 700,
+                                letterSpacing: '0.06em',
+                                color: isFirst ? 'rgba(255,255,255,0.7)' : 'var(--accent)',
+                              }}>
+                                YOUR TEAM
+                              </p>
+                            )}
+                          </div>
+                        </Link>
                         <div style={{ textAlign: 'right', flexShrink: 0 }}>
                           <p style={{
                             fontFamily: 'var(--font-ui)', fontWeight: 700,
