@@ -61,7 +61,7 @@ export function CompetitionLeaderboardPage() {
     )
   }
 
-  const top3 = lb.individualLeaderboard.slice(0, 3)
+  const topFive = lb.individualLeaderboard.slice(0, 5)
 
   return (
     <Layout
@@ -212,9 +212,9 @@ export function CompetitionLeaderboardPage() {
       {view === 'individual' && (
         <>
           <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {top3.map((p: any) => {
+            {topFive.map((p: any) => {
               const isFirst = p.rank === 1
-              const rankLabel = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : '🥉'
+              const rankLabel = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : `#${p.rank}`
               return (
                 <Card
                   key={p.userId}
@@ -262,9 +262,9 @@ export function CompetitionLeaderboardPage() {
             })}
           </div>
 
-          {lb.individualLeaderboard.length > 3 && (
+          {lb.individualLeaderboard.length > 5 && (
             <div style={{ marginTop: '8px' }}>
-              {lb.individualLeaderboard.slice(3).map((p: any) => (
+              {lb.individualLeaderboard.slice(5).map((p: any) => (
                 <div
                   key={p.userId}
                   style={{
@@ -296,7 +296,7 @@ export function CompetitionLeaderboardPage() {
             </div>
           )}
 
-          {lb.individualLeaderboard.length > 3 && (
+          {lb.individualLeaderboard.length > 5 && (
             <Link
               to={`/competitions/${id}/leaderboard/individual`}
               style={{ textDecoration: 'none', display: 'block', marginTop: '10px' }}
