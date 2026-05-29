@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Layout } from '../components/layout/Layout'
 import { Card } from '../components/ui/Card'
@@ -21,7 +21,9 @@ export function CompetitionDetail() {
   const { id } = useParams<{ id: string }>()
   const { user, isAdmin } = useAuth()
   const qc = useQueryClient()
-  const [tab, setTab] = useState<Tab>('overview')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = (searchParams.get('tab') as Tab) ?? 'overview'
+  const setTab = (key: Tab) => setSearchParams({ tab: key }, { replace: true })
 
   const { data, isLoading } = useQuery({
     queryKey: ['competition', id],

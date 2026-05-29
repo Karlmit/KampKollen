@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Layout } from '../components/layout/Layout'
 import { Card } from '../components/ui/Card'
@@ -15,7 +15,9 @@ type View = 'teams' | 'individual'
 export function CompetitionLeaderboardPage() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
-  const [view, setView] = useState<View>('teams')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const view = (searchParams.get('view') as View) ?? 'teams'
+  const setView = (v: View) => setSearchParams({ view: v }, { replace: true })
   const [expandedChallenge, setExpandedChallenge] = useState<string | null>(null)
 
   const { data, isLoading, refetch, isFetching } = useQuery({

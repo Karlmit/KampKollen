@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   DndContext, closestCenter, PointerSensor, TouchSensor,
@@ -61,7 +61,9 @@ function SortableChallenge({ cc, index, onRemove }: { cc: any; index: number; on
 export function AdminCompetitionManage() {
   const { id } = useParams<{ id: string }>()
   const qc = useQueryClient()
-  const [tab, setTab] = useState<Tab>('players')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = (searchParams.get('tab') as Tab) ?? 'players'
+  const setTab = (key: Tab) => setSearchParams({ tab: key }, { replace: true })
 
   // Modal state
   const [addPlayerOpen, setAddPlayerOpen] = useState(false)
