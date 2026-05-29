@@ -10,7 +10,6 @@ import { RoleBadge } from '../../components/ui/Badge'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { useAuth } from '../../contexts/AuthContext'
 import { api } from '../../api/client'
-import { GlobalRole } from '../../types'
 
 export function AdminUsers() {
   const { user: me } = useAuth()
@@ -20,7 +19,18 @@ export function AdminUsers() {
   const [deleteError, setDeleteError] = useState('')
   const [form, setForm] = useState({ globalRole: '', password: '', displayName: '' })
 
+  // Add-to-competition state
+  const [addCompUser, setAddCompUser] = useState<any>(null)
+  const [addCompId, setAddCompId] = useState('')
+  const [addCompError, setAddCompError] = useState('')
+
   const { data, isLoading } = useQuery({ queryKey: ['users'], queryFn: () => api.users.list() })
+
+  const { data: compsData } = useQuery({
+    queryKey: ['competitions'],
+    queryFn: () => api.competitions.list(),
+    enabled: !!addCompUser,
+  })
 
   const updateMutation = useMutation({
     mutationFn: () => api.users.update(editUser.id, {
@@ -37,9 +47,26 @@ export function AdminUsers() {
     onError: (err: any) => setDeleteError(err.message ?? 'Delete failed'),
   })
 
+  const addToCompMutation = useMutation({
+    mutationFn: () => api.competitions.addPlayer(addCompId, { userId: addCompUser.id }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['competition', addCompId] })
+      setAddCompUser(null)
+      setAddCompId('')
+      setAddCompError('')
+    },
+    onError: (err: any) => setAddCompError(err.message ?? 'Failed to add player'),
+  })
+
   const openEdit = (u: any) => {
     setEditUser(u)
     setForm({ globalRole: u.globalRole, password: '', displayName: u.displayName ?? '' })
+  }
+
+  const openAddComp = (u: any) => {
+    setAddCompUser(u)
+    setAddCompId('')
+    setAddCompError('')
   }
 
   return (
@@ -64,6 +91,7 @@ export function AdminUsers() {
                   <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>@{u.username}</p>
                 </div>
                 <div style={{ display: 'flex', gap: '4px' }}>
+                  <Button size="sm" variant="ghost" style={{ fontSize: '11px' }} onClick={() => openAddComp(u)}>+ Comp</Button>
                   <Button size="sm" variant="ghost" style={{ fontSize: '11px' }} onClick={() => openEdit(u)}>Edit</Button>
                   {u.id !== me?.id && (
                     <Button size="sm" variant="danger" style={{ fontSize: '11px' }}
@@ -77,6 +105,59 @@ export function AdminUsers() {
           ))}
         </div>
       )}
+
+      {/* Add to competition modal */}
+      <Modal
+        open={!!addCompUser}
+        onClose={() => { setAddCompUser(null); setAddCompId(''); setAddCompError('') }}
+        title={`Add ${addCompUser?.displayName ?? addCompUser?.username ?? ''} to competition`}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => { setAddCompUser(null); setAddCompId(''); setAddCompError('') }}>Cancel</Button>
+            <Button
+              onClick={() => addToCompMutation.mutate()}
+              disabled={!addCompId}
+              loading={addToCompMutation.isPending}
+            >
+              Add
+            </Button>
+          </>
+        }
+      >
+        {!compsData ? <LoadingSpinner /> : compsData.competitions?.length === 0 ? (
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>No competitions found.</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {compsData.competitions.map((c: any) => (
+              <div
+                key={c.id}
+                onClick={() => { setAddCompId(c.id); setAddCompError('') }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '10px',
+                  padding: '10px 12px', borderRadius: 'var(--radius-sm)',
+                  border: `2px solid ${addCompId === c.id ? 'var(--accent)' : 'var(--border-light)'}`,
+                  cursor: 'pointer',
+                  background: addCompId === c.id ? 'color-mix(in srgb, var(--accent) 8%, transparent)' : 'transparent',
+                  transition: 'border-color 120ms, background 120ms',
+                }}
+              >
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>{c.name}</p>
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{c.status}</p>
+                </div>
+                {addCompId === c.id && (
+                  <span style={{ color: 'var(--accent)', fontWeight: 700 }}>✓</span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        {addCompError && (
+          <p style={{ fontSize: '13px', color: 'var(--accent-warm)', marginTop: '10px', fontFamily: 'var(--font-ui)' }}>
+            {addCompError}
+          </p>
+        )}
+      </Modal>
 
       <Modal
         open={!!deleteConfirm}

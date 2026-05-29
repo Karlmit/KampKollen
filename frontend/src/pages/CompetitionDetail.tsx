@@ -361,7 +361,8 @@ export function CompetitionDetail() {
 
           {/* Players by team */}
           {comp.teams?.map((team: Team) => {
-            const teamPlayers = comp.players?.filter((p: CompetitionPlayer) => p.teamId === team.id) ?? []
+            const teamPlayers = (comp.players?.filter((p: CompetitionPlayer) => p.teamId === team.id) ?? [])
+              .sort((a: CompetitionPlayer, b: CompetitionPlayer) => (b.isTeamLeader ? 1 : 0) - (a.isTeamLeader ? 1 : 0))
             return (
               <div key={team.id}>
                 <h3 style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px' }}>
@@ -371,7 +372,30 @@ export function CompetitionDetail() {
                   <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>No players yet</p>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {teamPlayers.map((p: CompetitionPlayer) => (
+                    {teamPlayers.map((p: CompetitionPlayer) => isAdmin ? (
+                      <Card key={p.userId} padding="12px">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <Link to={`/profile/${p.userId}`} style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, textDecoration: 'none', color: 'inherit', minWidth: 0 }}>
+                            <Avatar src={p.user.profileImageUrl} name={p.user.displayName ?? p.user.username} size={36} />
+                            <div>
+                              <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700 }}>{p.user.displayName ?? p.user.username}</p>
+                              {p.isTeamLeader && <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Leader</p>}
+                            </div>
+                          </Link>
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <Button size="sm" variant="ghost" style={{ fontSize: '12px', padding: '4px 10px' }}
+                              onClick={() => { setAssigningPlayer(p); setAssignTargetTeamId('') }}>
+                              Move
+                            </Button>
+                            <Button size="sm" variant="danger" style={{ fontSize: '11px', padding: '4px 8px' }}
+                              loading={removeFromPoolMutation.isPending}
+                              onClick={() => removeFromPoolMutation.mutate(p.userId)}>
+                              ×
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+                    ) : (
                       <Link key={p.userId} to={`/profile/${p.userId}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                         <Card padding="12px" className="card-interactive">
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -397,7 +421,7 @@ export function CompetitionDetail() {
       <Modal
         open={!!assigningPlayer}
         onClose={() => setAssigningPlayer(null)}
-        title={`Assign ${assigningPlayer?.user?.displayName ?? assigningPlayer?.user?.username ?? ''} to team`}
+        title={`${assigningPlayer?.teamId ? 'Move' : 'Assign'} ${assigningPlayer?.user?.displayName ?? assigningPlayer?.user?.username ?? ''} to team`}
         footer={
           <>
             <Button variant="ghost" onClick={() => setAssigningPlayer(null)}>Cancel</Button>
@@ -406,7 +430,7 @@ export function CompetitionDetail() {
               disabled={!assignTargetTeamId}
               loading={assignToTeamMutation.isPending}
             >
-              Assign
+              {assigningPlayer?.teamId ? 'Move' : 'Assign'}
             </Button>
           </>
         }
