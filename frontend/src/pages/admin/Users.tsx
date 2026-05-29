@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AdminLayout } from './AdminLayout'
 import { Card } from '../../components/ui/Card'
@@ -81,7 +82,7 @@ export function AdminUsers() {
             <Card key={u.id} padding="12px">
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Avatar src={u.profileImageUrl} name={u.displayName ?? u.username} size={36} />
-                <div style={{ flex: 1 }}>
+                <Link to={`/profile/${u.id}`} style={{ flex: 1, textDecoration: 'none', color: 'inherit' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>
                       {u.displayName ?? u.username}
@@ -89,7 +90,7 @@ export function AdminUsers() {
                     <RoleBadge role={u.globalRole} />
                   </div>
                   <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>@{u.username}</p>
-                </div>
+                </Link>
                 <div style={{ display: 'flex', gap: '4px' }}>
                   <Button size="sm" variant="ghost" style={{ fontSize: '11px' }} onClick={() => openAddComp(u)}>+ Comp</Button>
                   <Button size="sm" variant="ghost" style={{ fontSize: '11px' }} onClick={() => openEdit(u)}>Edit</Button>
