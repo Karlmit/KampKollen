@@ -15,6 +15,15 @@ import { useAuth } from '../contexts/AuthContext'
 import { api } from '../api/client'
 import { formatScore, extractScoreValue } from '../utils'
 
+function BoldText({ text }: { text: string }) {
+  const parts = text.split(/\*\*(.*?)\*\*/g)
+  return (
+    <>
+      {parts.map((part, i) => i % 2 === 1 ? <strong key={i}>{part}</strong> : part)}
+    </>
+  )
+}
+
 function TrophyCard({ trophy, isSelf, adminMode, giftAnimData, onOpen, onTakeBack }: {
   trophy: any
   isSelf: boolean
@@ -87,7 +96,7 @@ function TrophyCard({ trophy, isSelf, adminMode, giftAnimData, onOpen, onTakeBac
               fontSize: '9px', textAlign: 'center', color: 'var(--text-muted)',
               lineHeight: 1.3, maxWidth: 88, wordBreak: 'break-word',
             }}>
-              {trophy.subtitle}
+              <BoldText text={trophy.subtitle} />
             </p>
           )}
         </div>
