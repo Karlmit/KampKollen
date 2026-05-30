@@ -41,14 +41,22 @@ function randomFrom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]
 }
 
+let generatingCount = 0
+export function getGeneratingCount() { return generatingCount }
+
 async function generateOneTrophy(): Promise<void> {
-  const words = await getTrophyWords()
-  const title = randomFrom(words)
-  const prompt = `A flat 2D cartoon illustration of "${title}". Pure white background, exactly #ffffff, no off-white or cream. Object centered, bold outlines, bright colors. No text, no shadows, no gradients.`
-  const result = await generateImage({ prompt }, 'trophies')
-  await prisma.trophy.create({
-    data: { title, imageUrl: result.publicUrl },
-  })
+  generatingCount++
+  try {
+    const words = await getTrophyWords()
+    const title = randomFrom(words)
+    const prompt = `A flat 2D cartoon illustration of "${title}". Pure white background, exactly #ffffff, no off-white or cream. Object centered, bold outlines, bright colors. No text, no shadows, no gradients.`
+    const result = await generateImage({ prompt }, 'trophies')
+    await prisma.trophy.create({
+      data: { title, imageUrl: result.publicUrl },
+    })
+  } finally {
+    generatingCount--
+  }
 }
 
 async function ensureTrophiesInStorage(count: number): Promise<void> {
@@ -61,6 +69,51 @@ async function ensureTrophiesInStorage(count: number): Promise<void> {
     const batchCount = Math.min(BATCH_SIZE, toGenerate - i)
     await Promise.all(Array.from({ length: batchCount }, () => generateOneTrophy()))
   }
+}
+
+export interface CompetitionNeeds {
+  id: string
+  name: string
+  challengeCount: number
+  maxTeamSize: number
+  needed: number
+}
+
+export async function getActiveCompetitionNeeds(): Promise<CompetitionNeeds[]> {
+  const competitions = await prisma.competition.findMany({
+    where: { status: 'ACTIVE' },
+    include: {
+      teams: {
+        include: { players: { include: { user: { select: { isDummy: true } } } } },
+      },
+      challenges: { select: { id: true } },
+    },
+  })
+  return competitions.map(c => {
+    const maxTeamSize = c.teams.reduce((max, t) =>
+      Math.max(max, t.players.filter(p => !p.user.isDummy).length), 0)
+    const challengeCount = c.challenges.length
+    return { id: c.id, name: c.name, challengeCount, maxTeamSize, needed: maxTeamSize + challengeCount }
+  })
+}
+
+export async function ensureForCompetition(competitionId: string): Promise<void> {
+  const competition = await prisma.competition.findUnique({
+    where: { id: competitionId },
+    include: {
+      teams: {
+        include: { players: { include: { user: { select: { isDummy: true } } } } },
+      },
+      challenges: { select: { id: true } },
+    },
+  })
+  if (!competition) return
+
+  const maxTeamSize = competition.teams.reduce((max, t) =>
+    Math.max(max, t.players.filter(p => !p.user.isDummy).length), 0)
+  const needed = maxTeamSize + competition.challenges.length
+
+  await ensureTrophiesInStorage(needed)
 }
 
 interface AwardRecipient {

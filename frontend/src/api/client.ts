@@ -115,6 +115,8 @@ export const api = {
 
   // Trophies
   trophies: {
+    getStatus: () => request<{ storageCount: number; generating: number; activeCompetitions: { id: string; name: string; challengeCount: number; maxTeamSize: number; needed: number }[] }>('/trophies/status'),
+    ensureForCompetition: (competitionId: string) => request<{ started: boolean }>(`/trophies/ensure-for-competition/${competitionId}`, { method: 'POST' }),
     getStorage: () => request<{ trophies: any[] }>('/trophies/storage'),
     getForUser: (userId: string) => request<{ trophies: any[] }>(`/trophies/user/${userId}`),
     generate: () => request<{ trophy: any }>('/trophies/generate', { method: 'POST', body: '{}' }),

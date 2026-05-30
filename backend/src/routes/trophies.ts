@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify'
 import { prisma } from '../db.js'
 import { requireAuth, requireAdmin } from '../middleware/auth.js'
 import { generateImage } from '../lib/imageGeneration.js'
+import { getGeneratingCount, getActiveCompetitionNeeds, ensureForCompetition } from '../lib/awardTrophies.js'
 import { GlobalRole } from '@prisma/client'
 
 const DEFAULT_TROPHY_WORDS = [
@@ -62,6 +63,25 @@ export async function trophyWordRoutes(app: FastifyInstance) {
 }
 
 export async function trophyRoutes(app: FastifyInstance) {
+  // Generation status + active competition needs
+  app.get('/status', { preHandler: requireAdmin }, async () => {
+    const [storageCount, activeCompetitions] = await Promise.all([
+      prisma.trophy.count({ where: { userId: null } }),
+      getActiveCompetitionNeeds(),
+    ])
+    return { storageCount, generating: getGeneratingCount(), activeCompetitions }
+  })
+
+  // Ensure enough trophies in storage for a specific active competition
+  app.post('/ensure-for-competition/:competitionId', { preHandler: requireAdmin }, async (request, reply) => {
+    const { competitionId } = request.params as { competitionId: string }
+    const competition = await prisma.competition.findUnique({ where: { id: competitionId }, select: { status: true } })
+    if (!competition) return reply.status(404).send({ error: 'Competition not found' })
+    if (competition.status !== 'ACTIVE') return reply.status(400).send({ error: 'Competition is not active' })
+    ensureForCompetition(competitionId).catch(err => console.error('[awards] ensure error:', err))
+    return { started: true }
+  })
+
   // List trophies in storage (unassigned)
   app.get('/storage', { preHandler: requireAdmin }, async () => {
     const trophies = await prisma.trophy.findMany({

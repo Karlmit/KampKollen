@@ -25,9 +25,9 @@ function WordList({ words, onAdd, onRemove }: {
 
   return (
     <Card>
-      <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', marginBottom: '4px' }}>Trophy Words</p>
+      <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', marginBottom: '4px' }}>Award Words</p>
       <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-        Random words used when generating trophy images.
+        Random words used when generating award images.
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
         {words.map(word => (
@@ -94,9 +94,21 @@ export function AdminTrophies() {
     if (wordsData) setWords(wordsData.words)
   }, [wordsData])
 
+  const { data: statusData } = useQuery({
+    queryKey: ['trophy-status'],
+    queryFn: () => api.trophies.getStatus(),
+    refetchInterval: (query) => (query.state.data?.generating ?? 0) > 0 ? 1500 : false,
+    refetchIntervalInBackground: true,
+  })
+
   const { data: storageData, isLoading: storageLoading } = useQuery({
     queryKey: ['trophy-storage'],
     queryFn: () => api.trophies.getStorage(),
+    // Refresh storage list while generating so new trophies appear
+    refetchInterval: (query) => {
+      void query
+      return (statusData?.generating ?? 0) > 0 ? 2000 : false
+    },
   })
 
   const { data: usersData } = useQuery({
@@ -112,13 +124,22 @@ export function AdminTrophies() {
 
   const generateMutation = useMutation({
     mutationFn: () => api.trophies.generate(),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['trophy-storage'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['trophy-storage'] })
+      qc.invalidateQueries({ queryKey: ['trophy-status'] })
+    },
+  })
+
+  const ensureMutation = useMutation({
+    mutationFn: (competitionId: string) => api.trophies.ensureForCompetition(competitionId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['trophy-status'] }),
   })
 
   const sendMutation = useMutation({
     mutationFn: () => api.trophies.send(sendTrophy.id, sendUserId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['trophy-storage'] })
+      qc.invalidateQueries({ queryKey: ['trophy-status'] })
       setSendTrophy(null)
       setSendUserId('')
       setSendError('')
@@ -128,7 +149,10 @@ export function AdminTrophies() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.trophies.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['trophy-storage'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['trophy-storage'] })
+      qc.invalidateQueries({ queryKey: ['trophy-status'] })
+    },
   })
 
   const handleWordAdd = (w: string) => {
@@ -143,18 +167,76 @@ export function AdminTrophies() {
     updateWordsMutation.mutate(next)
   }
 
+  const generating = statusData?.generating ?? 0
+  const storageCount = statusData?.storageCount ?? storageData?.trophies?.length ?? 0
+  const activeCompetitions = statusData?.activeCompetitions ?? []
+
   return (
     <AdminLayout title="Awards">
       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-        {/* Trophy Words */}
+        {/* Award Words */}
         <WordList words={words} onAdd={handleWordAdd} onRemove={handleWordRemove} />
 
-        {/* Trophy Storage */}
+        {/* Active competition needs */}
+        {activeCompetitions.length > 0 && (
+          <section>
+            <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '12px' }}>
+              Active Competitions
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {activeCompetitions.map(comp => {
+                const hasEnough = storageCount >= comp.needed
+                const deficit = Math.max(0, comp.needed - storageCount)
+                return (
+                  <Card key={comp.id} padding="12px">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>{comp.name}</p>
+                        <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          Needs {comp.needed} awards ({comp.maxTeamSize} players + {comp.challengeCount} challenges)
+                          {' · '}
+                          <span style={{ color: hasEnough ? 'var(--accent)' : 'var(--accent-warm)', fontWeight: 600 }}>
+                            {hasEnough ? `${storageCount} in storage ✓` : `${storageCount} in storage, ${deficit} missing`}
+                          </span>
+                        </p>
+                      </div>
+                      {!hasEnough && (
+                        <Button
+                          size="sm"
+                          onClick={() => ensureMutation.mutate(comp.id)}
+                          loading={ensureMutation.isPending}
+                          style={{ flexShrink: 0, fontSize: '11px' }}
+                        >
+                          Generate {deficit}
+                        </Button>
+                      )}
+                    </div>
+                  </Card>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* Award Storage */}
         <section>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-              Trophy Storage ({storageData?.trophies?.length ?? 0})
-            </h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                Award Storage ({storageCount})
+              </h2>
+              {generating > 0 && (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '5px',
+                  fontSize: '11px', fontFamily: 'var(--font-ui)', color: 'var(--accent)',
+                  background: 'color-mix(in srgb, var(--accent) 10%, transparent)',
+                  borderRadius: '20px', padding: '2px 8px',
+                }}>
+                  <span className="live-dot" style={{ background: 'var(--accent)', width: 6, height: 6 }} />
+                  Generating {generating}…
+                </span>
+              )}
+            </div>
             <Button
               size="sm"
               onClick={() => generateMutation.mutate()}
@@ -166,7 +248,7 @@ export function AdminTrophies() {
 
           {storageLoading ? <LoadingSpinner /> : storageData?.trophies?.length === 0 ? (
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', padding: '24px 0' }}>
-              No trophies in storage. Generate one!
+              No awards in storage. Generate one!
             </p>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px' }}>
