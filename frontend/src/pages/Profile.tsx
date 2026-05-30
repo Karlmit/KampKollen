@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Lottie from 'lottie-react'
+import giftAnimation from '../assets/giftAnimation.json'
 import { Layout } from '../components/layout/Layout'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
@@ -113,7 +114,6 @@ export function Profile() {
   const [form, setForm] = useState({ displayName: '', realName: '', password: '' })
   const [isGenerating, setIsGenerating] = useState(false)
   const [adminMode, setAdminMode] = useState(false)
-  const [giftAnimData, setGiftAnimData] = useState<any>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['user', userId],
@@ -154,12 +154,6 @@ export function Profile() {
     mutationFn: () => api.trophies.generateSend(userId!),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['user', userId] }),
   })
-
-  useEffect(() => {
-    if (trophies.some((t: any) => !t.isOpened)) {
-      fetch('/lottie/gift.json').then(r => r.json()).then(setGiftAnimData).catch(() => {})
-    }
-  }, [trophies.length])
 
   const handleLogout = async () => {
     await logout()
@@ -285,7 +279,7 @@ export function Profile() {
                   trophy={trophy}
                   isSelf={isSelf}
                   adminMode={adminMode}
-                  giftAnimData={giftAnimData}
+                  giftAnimData={giftAnimation}
                   onOpen={() => openTrophyMutation.mutate(trophy.id)}
                   onTakeBack={() => takeBackMutation.mutate(trophy.id)}
                 />
