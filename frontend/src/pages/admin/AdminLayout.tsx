@@ -8,7 +8,7 @@ const sections = [
   { to: '/admin/challenges', icon: '⚔️', label: 'Challenges' },
   { to: '/admin/users', icon: '👥', label: 'Users' },
   { to: '/admin/image-options', icon: '🎨', label: 'Image Options' },
-  { to: '/admin/trophies', icon: '🎁', label: 'Trophies' },
+  { to: '/admin/trophies', icon: '🎁', label: 'Awards' },
   { to: '/admin/settings', icon: '🔧', label: 'Settings' },
 ]
 

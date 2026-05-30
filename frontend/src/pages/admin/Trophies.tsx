@@ -144,7 +144,7 @@ export function AdminTrophies() {
   }
 
   return (
-    <AdminLayout title="Trophies">
+    <AdminLayout title="Awards">
       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
         {/* Trophy Words */}
         <WordList words={words} onAdd={handleWordAdd} onRemove={handleWordRemove} />

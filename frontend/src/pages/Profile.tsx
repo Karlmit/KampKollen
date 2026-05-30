@@ -74,13 +74,23 @@ function TrophyCard({ trophy, isSelf, adminMode, giftAnimData, onOpen, onTakeBac
         }}>🎁</div>
       )}
       {revealed ? (
-        <p style={{
-          fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '11px',
-          textAlign: 'center', color: 'var(--text-primary)', lineHeight: 1.2,
-          maxWidth: 88, wordBreak: 'break-word',
-        }}>
-          {trophy.title}
-        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
+          <p style={{
+            fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '11px',
+            textAlign: 'center', color: 'var(--text-primary)', lineHeight: 1.2,
+            maxWidth: 88, wordBreak: 'break-word',
+          }}>
+            {trophy.title}
+          </p>
+          {trophy.subtitle && (
+            <p style={{
+              fontSize: '9px', textAlign: 'center', color: 'var(--text-muted)',
+              lineHeight: 1.3, maxWidth: 88, wordBreak: 'break-word',
+            }}>
+              {trophy.subtitle}
+            </p>
+          )}
+        </div>
       ) : (
         <p style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center' }}>
           {isSelf ? 'Tap to open' : '???'}
@@ -245,7 +255,7 @@ export function Profile() {
         <section style={{ marginBottom: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
             <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-              Trophies {trophies.length > 0 ? `(${trophies.length})` : ''}
+              Awards {trophies.length > 0 ? `(${trophies.length})` : ''}
             </h2>
             {isAdmin && !isSelf && (
               <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
@@ -255,7 +265,7 @@ export function Profile() {
                   loading={generateSendMutation.isPending}
                   style={{ fontSize: '11px' }}
                 >
-                  🎁 Generate & Send
+                  🎁 Give Award
                 </Button>
                 <Button
                   size="sm"

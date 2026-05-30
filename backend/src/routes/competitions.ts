@@ -4,6 +4,7 @@ import { GlobalRole } from '@prisma/client'
 import { prisma } from '../db.js'
 import { requireAuth, requireAdmin, optionalAuth } from '../middleware/auth.js'
 import { generateImage, DEFAULT_PROMPTS } from '../lib/imageGeneration.js'
+import { preGenerateTrophies, awardCompetitionTrophies } from '../lib/awardTrophies.js'
 
 const scoringModeEnum = z.enum(['raw_sum', 'placement_points'])
 
@@ -123,10 +124,26 @@ export async function competitionRoutes(app: FastifyInstance) {
     if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
 
     const { date, ...rest } = body.data
+
+    let oldStatus: string | undefined
+    if (rest.status) {
+      const old = await prisma.competition.findUnique({ where: { id }, select: { status: true } })
+      oldStatus = old?.status
+    }
+
     const competition = await prisma.competition.update({
       where: { id },
       data: { ...rest, ...(date !== undefined ? { date: date ? new Date(date) : null } : {}) },
     })
+
+    if (rest.status && oldStatus && oldStatus !== rest.status) {
+      if (oldStatus === 'REGISTRATION' && rest.status === 'ACTIVE') {
+        preGenerateTrophies(id).catch(err => console.error('[awards] pre-generate error:', err))
+      } else if (oldStatus === 'ACTIVE' && rest.status === 'COMPLETED') {
+        awardCompetitionTrophies(id).catch(err => console.error('[awards] award error:', err))
+      }
+    }
+
     return { competition }
   })
 
