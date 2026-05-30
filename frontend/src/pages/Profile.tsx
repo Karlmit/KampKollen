@@ -37,7 +37,7 @@ function TrophyCard({ trophy, isSelf, adminMode, giftAnimData, onOpen, onTakeBac
     onOpen()
   }
 
-  const imgUrl = trophy.imageUrl.startsWith('http') ? trophy.imageUrl : `/${trophy.imageUrl}`
+  const imgUrl = trophy.imageUrl
   const canTap = isSelf && !revealed && !playing && !!giftAnimData
 
   return (

@@ -173,7 +173,7 @@ export function AdminTrophies() {
               {storageData?.trophies?.map((t: any) => (
                 <Card key={t.id} padding="10px" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                   <img
-                    src={t.imageUrl.startsWith('http') ? t.imageUrl : `/${t.imageUrl}`}
+                    src={t.imageUrl}
                     alt={t.title}
                     style={{ width: 80, height: 80, borderRadius: 'var(--radius-sm)', objectFit: 'cover' }}
                   />
