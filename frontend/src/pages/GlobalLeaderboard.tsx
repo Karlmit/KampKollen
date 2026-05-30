@@ -127,11 +127,19 @@ export function GlobalLeaderboard() {
                           fontSize: '16px',
                         }}>🏆</div>
                       )}
-                      <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>
+                      <p style={{ flex: 1, fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>
                         {ch.challengeName}
                       </p>
+                      <Link
+                        to={`/leaderboard/challenge/${ch.challengeId}`}
+                        style={{ textDecoration: 'none', flexShrink: 0 }}
+                      >
+                        <span style={{ fontSize: '12px', fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--accent)' }}>
+                          View all ›
+                        </span>
+                      </Link>
                     </div>
-                    {/* Top scores */}
+                    {/* Top 3 scores */}
                     <div>
                       {ch.topScores.map((s: any, i: number) => (
                         <Link
@@ -144,12 +152,8 @@ export function GlobalLeaderboard() {
                             padding: '9px 16px',
                             borderBottom: i < ch.topScores.length - 1 ? '1px solid var(--border-light)' : 'none',
                           }}>
-                            <span style={{
-                              fontFamily: 'var(--font-ui)', fontWeight: 700,
-                              fontSize: '12px', color: i === 0 ? 'var(--text-primary)' : 'var(--text-muted)',
-                              width: '18px', textAlign: 'center', flexShrink: 0,
-                            }}>
-                              {s.rank}
+                            <span style={{ fontSize: '14px', flexShrink: 0, width: '20px', textAlign: 'center' }}>
+                              {i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'}
                             </span>
                             <Avatar src={s.profileImageUrl} name={s.displayName ?? s.username} size={28} />
                             <p style={{ flex: 1, fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: '13px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

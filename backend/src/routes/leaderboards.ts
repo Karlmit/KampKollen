@@ -4,6 +4,13 @@ import { prisma } from '../db.js'
 import { optionalAuth } from '../middleware/auth.js'
 import { computeCalculatedPoints, computeTeamScore, isLowerBetter } from '../lib/scoring.js'
 
+function getScoreValue(score: any, st: ScoreType): number | null {
+  if (st === 'time_fastest_wins') return score.timeMs ?? null
+  if (st === 'placement_lowest_wins') return score.placement ?? null
+  if (st === 'manual_points') return score.calculatedPoints ?? null
+  return score.rawScore ?? null
+}
+
 export async function leaderboardRoutes(app: FastifyInstance) {
   app.get('/competition/:id', { preHandler: optionalAuth }, async (request, reply) => {
     const { id } = request.params as { id: string }
@@ -214,13 +221,6 @@ export async function leaderboardRoutes(app: FastifyInstance) {
       orderBy: { name: 'asc' },
     })
 
-    const getScoreValue = (score: any, st: ScoreType): number | null => {
-      if (st === 'time_fastest_wins') return score.timeMs ?? null
-      if (st === 'placement_lowest_wins') return score.placement ?? null
-      if (st === 'manual_points') return score.calculatedPoints ?? null
-      return score.rawScore ?? null
-    }
-
     const result = challenges.map(challenge => {
       const baseScoreType = challenge.scoreType as ScoreType
       const lowerBetter = isLowerBetter(baseScoreType)
@@ -248,7 +248,7 @@ export async function leaderboardRoutes(app: FastifyInstance) {
 
       const topScores = Object.values(bestPerPlayer)
         .sort((a: any, b: any) => lowerBetter ? a.score - b.score : b.score - a.score)
-        .slice(0, 5)
+        .slice(0, 3)
         .map((s: any, i: number) => ({ ...s, rank: i + 1 }))
 
       return {
@@ -276,18 +276,60 @@ export async function leaderboardRoutes(app: FastifyInstance) {
   app.get('/challenge/:challengeId/all-time', { preHandler: optionalAuth }, async (request, reply) => {
     const { challengeId } = request.params as { challengeId: string }
 
-    const challenge = await prisma.challenge.findUnique({ where: { id: challengeId } })
+    const challenge = await prisma.challenge.findUnique({
+      where: { id: challengeId },
+      include: {
+        competitionChallenges: {
+          include: {
+            scores: {
+              include: {
+                player: { select: { id: true, username: true, displayName: true, profileImageUrl: true } },
+                competition: { select: { id: true, name: true, date: true } },
+              },
+            },
+          },
+        },
+      },
+    })
     if (!challenge) return reply.status(404).send({ error: 'Challenge not found' })
 
-    const scores = await prisma.score.findMany({
-      where: { competitionChallenge: { challengeId } },
-      include: {
-        player: { select: { id: true, username: true, displayName: true, profileImageUrl: true } },
-        competition: true,
-      },
-      orderBy: { rawScore: 'desc' },
-    })
+    const baseScoreType = challenge.scoreType as ScoreType
+    const lowerBetter = isLowerBetter(baseScoreType)
+    const bestPerPlayer: Record<string, any> = {}
 
-    return { challenge, scores }
+    for (const cc of challenge.competitionChallenges) {
+      const effectiveSt = (cc.scoreTypeOverride ?? challenge.scoreType) as ScoreType
+      for (const s of cc.scores) {
+        const val = getScoreValue(s, effectiveSt)
+        if (val === null) continue
+        const existing = bestPerPlayer[s.userId]
+        if (!existing || (lowerBetter ? val < existing.score : val > existing.score)) {
+          bestPerPlayer[s.userId] = {
+            userId: s.player.id,
+            displayName: s.player.displayName,
+            username: s.player.username,
+            profileImageUrl: s.player.profileImageUrl,
+            score: val,
+            competitionName: s.competition.name,
+            competitionDate: s.competition.date?.toISOString() ?? null,
+          }
+        }
+      }
+    }
+
+    const allScores = Object.values(bestPerPlayer)
+      .sort((a: any, b: any) => lowerBetter ? a.score - b.score : b.score - a.score)
+      .map((s: any, i: number) => ({ ...s, rank: i + 1 }))
+
+    return {
+      challenge: {
+        id: challenge.id,
+        name: challenge.name,
+        logoUrl: challenge.logoUrl ?? null,
+        scoreType: baseScoreType,
+        lowerIsBetter: lowerBetter,
+      },
+      allScores,
+    }
   })
 }
