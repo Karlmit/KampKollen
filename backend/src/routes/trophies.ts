@@ -5,10 +5,32 @@ import { generateImage } from '../lib/imageGeneration.js'
 import { GlobalRole } from '@prisma/client'
 
 const DEFAULT_TROPHY_WORDS = [
-  'Speed', 'Accuracy', 'Strength', 'Teamwork', 'Leadership',
-  'Champion', 'Legend', 'MVP', 'Comeback', 'Underdog',
-  'Spirit', 'Precision', 'Endurance', 'Victory', 'Domination',
-  'Agility', 'Focus', 'Courage', 'Persistence', 'Hustle',
+  'Old rocking horse', 'Teddy bear with one missing eye', 'Pristine fountain pen',
+  'Shiny red apple', 'Cracked porcelain duck', 'Golden banana', 'Tiny wizard hat',
+  'Rusty bicycle bell', 'Suspicious pineapple', 'Fancy teaspoon', 'Broken alarm clock',
+  'Very proud potato', 'Plastic crown', 'Rubber duck in sunglasses', 'Ancient office chair',
+  'Glorious traffic cone', 'Half-melted candle', 'Tiny wooden stool', 'Fancy monocle',
+  'Bent silver spoon', 'Emotional support cactus', 'Slightly haunted sandwich',
+  'Golden toilet brush', 'Dusty trophy cup', 'Tiny garden gnome', 'Royal-looking cabbage',
+  'Sock with a medal', 'Miniature pirate ship', 'Sad balloon', 'Heroic meatball',
+  'Crystal doorknob', 'Wobbly chess knight', 'Suspicious egg', 'Majestic cheese wheel',
+  'Lonely mitten', 'Fancy umbrella', 'Tiny dragon statue', 'Broken snow globe',
+  'Glittery snail shell', 'Old TV remote', 'Ceremonial frying pan', 'Stuffed moose head',
+  'Tiny treasure chest', 'Extremely normal rock', 'Banana peel on a pedestal',
+  'Wooden spoon of destiny', 'Noble rubber boot', 'Golden stapler', 'Mysterious key',
+  'Fancy teacup', 'Angry-looking lemon', 'Tiny accordion', 'Dusty violin',
+  'Heroic garden shovel', 'Sparkly fishbowl', 'Old captain\'s hat', 'Royal egg cup',
+  'Crooked picture frame', 'Tiny cannon', 'Very serious pumpkin', 'Broken compass',
+  'Majestic toothbrush', 'Antique door knocker', 'Golden mushroom', 'Sleepy owl figurine',
+  'Trophy-shaped sandwich', 'Fancy feather quill', 'Crowned frog statue', 'Tiny train engine',
+  'Melancholy cupcake', 'Ancient calculator', 'Wooden duck on wheels', 'Plastic dinosaur',
+  'Dramatic cape', 'Tiny lighthouse', 'Lucky horseshoe', 'Golden carrot',
+  'Confused chicken statue', 'Silver waffle iron', 'Tiny bathtub', 'Worn-out boxing glove',
+  'Fancy jam jar', 'Noble soup ladle', 'Crystal pineapple', 'Broken magic wand',
+  'Tiny castle tower', 'Golden rolling pin', 'Mysterious blue bottle', 'Old leather boot',
+  'Tiny scarecrow', 'Decorative fish', 'Bronze acorn', 'Fancy biscuit tin',
+  'Tiny astronaut helmet', 'Royal lunchbox', 'Glittering onion', 'Old typewriter key',
+  'Miniature windmill', 'Golden popcorn bucket',
 ]
 
 async function getTrophyWords(): Promise<string[]> {
@@ -69,7 +91,7 @@ export async function trophyRoutes(app: FastifyInstance) {
   app.post('/generate', { preHandler: requireAdmin }, async () => {
     const words = await getTrophyWords()
     const title = randomFrom(words)
-    const prompt = `A trophy or award icon themed around "${title}". Celebratory, colorful, playful, bold design.`
+    const prompt = `A silly cartoon trophy item: "${title}", placed on a plain white background. The object is centered, drawn in a flat 2D cartoon style with bold outlines and bright colors. No shadows, no gradients, no text.`
     const result = await generateImage({ prompt }, 'trophies')
     const trophy = await prisma.trophy.create({
       data: { title, imageUrl: result.publicUrl },
@@ -87,7 +109,7 @@ export async function trophyRoutes(app: FastifyInstance) {
 
     const words = await getTrophyWords()
     const title = randomFrom(words)
-    const prompt = `A trophy or award icon themed around "${title}". Celebratory, colorful, playful, bold design.`
+    const prompt = `A silly cartoon trophy item: "${title}", placed on a plain white background. The object is centered, drawn in a flat 2D cartoon style with bold outlines and bright colors. No shadows, no gradients, no text.`
     const result = await generateImage({ prompt }, 'trophies')
     const trophy = await prisma.trophy.create({
       data: { title, imageUrl: result.publicUrl, userId: body.userId, sentAt: new Date() },

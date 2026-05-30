@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Lottie from 'lottie-react'
@@ -22,26 +22,25 @@ function TrophyCard({ trophy, isSelf, adminMode, giftAnimData, onOpen, onTakeBac
   onOpen: () => void
   onTakeBack: () => void
 }) {
-  const lottieRef = useRef<any>(null)
-  const [revealing, setRevealing] = useState(false)
+  const [playing, setPlaying] = useState(false)
   const [revealed, setRevealed] = useState(trophy.isOpened)
 
   const handleClick = () => {
-    if (!isSelf || revealed || revealing || !giftAnimData) return
-    setRevealing(true)
-    lottieRef.current?.play()
+    if (!isSelf || revealed || playing || !giftAnimData) return
+    setPlaying(true)
   }
 
   const handleComplete = () => {
     setRevealed(true)
-    setRevealing(false)
+    setPlaying(false)
     onOpen()
   }
 
   const imgUrl = trophy.imageUrl.startsWith('http') ? trophy.imageUrl : `/${trophy.imageUrl}`
+  const canTap = isSelf && !revealed && !playing && !!giftAnimData
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', width: 88, position: 'relative' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', width: 88 }}>
       {revealed ? (
         <img
           src={imgUrl}
@@ -51,31 +50,21 @@ function TrophyCard({ trophy, isSelf, adminMode, giftAnimData, onOpen, onTakeBac
       ) : giftAnimData ? (
         <div
           onClick={handleClick}
+          title={canTap ? 'Tap to open!' : undefined}
           style={{
-            width: 80, height: 80, cursor: isSelf && !revealing ? 'pointer' : 'default',
-            position: 'relative', overflow: 'hidden', borderRadius: 'var(--radius)',
+            width: 80, height: 80, cursor: canTap ? 'pointer' : 'default',
+            position: 'relative', borderRadius: 'var(--radius)', overflow: 'hidden',
           }}
         >
+          {/* key swap forces remount with correct autoplay state */}
           <Lottie
-            lottieRef={lottieRef}
+            key={playing ? 'playing' : 'idle'}
             animationData={giftAnimData}
-            autoplay={false}
+            autoplay={playing}
             loop={false}
             onComplete={handleComplete}
             style={{ width: 80, height: 80 }}
           />
-          {isSelf && !revealing && (
-            <div style={{
-              position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: 'rgba(0,0,0,0.12)', borderRadius: 'var(--radius)',
-              opacity: 0, transition: 'opacity 150ms',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
-            onMouseLeave={e => (e.currentTarget.style.opacity = '0')}
-            >
-              <span style={{ fontSize: '20px' }}>👆</span>
-            </div>
-          )}
         </div>
       ) : (
         <div style={{
@@ -83,13 +72,19 @@ function TrophyCard({ trophy, isSelf, adminMode, giftAnimData, onOpen, onTakeBac
           background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px',
         }}>🎁</div>
       )}
-      <p style={{
-        fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '11px',
-        textAlign: 'center', color: 'var(--text-primary)', lineHeight: 1.2,
-        maxWidth: 88, wordBreak: 'break-word',
-      }}>
-        {trophy.title}
-      </p>
+      {revealed ? (
+        <p style={{
+          fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '11px',
+          textAlign: 'center', color: 'var(--text-primary)', lineHeight: 1.2,
+          maxWidth: 88, wordBreak: 'break-word',
+        }}>
+          {trophy.title}
+        </p>
+      ) : (
+        <p style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center' }}>
+          {isSelf ? 'Tap to open' : '???'}
+        </p>
+      )}
       {adminMode && (
         <button
           onClick={onTakeBack}
@@ -274,7 +269,7 @@ export function Profile() {
                   onClick={() => setAdminMode(m => !m)}
                   style={{ fontSize: '11px' }}
                 >
-                  {adminMode ? 'Admin ON' : 'Admin'}
+                  {adminMode ? 'Admin Mode On' : 'Admin Mode Off'}
                 </Button>
               </div>
             )}
