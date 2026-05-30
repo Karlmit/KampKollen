@@ -91,7 +91,7 @@ export async function trophyRoutes(app: FastifyInstance) {
   app.post('/generate', { preHandler: requireAdmin }, async () => {
     const words = await getTrophyWords()
     const title = randomFrom(words)
-    const prompt = `A silly cartoon trophy item: "${title}", placed on a plain white background. The object is centered, drawn in a flat 2D cartoon style with bold outlines and bright colors. No shadows, no gradients, no text.`
+    const prompt = `A flat 2D cartoon illustration of "${title}" on a plain white background. Centered in frame, bold outlines, bright colors. No text, no shadows.`
     const result = await generateImage({ prompt }, 'trophies')
     const trophy = await prisma.trophy.create({
       data: { title, imageUrl: result.publicUrl },
@@ -109,7 +109,7 @@ export async function trophyRoutes(app: FastifyInstance) {
 
     const words = await getTrophyWords()
     const title = randomFrom(words)
-    const prompt = `A silly cartoon trophy item: "${title}", placed on a plain white background. The object is centered, drawn in a flat 2D cartoon style with bold outlines and bright colors. No shadows, no gradients, no text.`
+    const prompt = `A flat 2D cartoon illustration of "${title}" on a plain white background. Centered in frame, bold outlines, bright colors. No text, no shadows.`
     const result = await generateImage({ prompt }, 'trophies')
     const trophy = await prisma.trophy.create({
       data: { title, imageUrl: result.publicUrl, userId: body.userId, sentAt: new Date() },
