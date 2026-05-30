@@ -104,6 +104,7 @@ export const DEFAULT_PROMPTS = {
   team: (teamName: string) => `A fun mascot or logo for a sports team called "${teamName}". Bold, colorful, playful.`,
   challenge: (challengeName: string) => `An app icon for a sports challenge called "${challengeName}". Simple, bold, colorful icon style.`,
   competition: (competitionName: string) => `A banner illustration for an office sports competition called "${competitionName}". Cheerful, energetic, team-themed.`,
+  trophy: (title: string) => `A trophy or award icon themed around "${title}". Celebratory, colorful, playful, bold design.`,
 }
 
 function randomFrom<T>(arr: T[]): T {

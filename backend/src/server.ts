@@ -13,6 +13,7 @@ import { teamRoutes } from './routes/teams.js'
 import { scoreRoutes } from './routes/scores.js'
 import { leaderboardRoutes } from './routes/leaderboards.js'
 import { settingsRoutes, imageOptionRoutes } from './routes/settings.js'
+import { trophyRoutes, trophyWordRoutes } from './routes/trophies.js'
 
 export async function buildServer() {
   const app = Fastify({
@@ -57,6 +58,8 @@ export async function buildServer() {
   await app.register(leaderboardRoutes, { prefix: '/api/leaderboards' })
   await app.register(settingsRoutes, { prefix: '/api/admin/settings' })
   await app.register(imageOptionRoutes, { prefix: '/api/image-options' })
+  await app.register(trophyRoutes, { prefix: '/api/trophies' })
+  await app.register(trophyWordRoutes, { prefix: '/api/admin/trophy-words' })
 
   // Catch-all for SPA — serve index.html for all non-API routes in production
   if (!config.isDev) {

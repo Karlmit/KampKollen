@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import Lottie from 'lottie-react'
 import { Layout } from '../components/layout/Layout'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
@@ -13,6 +14,98 @@ import { useAuth } from '../contexts/AuthContext'
 import { api } from '../api/client'
 import { formatScore, extractScoreValue } from '../utils'
 
+function TrophyCard({ trophy, isSelf, adminMode, giftAnimData, onOpen, onTakeBack }: {
+  trophy: any
+  isSelf: boolean
+  adminMode: boolean
+  giftAnimData: any
+  onOpen: () => void
+  onTakeBack: () => void
+}) {
+  const lottieRef = useRef<any>(null)
+  const [revealing, setRevealing] = useState(false)
+  const [revealed, setRevealed] = useState(trophy.isOpened)
+
+  const handleClick = () => {
+    if (!isSelf || revealed || revealing || !giftAnimData) return
+    setRevealing(true)
+    lottieRef.current?.play()
+  }
+
+  const handleComplete = () => {
+    setRevealed(true)
+    setRevealing(false)
+    onOpen()
+  }
+
+  const imgUrl = trophy.imageUrl.startsWith('http') ? trophy.imageUrl : `/${trophy.imageUrl}`
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', width: 88, position: 'relative' }}>
+      {revealed ? (
+        <img
+          src={imgUrl}
+          alt={trophy.title}
+          style={{ width: 80, height: 80, borderRadius: 'var(--radius)', objectFit: 'cover' }}
+        />
+      ) : giftAnimData ? (
+        <div
+          onClick={handleClick}
+          style={{
+            width: 80, height: 80, cursor: isSelf && !revealing ? 'pointer' : 'default',
+            position: 'relative', overflow: 'hidden', borderRadius: 'var(--radius)',
+          }}
+        >
+          <Lottie
+            lottieRef={lottieRef}
+            animationData={giftAnimData}
+            autoplay={false}
+            loop={false}
+            onComplete={handleComplete}
+            style={{ width: 80, height: 80 }}
+          />
+          {isSelf && !revealing && (
+            <div style={{
+              position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'rgba(0,0,0,0.12)', borderRadius: 'var(--radius)',
+              opacity: 0, transition: 'opacity 150ms',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+            onMouseLeave={e => (e.currentTarget.style.opacity = '0')}
+            >
+              <span style={{ fontSize: '20px' }}>👆</span>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div style={{
+          width: 80, height: 80, borderRadius: 'var(--radius)',
+          background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px',
+        }}>🎁</div>
+      )}
+      <p style={{
+        fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '11px',
+        textAlign: 'center', color: 'var(--text-primary)', lineHeight: 1.2,
+        maxWidth: 88, wordBreak: 'break-word',
+      }}>
+        {trophy.title}
+      </p>
+      {adminMode && (
+        <button
+          onClick={onTakeBack}
+          style={{
+            fontSize: '10px', fontFamily: 'var(--font-ui)', fontWeight: 700,
+            color: 'var(--accent-warm)', background: 'none', border: 'none',
+            cursor: 'pointer', padding: '2px 0',
+          }}
+        >
+          ↩ Take back
+        </button>
+      )}
+    </div>
+  )
+}
+
 export function Profile() {
   const { id: paramId } = useParams<{ id?: string }>()
   const { user: me, logout, refreshUser, isAdmin } = useAuth()
@@ -24,6 +117,8 @@ export function Profile() {
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({ displayName: '', realName: '', password: '' })
   const [isGenerating, setIsGenerating] = useState(false)
+  const [adminMode, setAdminMode] = useState(false)
+  const [giftAnimData, setGiftAnimData] = useState<any>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['user', userId],
@@ -44,6 +139,32 @@ export function Profile() {
       setForm({ displayName: '', realName: '', password: '' })
     },
   })
+
+  const trophies: any[] = data?.user?.trophies ?? []
+
+  const openTrophyMutation = useMutation({
+    mutationFn: (id: string) => api.trophies.open(id),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['user', userId] })
+      await refreshUser()
+    },
+  })
+
+  const takeBackMutation = useMutation({
+    mutationFn: (id: string) => api.trophies.takeBack(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['user', userId] }),
+  })
+
+  const generateSendMutation = useMutation({
+    mutationFn: () => api.trophies.generateSend(userId!),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['user', userId] }),
+  })
+
+  useEffect(() => {
+    if (trophies.some((t: any) => !t.isOpened)) {
+      fetch('/lottie/gift.json').then(r => r.json()).then(setGiftAnimData).catch(() => {})
+    }
+  }, [trophies.length])
 
   const handleLogout = async () => {
     await logout()
@@ -128,6 +249,55 @@ export function Profile() {
             </div>
           )}
         </Card>
+      )}
+
+      {/* Trophy showcase */}
+      {(trophies.length > 0 || (isAdmin && !isSelf)) && (
+        <section style={{ marginBottom: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+              Trophies {trophies.length > 0 ? `(${trophies.length})` : ''}
+            </h2>
+            {isAdmin && !isSelf && (
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <Button
+                  size="sm"
+                  onClick={() => generateSendMutation.mutate()}
+                  loading={generateSendMutation.isPending}
+                  style={{ fontSize: '11px' }}
+                >
+                  🎁 Generate & Send
+                </Button>
+                <Button
+                  size="sm"
+                  variant={adminMode ? 'danger' : 'ghost'}
+                  onClick={() => setAdminMode(m => !m)}
+                  style={{ fontSize: '11px' }}
+                >
+                  {adminMode ? 'Admin ON' : 'Admin'}
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {trophies.length === 0 ? (
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', padding: '16px 0' }}>No trophies yet.</p>
+          ) : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+              {trophies.map((trophy: any) => (
+                <TrophyCard
+                  key={trophy.id}
+                  trophy={trophy}
+                  isSelf={isSelf}
+                  adminMode={adminMode}
+                  giftAnimData={giftAnimData}
+                  onOpen={() => openTrophyMutation.mutate(trophy.id)}
+                  onTakeBack={() => takeBackMutation.mutate(trophy.id)}
+                />
+              ))}
+            </div>
+          )}
+        </section>
       )}
 
       {/* Personal bests per challenge */}

@@ -113,6 +113,9 @@ export async function authRoutes(app: FastifyInstance) {
     })
 
     if (!user) return reply.status(404).send({ error: 'User not found' })
-    return { user }
+    const unreadTrophyCount = await prisma.trophy.count({
+      where: { userId: user.id, isOpened: false },
+    })
+    return { user, unreadTrophyCount }
   })
 }

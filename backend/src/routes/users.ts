@@ -45,6 +45,9 @@ export async function userRoutes(app: FastifyInstance) {
           },
           orderBy: { createdAt: 'desc' },
         },
+        trophies: {
+          orderBy: { sentAt: 'desc' },
+        },
       },
     })
 

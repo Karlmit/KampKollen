@@ -11,6 +11,7 @@ interface AuthContextType {
   refreshUser: () => Promise<void>
   isAdmin: boolean
   isScorekeeper: boolean
+  hasUnopenedTrophies: boolean
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -18,10 +19,11 @@ const AuthContext = createContext<AuthContextType | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [unreadTrophyCount, setUnreadTrophyCount] = useState(0)
 
   useEffect(() => {
     api.auth.me()
-      .then(res => setUser(res.user))
+      .then(res => { setUser(res.user); setUnreadTrophyCount((res as any).unreadTrophyCount ?? 0) })
       .catch(() => setUser(null))
       .finally(() => setLoading(false))
   }, [])
@@ -43,11 +45,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // clear local state regardless of API result
     }
     setUser(null)
+    setUnreadTrophyCount(0)
   }
 
   const refreshUser = async () => {
     const res = await api.auth.me()
     setUser(res.user)
+    setUnreadTrophyCount((res as any).unreadTrophyCount ?? 0)
   }
 
   return (
@@ -60,6 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshUser,
       isAdmin: user?.globalRole === 'ADMIN',
       isScorekeeper: user?.globalRole === 'SCOREKEEPER' || user?.globalRole === 'ADMIN',
+      hasUnopenedTrophies: unreadTrophyCount > 0,
     }}>
       {children}
     </AuthContext.Provider>

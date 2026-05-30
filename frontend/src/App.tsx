@@ -20,6 +20,7 @@ import { AdminChallenges } from './pages/admin/Challenges'
 import { AdminUsers } from './pages/admin/Users'
 import { AdminSettings } from './pages/admin/Settings'
 import { AdminImageOptions } from './pages/admin/ImageOptions'
+import { AdminTrophies } from './pages/admin/Trophies'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -64,6 +65,7 @@ function AppRoutes() {
       <Route path="/admin/users" element={<RequireAuth><AdminUsers /></RequireAuth>} />
       <Route path="/admin/settings" element={<RequireAuth><AdminSettings /></RequireAuth>} />
       <Route path="/admin/image-options" element={<RequireAuth><AdminImageOptions /></RequireAuth>} />
+      <Route path="/admin/trophies" element={<RequireAuth><AdminTrophies /></RequireAuth>} />
 
       <Route path="*" element={<Navigate to={user ? '/' : '/competitions'} replace />} />
     </Routes>

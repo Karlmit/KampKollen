@@ -113,6 +113,20 @@ export const api = {
       request<{ success: boolean }>('/image-options', { method: 'PUT', body: JSON.stringify(data) }),
   },
 
+  // Trophies
+  trophies: {
+    getStorage: () => request<{ trophies: any[] }>('/trophies/storage'),
+    getForUser: (userId: string) => request<{ trophies: any[] }>(`/trophies/user/${userId}`),
+    generate: () => request<{ trophy: any }>('/trophies/generate', { method: 'POST', body: '{}' }),
+    generateSend: (userId: string) => request<{ trophy: any }>('/trophies/generate-send', { method: 'POST', body: JSON.stringify({ userId }) }),
+    send: (id: string, userId: string) => request<{ trophy: any }>(`/trophies/${id}/send`, { method: 'POST', body: JSON.stringify({ userId }) }),
+    takeBack: (id: string) => request<{ trophy: any }>(`/trophies/${id}/take-back`, { method: 'POST', body: '{}' }),
+    open: (id: string) => request<{ trophy: any }>(`/trophies/${id}/open`, { method: 'POST', body: '{}' }),
+    delete: (id: string) => request(`/trophies/${id}`, { method: 'DELETE' }),
+    getWords: () => request<{ words: string[] }>('/admin/trophy-words'),
+    updateWords: (words: string[]) => request<{ success: boolean }>('/admin/trophy-words', { method: 'PUT', body: JSON.stringify({ words }) }),
+  },
+
   // Leaderboards
   leaderboards: {
     competition: (id: string) => request<any>(`/leaderboards/competition/${id}`),

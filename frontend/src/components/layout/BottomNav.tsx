@@ -21,7 +21,7 @@ function matchItem(to: string, pathname: string) {
 }
 
 export function BottomNav() {
-  const { user, isAdmin } = useAuth()
+  const { user, isAdmin, hasUnopenedTrophies } = useAuth()
   const location = useLocation()
   const navRef = useRef<HTMLElement>(null)
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({})
@@ -102,12 +102,23 @@ export function BottomNav() {
           >
             {({ isActive }) => (
               <>
-                <span style={{
-                  fontSize: '22px', lineHeight: 1, display: 'block',
-                  transform: isActive ? 'scale(1.12)' : 'scale(1)',
-                  transition: 'transform 220ms var(--ease-out)',
-                }}>
-                  {item.icon}
+                <span style={{ position: 'relative', display: 'inline-block' }}>
+                  <span style={{
+                    fontSize: '22px', lineHeight: 1, display: 'block',
+                    transform: isActive ? 'scale(1.12)' : 'scale(1)',
+                    transition: 'transform 220ms var(--ease-out)',
+                  }}>
+                    {item.icon}
+                  </span>
+                  {item.to === '/profile' && hasUnopenedTrophies && (
+                    <span style={{
+                      position: 'absolute', top: 0, right: -2,
+                      width: 8, height: 8, borderRadius: '50%',
+                      background: 'var(--accent-warm)',
+                      border: '2px solid var(--background)',
+                      pointerEvents: 'none',
+                    }} />
+                  )}
                 </span>
                 <span>{item.label}</span>
               </>

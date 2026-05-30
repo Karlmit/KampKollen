@@ -60,6 +60,19 @@ model User {
   scores              Score[]             @relation("ScorePlayer")
   enteredScores       Score[]             @relation("ScoreEnteredBy")
   teamLeaderships     Team[]              @relation("TeamLeader")
+  trophies            Trophy[]            @relation("UserTrophies")
+}
+
+model Trophy {
+  id        String    @id @default(cuid())
+  title     String
+  imageUrl  String
+  userId    String?
+  user      User?     @relation("UserTrophies", fields: [userId], references: [id])
+  isOpened  Boolean   @default(false)
+  sentAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
 
 model Competition {
