@@ -104,6 +104,21 @@ export function CompetitionDetail() {
         </Button>
       )}
 
+      {/* Waiting for team notice */}
+      {isJoined && !myTeam && (
+        <Card style={{ marginBottom: '16px', background: 'var(--surface-raised)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ fontSize: '28px', flexShrink: 0 }}>⏳</span>
+            <div>
+              <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', marginBottom: '2px' }}>You're in the player pool</p>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                A Team Leader or Admin will assign you to a team. Hang tight!
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* My team banner */}
       {myTeam && (
         <Link to={`/competitions/${id}/team/${myTeam.id}`} style={{ textDecoration: 'none', display: 'block', marginBottom: '16px' }}>
