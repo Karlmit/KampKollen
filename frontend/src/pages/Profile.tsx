@@ -260,29 +260,31 @@ export function Profile() {
       )}
 
       {/* Trophy showcase */}
-      {(trophies.length > 0 || (isAdmin && !isSelf)) && (
+      {(trophies.length > 0 || isAdmin) && (
         <section style={{ marginBottom: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
             <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
               Awards {trophies.length > 0 ? `(${trophies.length})` : ''}
             </h2>
-            {isAdmin && !isSelf && (
+            {isAdmin && (
               <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                <Button
-                  size="sm"
-                  onClick={() => generateSendMutation.mutate()}
-                  loading={generateSendMutation.isPending}
-                  style={{ fontSize: '11px' }}
-                >
-                  🎁 Give Award
-                </Button>
+                {!isSelf && (
+                  <Button
+                    size="sm"
+                    onClick={() => generateSendMutation.mutate()}
+                    loading={generateSendMutation.isPending}
+                    style={{ fontSize: '11px' }}
+                  >
+                    🎁 Give Award
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant={adminMode ? 'danger' : 'ghost'}
                   onClick={() => setAdminMode(m => !m)}
                   style={{ fontSize: '11px' }}
                 >
-                  {adminMode ? 'Admin Mode On' : 'Admin Mode Off'}
+                  {adminMode ? 'Managing ✓' : 'Manage'}
                 </Button>
               </div>
             )}

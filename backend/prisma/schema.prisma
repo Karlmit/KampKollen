@@ -64,16 +64,18 @@ model User {
 }
 
 model Trophy {
-  id        String    @id @default(cuid())
-  title     String
-  subtitle  String?
-  imageUrl  String
-  userId    String?
-  user      User?     @relation("UserTrophies", fields: [userId], references: [id])
-  isOpened  Boolean   @default(false)
-  sentAt    DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id                       String       @id @default(cuid())
+  title                    String
+  subtitle                 String?
+  imageUrl                 String
+  userId                   String?
+  user                     User?        @relation("UserTrophies", fields: [userId], references: [id])
+  isOpened                 Boolean      @default(false)
+  sentAt                   DateTime?
+  reservedForCompetitionId String?
+  reservedForCompetition   Competition? @relation("TrophyReservation", fields: [reservedForCompetitionId], references: [id], onDelete: SetNull)
+  createdAt                DateTime     @default(now())
+  updatedAt                DateTime     @updatedAt
 }
 
 model Competition {
@@ -89,10 +91,11 @@ model Competition {
   createdAt       DateTime               @default(now())
   updatedAt       DateTime               @updatedAt
 
-  challenges CompetitionChallenge[]
-  teams      Team[]
-  players    CompetitionPlayer[]
-  scores     Score[]
+  challenges       CompetitionChallenge[]
+  teams            Team[]
+  players          CompetitionPlayer[]
+  scores           Score[]
+  reservedTrophies Trophy[]               @relation("TrophyReservation")
 }
 
 model Challenge {

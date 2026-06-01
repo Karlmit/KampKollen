@@ -77,6 +77,7 @@ export interface CompetitionNeeds {
   challengeCount: number
   maxTeamSize: number
   needed: number
+  reservedCount: number
 }
 
 export async function getActiveCompetitionNeeds(): Promise<CompetitionNeeds[]> {
@@ -87,13 +88,21 @@ export async function getActiveCompetitionNeeds(): Promise<CompetitionNeeds[]> {
         include: { players: { include: { user: { select: { isDummy: true } } } } },
       },
       challenges: { select: { id: true } },
+      reservedTrophies: { where: { userId: null }, select: { id: true } },
     },
   })
   return competitions.map(c => {
     const maxTeamSize = c.teams.reduce((max, t) =>
       Math.max(max, t.players.filter(p => !p.user.isDummy).length), 0)
     const challengeCount = c.challenges.length
-    return { id: c.id, name: c.name, challengeCount, maxTeamSize, needed: maxTeamSize + challengeCount }
+    return {
+      id: c.id,
+      name: c.name,
+      challengeCount,
+      maxTeamSize,
+      needed: maxTeamSize + challengeCount,
+      reservedCount: c.reservedTrophies.length,
+    }
   })
 }
 
@@ -113,7 +122,19 @@ export async function ensureForCompetition(competitionId: string): Promise<void>
     Math.max(max, t.players.filter(p => !p.user.isDummy).length), 0)
   const needed = maxTeamSize + competition.challenges.length
 
-  await ensureTrophiesInStorage(needed)
+  // Count trophies available for this competition (reserved for it + unreserved)
+  const [reservedForThis, unreserved] = await Promise.all([
+    prisma.trophy.count({ where: { userId: null, reservedForCompetitionId: competitionId } }),
+    prisma.trophy.count({ where: { userId: null, reservedForCompetitionId: null } }),
+  ])
+  const toGenerate = Math.max(0, needed - reservedForThis - unreserved)
+  if (toGenerate === 0) return
+
+  const BATCH_SIZE = 3
+  for (let i = 0; i < toGenerate; i += BATCH_SIZE) {
+    const batchCount = Math.min(BATCH_SIZE, toGenerate - i)
+    await Promise.all(Array.from({ length: batchCount }, () => generateOneTrophy()))
+  }
 }
 
 interface AwardRecipient {
@@ -252,27 +273,41 @@ export async function awardCompetitionTrophies(competitionId: string): Promise<v
   const recipients = await computeWinners(competitionId)
   if (recipients.length === 0) return
 
-  await ensureTrophiesInStorage(recipients.length)
+  await ensureForCompetition(competitionId)
 
-  const storageTrophies = await prisma.trophy.findMany({
-    where: { userId: null },
-    orderBy: { createdAt: 'asc' },
-    take: recipients.length,
-    select: { id: true },
-  })
+  // Prefer trophies reserved for this competition, then fall back to unreserved
+  const [reserved, unreserved] = await Promise.all([
+    prisma.trophy.findMany({
+      where: { userId: null, reservedForCompetitionId: competitionId },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    }),
+    prisma.trophy.findMany({
+      where: { userId: null, reservedForCompetitionId: null },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    }),
+  ])
 
-  if (storageTrophies.length < recipients.length) {
-    console.error(`[awards] Not enough trophies: need ${recipients.length}, have ${storageTrophies.length}`)
+  const trophyIds = [...reserved.map(t => t.id), ...unreserved.map(t => t.id)]
+    .slice(0, recipients.length)
+
+  if (trophyIds.length < recipients.length) {
+    console.error(`[awards] Not enough trophies: need ${recipients.length}, have ${trophyIds.length}`)
   }
 
   const now = new Date()
-  const count = Math.min(storageTrophies.length, recipients.length)
-
   await Promise.all(
-    recipients.slice(0, count).map((recipient, i) =>
+    recipients.slice(0, trophyIds.length).map((recipient, i) =>
       prisma.trophy.update({
-        where: { id: storageTrophies[i].id },
-        data: { userId: recipient.userId, subtitle: recipient.subtitle, sentAt: now, isOpened: false },
+        where: { id: trophyIds[i] },
+        data: {
+          userId: recipient.userId,
+          subtitle: recipient.subtitle,
+          sentAt: now,
+          isOpened: false,
+          reservedForCompetitionId: null,
+        },
       })
     )
   )

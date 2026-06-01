@@ -87,6 +87,7 @@ export async function trophyRoutes(app: FastifyInstance) {
     const trophies = await prisma.trophy.findMany({
       where: { userId: null },
       orderBy: { createdAt: 'desc' },
+      include: { reservedForCompetition: { select: { id: true, name: true } } },
     })
     return { trophies }
   })
@@ -107,16 +108,34 @@ export async function trophyRoutes(app: FastifyInstance) {
     return { trophies }
   })
 
-  // Generate a trophy into storage
-  app.post('/generate', { preHandler: requireAdmin }, async () => {
+  // Generate a trophy into storage (optional specific word)
+  app.post('/generate', { preHandler: requireAdmin }, async (request) => {
+    const body = request.body as { word?: string }
     const words = await getTrophyWords()
-    const title = randomFrom(words)
+    const title = body.word?.trim() || randomFrom(words)
     const prompt = `A flat 2D cartoon illustration of "${title}". Pure white background, exactly #ffffff, no off-white or cream. Object centered, bold outlines, bright colors. No text, no shadows, no gradients.`
     const result = await generateImage({ prompt }, 'trophies')
     const trophy = await prisma.trophy.create({
       data: { title, imageUrl: result.publicUrl },
     })
     return { trophy }
+  })
+
+  // Reserve a storage trophy for a specific competition (or clear reservation)
+  app.put('/:id/reserve', { preHandler: requireAdmin }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const body = request.body as { competitionId?: string | null }
+
+    const trophy = await prisma.trophy.findUnique({ where: { id } })
+    if (!trophy) return reply.status(404).send({ error: 'Trophy not found' })
+    if (trophy.userId) return reply.status(400).send({ error: 'Cannot reserve an assigned trophy' })
+
+    const updated = await prisma.trophy.update({
+      where: { id },
+      data: { reservedForCompetitionId: body.competitionId ?? null },
+      include: { reservedForCompetition: { select: { id: true, name: true } } },
+    })
+    return { trophy: updated }
   })
 
   // Generate a trophy and immediately send to user
