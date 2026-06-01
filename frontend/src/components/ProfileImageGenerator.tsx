@@ -140,7 +140,7 @@ export function ProfileImageGenerator({ onGenerate }: {
           background: 'var(--surface)', borderRadius: 'var(--radius)',
           padding: '12px 14px', border: '1.5px solid var(--border-light)',
         }}>
-          <span>A fun random </span>
+          <span>A fun </span>
           <select value={subject} onChange={e => setSubject(e.target.value)} style={selectStyle}>
             {subjects.map(s => <option key={s}>{s}</option>)}
           </select>

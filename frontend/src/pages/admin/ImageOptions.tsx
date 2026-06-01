@@ -114,6 +114,7 @@ export function AdminImageOptions() {
   const [clothes, setClothes] = useState<string[]>([])
   const [accessories, setAccessories] = useState<string[]>([])
   const [saved, setSaved] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   const { data, isLoading } = useQuery({
     queryKey: ['image-options'],
@@ -140,6 +141,14 @@ export function AdminImageOptions() {
 
   const save = (next: { subjects: string[]; clothes: string[]; accessories: string[] }) => {
     saveMutation.mutate(next)
+  }
+
+  const handleExport = () => {
+    const payload = JSON.stringify({ subjects, clothes, accessories }, null, 2)
+    navigator.clipboard.writeText(payload).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
   }
 
   const handleAdd = (category: Category, item: string) => {
@@ -170,11 +179,16 @@ export function AdminImageOptions() {
     <AdminLayout title="Image Options">
       {isLoading ? <LoadingSpinner /> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {saved && (
-            <p style={{ fontSize: '13px', color: 'var(--accent-green)', fontFamily: 'var(--font-ui)', textAlign: 'right' }}>
-              Saved ✓
-            </p>
-          )}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px' }}>
+            {saved && (
+              <p style={{ fontSize: '13px', color: 'var(--accent-green)', fontFamily: 'var(--font-ui)' }}>
+                Saved ✓
+              </p>
+            )}
+            <Button size="sm" variant="ghost" onClick={handleExport}>
+              {copied ? 'Copied ✓' : '⬇ Export lists'}
+            </Button>
+          </div>
           <OptionList
             category="subjects"
             items={subjects}
