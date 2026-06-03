@@ -102,8 +102,11 @@ export function MyTeamPage() {
   const teamPlayers = (comp.players?.filter((p: CompetitionPlayer) => p.teamId === team.id) ?? [])
     .sort((a: CompetitionPlayer, b: CompetitionPlayer) => (b.isTeamLeader ? 1 : 0) - (a.isTeamLeader ? 1 : 0))
   const poolPlayers = comp.players?.filter((p: CompetitionPlayer) => !p.teamId) ?? []
-  // Real (non-dummy) players in the pool — candidates for converting a dummy
-  const realPoolPlayers = poolPlayers.filter((p: CompetitionPlayer) => !p.user?.isDummy)
+  // Real (non-dummy) players in the pool or on the team — candidates for converting a dummy
+  const realCandidates = [
+    ...poolPlayers.filter((p: CompetitionPlayer) => !p.user?.isDummy),
+    ...teamPlayers.filter((p: CompetitionPlayer) => !p.user?.isDummy),
+  ]
 
   const myPlayer = comp.players?.find((p: CompetitionPlayer) => p.userId === user?.id)
   const canManage = isAdmin || myPlayer?.isTeamLeader || team.leaderUserId === user?.id
@@ -357,13 +360,13 @@ export function MyTeamPage() {
         <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px', fontFamily: 'var(--font-ui)' }}>
           Select the registered player to replace this guest. The guest's scores will transfer to the selected player. Any existing scores the selected player already has in this competition will be overwritten.
         </p>
-        {realPoolPlayers.length === 0 ? (
+        {realCandidates.length === 0 ? (
           <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontFamily: 'var(--font-ui)', textAlign: 'center', padding: '16px 0' }}>
-            No players in the pool to convert to.
+            No registered players to convert to.
           </p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {realPoolPlayers.map((p: CompetitionPlayer) => (
+            {realCandidates.map((p: CompetitionPlayer) => (
               <div
                 key={p.userId}
                 onClick={() => setSelectedRealUserId(p.userId)}
