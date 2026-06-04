@@ -130,6 +130,16 @@ export const api = {
     updateWords: (words: string[]) => request<{ success: boolean }>('/admin/trophy-words', { method: 'PUT', body: JSON.stringify({ words }) }),
   },
 
+  // Groups
+  groups: {
+    listPublic: () => request<{ groups: any[] }>('/groups/public'),
+    list: () => request<{ groups: any[] }>('/groups'),
+    create: (name: string) => request<{ group: any }>('/groups', { method: 'POST', body: JSON.stringify({ name }) }),
+    members: (groupId: string) => request<{ members: any[] }>(`/groups/${groupId}/members`),
+    addMember: (groupId: string, userId: string) => request<{ success: boolean }>(`/groups/${groupId}/members`, { method: 'POST', body: JSON.stringify({ userId }) }),
+    removeMember: (groupId: string, userId: string) => request<{ success: boolean }>(`/groups/${groupId}/members/${userId}`, { method: 'DELETE' }),
+  },
+
   // Backup
   backup: {
     download: async () => {
@@ -166,9 +176,9 @@ export const api = {
   // Leaderboards
   leaderboards: {
     competition: (id: string) => request<any>(`/leaderboards/competition/${id}`),
-    historical: () => request<{ competitions: any[] }>('/leaderboards/historical'),
-    allTimeChallenge: (challengeId: string) => request<any>(`/leaderboards/challenge/${challengeId}/all-time`),
-    challengesAllTime: () => request<any>('/leaderboards/challenges/all-time'),
+    historical: (groupId?: string | null) => request<{ competitions: any[] }>(`/leaderboards/historical${groupId ? `?groupId=${groupId}` : ''}`),
+    allTimeChallenge: (challengeId: string, groupId?: string | null) => request<any>(`/leaderboards/challenge/${challengeId}/all-time${groupId ? `?groupId=${groupId}` : ''}`),
+    challengesAllTime: (groupId?: string | null) => request<any>(`/leaderboards/challenges/all-time${groupId ? `?groupId=${groupId}` : ''}`),
   },
 }
 

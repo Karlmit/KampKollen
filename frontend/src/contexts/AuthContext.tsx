@@ -6,7 +6,7 @@ interface AuthContextType {
   user: User | null
   loading: boolean
   login: (username: string, password: string) => Promise<void>
-  register: (data: { username: string; password: string; displayName?: string; realName?: string }) => Promise<void>
+  register: (data: { username: string; password: string; displayName?: string; realName?: string; groupIds: string[] }) => Promise<void>
   logout: () => Promise<void>
   refreshUser: () => Promise<void>
   isAdmin: boolean
@@ -33,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(res.user)
   }
 
-  const register = async (data: { username: string; password: string; displayName?: string; realName?: string }) => {
+  const register = async (data: { username: string; password: string; displayName?: string; realName?: string; groupIds: string[] }) => {
     const res = await api.auth.register(data)
     setUser(res.user)
   }
@@ -46,6 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setUser(null)
     setUnreadTrophyCount(0)
+    try { localStorage.removeItem('activeGroupId') } catch {}
   }
 
   const refreshUser = async () => {

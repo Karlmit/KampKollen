@@ -16,6 +16,8 @@ import { leaderboardRoutes } from './routes/leaderboards.js'
 import { settingsRoutes, imageOptionRoutes } from './routes/settings.js'
 import { trophyRoutes, trophyWordRoutes } from './routes/trophies.js'
 import { backupRoutes } from './routes/backup.js'
+import { groupRoutes } from './routes/groups.js'
+import { runGroupMigration } from './lib/runGroupMigration.js'
 
 export async function buildServer() {
   const app = Fastify({
@@ -64,6 +66,10 @@ export async function buildServer() {
   await app.register(trophyRoutes, { prefix: '/api/trophies' })
   await app.register(trophyWordRoutes, { prefix: '/api/admin/trophy-words' })
   await app.register(backupRoutes, { prefix: '/api/admin/backup' })
+  await app.register(groupRoutes, { prefix: '/api/groups' })
+
+  // Idempotent data migration: create "Bjorn Lunden" group if it doesn't exist
+  await runGroupMigration()
 
   // Catch-all for SPA — serve index.html for all non-API routes in production
   if (!config.isDev) {

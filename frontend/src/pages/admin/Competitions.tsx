@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useAuth } from '../../contexts/AuthContext'
 import { AdminLayout } from './AdminLayout'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
@@ -27,10 +28,16 @@ function displayToIso(display: string): string {
 
 export function AdminCompetitions() {
   const qc = useQueryClient()
+  const { user } = useAuth()
   const [createOpen, setCreateOpen] = useState(false)
-  const [form, setForm] = useState({ name: '', dateDisplay: '', competitionType: 'team' as 'team' | 'individual', teamCount: '3', scoringMode: 'placement_points', placementMaxPoints: '' })
+  const [form, setForm] = useState({ name: '', dateDisplay: '', competitionType: 'team' as 'team' | 'individual', teamCount: '3', scoringMode: 'placement_points', placementMaxPoints: '', groupId: '' })
 
   const { data: compsData, isLoading } = useQuery({ queryKey: ['competitions'], queryFn: () => api.competitions.list() })
+  const { data: groupsData } = useQuery({ queryKey: ['my-groups'], queryFn: () => api.groups.list() })
+  const myGroups: any[] = groupsData?.groups ?? []
+
+  // Auto-select if only one group
+  const effectiveGroupId = form.groupId || (myGroups.length === 1 ? myGroups[0].id : '')
 
   const createMutation = useMutation({
     mutationFn: () => {
@@ -42,9 +49,10 @@ export function AdminCompetitions() {
         ...(form.competitionType === 'team' ? { teamCount: parseInt(form.teamCount, 10) } : {}),
         scoringMode: form.scoringMode,
         ...(form.placementMaxPoints ? { placementMaxPoints: parseInt(form.placementMaxPoints, 10) } : {}),
+        ...(effectiveGroupId ? { groupId: effectiveGroupId } : {}),
       })
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['competitions'] }); setCreateOpen(false); setForm({ name: '', dateDisplay: '', competitionType: 'team', teamCount: '3', scoringMode: 'placement_points', placementMaxPoints: '' }) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['competitions'] }); setCreateOpen(false); setForm({ name: '', dateDisplay: '', competitionType: 'team', teamCount: '3', scoringMode: 'placement_points', placementMaxPoints: '', groupId: '' }) },
   })
 
   return (
@@ -81,7 +89,7 @@ export function AdminCompetitions() {
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Create Competition"
         footer={
           <>
-            <Button variant="ghost" onClick={() => { setCreateOpen(false); setForm({ name: '', dateDisplay: '', competitionType: 'team', teamCount: '3', scoringMode: 'placement_points', placementMaxPoints: '' }) }}>Cancel</Button>
+            <Button variant="ghost" onClick={() => { setCreateOpen(false); setForm({ name: '', dateDisplay: '', competitionType: 'team', teamCount: '3', scoringMode: 'placement_points', placementMaxPoints: '', groupId: '' }) }}>Cancel</Button>
             <Button onClick={() => createMutation.mutate()} loading={createMutation.isPending} disabled={!form.name}>Create</Button>
           </>
         }
@@ -121,6 +129,20 @@ export function AdminCompetitions() {
           />
           {form.competitionType === 'team' && (
             <Input label="Number of teams" type="number" min="1" max="20" value={form.teamCount} onChange={e => setForm(f => ({ ...f, teamCount: e.target.value }))} />
+          )}
+          {myGroups.length > 1 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>Group *</label>
+              <select
+                value={form.groupId}
+                onChange={e => setForm(f => ({ ...f, groupId: e.target.value }))}
+                style={{ padding: '10px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', fontSize: '16px' }}
+                required
+              >
+                <option value="">Select a group…</option>
+                {myGroups.map((g: any) => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
+            </div>
           )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>Scoring mode</label>

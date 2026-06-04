@@ -10,6 +10,7 @@ const sections = [
   { to: '/admin/image-options', icon: '🎨', label: 'Image Options' },
   { to: '/admin/trophies', icon: '🎁', label: 'Awards' },
   { to: '/admin/settings', icon: '🔧', label: 'Settings' },
+  { to: '/admin/groups', icon: '👥', label: 'Groups' },
   { to: '/admin/backup', icon: '💾', label: 'Backup' },
 ]
 

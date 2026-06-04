@@ -4,15 +4,17 @@ import { Layout } from '../components/layout/Layout'
 import { Card } from '../components/ui/Card'
 import { Avatar } from '../components/ui/Avatar'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
+import { useGroup } from '../contexts/GroupContext'
 import { api } from '../api/client'
 import { formatScore } from '../utils'
 
 export function ChallengeAllTimePage() {
   const { challengeId } = useParams<{ challengeId: string }>()
+  const { activeGroupId } = useGroup()
 
   const { data, isLoading } = useQuery({
-    queryKey: ['challenge-all-time', challengeId],
-    queryFn: () => api.leaderboards.allTimeChallenge(challengeId!),
+    queryKey: ['challenge-all-time', challengeId, activeGroupId],
+    queryFn: () => api.leaderboards.allTimeChallenge(challengeId!, activeGroupId),
     enabled: !!challengeId,
   })
 

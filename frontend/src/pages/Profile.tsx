@@ -201,8 +201,20 @@ export function Profile() {
           </h2>
           {user.realName && <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>{user.realName}</p>}
           <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '2px' }}>@{user.username}</p>
-          <div style={{ marginTop: '8px' }}>
+          <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center' }}>
             <RoleBadge role={user.globalRole} />
+            {user.groups?.map((ug: any) => (
+              <span
+                key={ug.groupId}
+                style={{
+                  display: 'inline-block', padding: '2px 10px', borderRadius: '99px',
+                  background: 'var(--surface)', border: '1px solid var(--border-light)',
+                  fontSize: '12px', fontFamily: 'var(--font-ui)', fontWeight: 600, color: 'var(--text-muted)',
+                }}
+              >
+                {ug.group.name}
+              </span>
+            ))}
           </div>
         </div>
 

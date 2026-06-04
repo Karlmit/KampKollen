@@ -1,4 +1,16 @@
 export type GlobalRole = 'PLAYER' | 'SCOREKEEPER' | 'ADMIN'
+
+export interface Group {
+  id: string
+  name: string
+  createdAt: string
+  _count?: { members: number; competitions: number }
+}
+
+export interface UserGroup {
+  groupId: string
+  group: Pick<Group, 'id' | 'name'>
+}
 export type CompetitionStatus = 'DRAFT' | 'REGISTRATION' | 'ACTIVE' | 'COMPLETED' | 'ARCHIVED'
 export type ScoreType = 'number_highest_wins' | 'number_lowest_wins' | 'time_fastest_wins' | 'ranked_points' | 'placement_lowest_wins' | 'manual_points' | 'win_loss'
 export type TeamScoreMode = 'sum_all_players' | 'best_n_players' | 'average_score' | 'manual_team_score'
@@ -13,6 +25,7 @@ export interface User {
   globalRole: GlobalRole
   isDummy?: boolean
   createdAt: string
+  groups?: UserGroup[]
 }
 
 export interface Competition {
@@ -23,6 +36,7 @@ export interface Competition {
   status: CompetitionStatus
   scoringMode?: CompetitionScoringMode
   isTeamCompetition?: boolean
+  groupId?: string
   createdAt: string
   teams?: Team[]
   players?: CompetitionPlayer[]

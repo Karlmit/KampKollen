@@ -8,6 +8,7 @@ const registerSchema = z.object({
   username: z.string().min(2).max(32),
   password: z.string().min(4).max(128),
   realName: z.string().max(128).optional(),
+  groupIds: z.array(z.string()).min(1, 'You must join at least one group'),
 })
 
 const loginSchema = z.object({
@@ -22,7 +23,7 @@ export async function authRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: body.error.issues[0].message })
     }
 
-    const { username, password, realName } = body.data
+    const { username, password, realName, groupIds } = body.data
 
     const usernameError = validateUsername(username)
     if (usernameError) return reply.status(400).send({ error: usernameError })
@@ -35,9 +36,18 @@ export async function authRoutes(app: FastifyInstance) {
       return reply.status(409).send({ error: 'Username already taken' })
     }
 
+    // Validate all group IDs exist
+    const groups = await prisma.group.findMany({ where: { id: { in: groupIds } }, select: { id: true } })
+    if (groups.length !== groupIds.length) {
+      return reply.status(400).send({ error: 'One or more selected groups do not exist' })
+    }
+
     const passwordHash = await hashPassword(password)
     const user = await prisma.user.create({
-      data: { username, passwordHash, displayName: username, realName },
+      data: {
+        username, passwordHash, displayName: username, realName,
+        groups: { create: groupIds.map(groupId => ({ groupId })) },
+      },
       select: { id: true, username: true, displayName: true, realName: true, globalRole: true, profileImageUrl: true },
     })
 
@@ -109,6 +119,7 @@ export async function authRoutes(app: FastifyInstance) {
       select: {
         id: true, username: true, displayName: true, realName: true,
         profileImageUrl: true, globalRole: true, createdAt: true,
+        groups: { select: { groupId: true, group: { select: { id: true, name: true } } } },
       },
     })
 

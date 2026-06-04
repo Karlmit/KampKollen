@@ -9,11 +9,13 @@ import { config } from '../config.js'
 export async function backupRoutes(app: FastifyInstance) {
   // ── Download backup ──────────────────────────────────────────────────────────
   app.get('/download', { preHandler: requireAdmin }, async (_request, reply) => {
-    const [users, challenges, competitions, competitionChallenges, teams, competitionPlayers, scores, trophies, settings] =
+    const [users, challenges, groups, competitions, userGroups, competitionChallenges, teams, competitionPlayers, scores, trophies, settings] =
       await Promise.all([
         prisma.user.findMany(),
         prisma.challenge.findMany(),
+        prisma.group.findMany(),
         prisma.competition.findMany(),
+        prisma.userGroup.findMany(),
         prisma.competitionChallenge.findMany(),
         prisma.team.findMany(),
         prisma.competitionPlayer.findMany(),
@@ -23,11 +25,13 @@ export async function backupRoutes(app: FastifyInstance) {
       ])
 
     const data = JSON.stringify({
-      version: '1',
+      version: '2',
       exportedAt: new Date().toISOString(),
       users,
       challenges,
+      groups,
       competitions,
+      userGroups,
       competitionChallenges,
       teams,
       competitionPlayers,
@@ -92,7 +96,7 @@ export async function backupRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: 'Failed to read backup file' })
     }
 
-    const { users, challenges, competitions, competitionChallenges, teams, competitionPlayers, scores, trophies, settings } = parsed
+    const { users, challenges, groups, competitions, userGroups, competitionChallenges, teams, competitionPlayers, scores, trophies, settings } = parsed
 
     await prisma.$transaction(async tx => {
       // Delete in reverse FK order
@@ -101,15 +105,19 @@ export async function backupRoutes(app: FastifyInstance) {
       await tx.competitionPlayer.deleteMany()
       await tx.competitionChallenge.deleteMany()
       await tx.team.deleteMany()
+      await tx.userGroup.deleteMany()
       await tx.competition.deleteMany()
       await tx.challenge.deleteMany()
       await tx.user.deleteMany()
+      await tx.group.deleteMany()
       await tx.setting.deleteMany()
 
       // Re-insert in FK order
       if (users?.length)                await tx.user.createMany({ data: users })
       if (challenges?.length)            await tx.challenge.createMany({ data: challenges })
+      if (groups?.length)                await tx.group.createMany({ data: groups })
       if (competitions?.length)          await tx.competition.createMany({ data: competitions })
+      if (userGroups?.length)            await tx.userGroup.createMany({ data: userGroups })
       if (competitionChallenges?.length) await tx.competitionChallenge.createMany({ data: competitionChallenges })
       if (teams?.length)                 await tx.team.createMany({ data: teams })
       if (competitionPlayers?.length)    await tx.competitionPlayer.createMany({ data: competitionPlayers })

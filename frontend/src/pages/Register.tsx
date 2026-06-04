@@ -1,22 +1,38 @@
-import { useState, FormEvent } from 'react'
+import { useState, useEffect, FormEvent } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
-import { ApiError } from '../api/client'
+import { api, ApiError } from '../api/client'
 
 export function Register() {
   const [form, setForm] = useState({ username: '', password: '', realName: '' })
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([])
+  const [availableGroups, setAvailableGroups] = useState<{ id: string; name: string }[]>([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const { register } = useAuth()
   const navigate = useNavigate()
 
+  useEffect(() => {
+    api.groups.listPublic().then(r => setAvailableGroups(r.groups)).catch(() => {})
+  }, [])
+
   const set = (key: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [key]: e.target.value }))
 
+  function toggleGroup(id: string) {
+    setSelectedGroupIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    )
+  }
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    if (selectedGroupIds.length === 0) {
+      setError('Please select at least one group')
+      return
+    }
     setError('')
     setLoading(true)
     try {
@@ -24,6 +40,7 @@ export function Register() {
         username: form.username,
         password: form.password,
         realName: form.realName || undefined,
+        groupIds: selectedGroupIds,
       })
       navigate('/')
     } catch (err) {
@@ -57,6 +74,42 @@ export function Register() {
           )}
           <Input label="Password / PIN *" type="password" value={form.password} onChange={set('password')} autoComplete="new-password" required />
           <Input label="Real name (optional)" value={form.realName} onChange={set('realName')} placeholder="e.g. Anna Karlsson" />
+
+          {availableGroups.length > 0 && (
+            <div>
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, marginBottom: '8px' }}>
+                Group * <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>— select the group(s) you belong to</span>
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {availableGroups.map(g => (
+                  <button
+                    key={g.id}
+                    type="button"
+                    onClick={() => toggleGroup(g.id)}
+                    style={{
+                      padding: '10px 14px', borderRadius: 'var(--radius)', cursor: 'pointer', textAlign: 'left',
+                      border: selectedGroupIds.includes(g.id) ? '2px solid var(--accent)' : '2px solid var(--border-light)',
+                      background: selectedGroupIds.includes(g.id) ? 'color-mix(in srgb, var(--accent) 8%, transparent)' : 'var(--background)',
+                      fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: '14px',
+                      display: 'flex', alignItems: 'center', gap: '8px',
+                    }}
+                  >
+                    <span style={{
+                      width: '18px', height: '18px', borderRadius: '4px', flexShrink: 0,
+                      border: selectedGroupIds.includes(g.id) ? '2px solid var(--accent)' : '2px solid var(--border-light)',
+                      background: selectedGroupIds.includes(g.id) ? 'var(--accent)' : 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: '#fff', fontSize: '11px',
+                    }}>
+                      {selectedGroupIds.includes(g.id) ? '✓' : ''}
+                    </span>
+                    {g.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {error && (
             <p style={{
               background: 'var(--danger)', color: 'var(--danger-text)',

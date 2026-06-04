@@ -5,26 +5,56 @@ import { Card } from '../components/ui/Card'
 import { Avatar } from '../components/ui/Avatar'
 import { StatusBadge } from '../components/ui/Badge'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
+import { useAuth } from '../contexts/AuthContext'
+import { useGroup } from '../contexts/GroupContext'
 import { api } from '../api/client'
 import { formatDate, formatScore } from '../utils'
 
 export function GlobalLeaderboard() {
+  const { user } = useAuth()
+  const { activeGroupId, setActiveGroupId } = useGroup()
+  const myGroups = user?.groups ?? []
+  const showGroupFilter = myGroups.length > 1
+
   const { data: compsData, isLoading: compsLoading } = useQuery({
     queryKey: ['competitions'],
     queryFn: () => api.competitions.list(),
   })
 
   const { data: challengeData, isLoading: challengesLoading } = useQuery({
-    queryKey: ['leaderboards', 'challenges-all-time'],
-    queryFn: () => api.leaderboards.challengesAllTime(),
+    queryKey: ['leaderboards', 'challenges-all-time', activeGroupId],
+    queryFn: () => api.leaderboards.challengesAllTime(activeGroupId),
   })
 
-  const activeComps = compsData?.competitions?.filter((c: any) => c.status === 'ACTIVE') ?? []
-  const completedComps = compsData?.competitions?.filter((c: any) => c.status === 'COMPLETED') ?? []
+  const allComps: any[] = compsData?.competitions ?? []
+  const filteredComps = activeGroupId
+    ? allComps.filter((c: any) => c.groupId === activeGroupId)
+    : allComps
+  const activeComps = filteredComps.filter((c: any) => c.status === 'ACTIVE')
+  const completedComps = filteredComps.filter((c: any) => c.status === 'COMPLETED')
   const challengeRecords: any[] = challengeData?.challenges ?? []
 
   return (
     <Layout title="Leaderboards">
+      {/* Group filter — only for users in 2+ groups */}
+      {showGroupFilter && (
+        <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, color: 'var(--text-muted)', flexShrink: 0 }}>
+            Group:
+          </label>
+          <select
+            value={activeGroupId ?? ''}
+            onChange={e => setActiveGroupId(e.target.value || null)}
+            style={{ flex: 1, padding: '8px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', fontSize: '14px', fontFamily: 'var(--font-ui)' }}
+          >
+            <option value="">All groups</option>
+            {myGroups.map((ug: any) => (
+              <option key={ug.groupId} value={ug.groupId}>{ug.group.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {compsLoading ? (
         <LoadingSpinner />
       ) : (
@@ -112,7 +142,6 @@ export function GlobalLeaderboard() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {challengeRecords.map((ch: any) => (
                   <Card key={ch.challengeId} padding="0px">
-                    {/* Challenge header */}
                     <div style={{
                       display: 'flex', alignItems: 'center', gap: '10px',
                       padding: '12px 16px', borderBottom: '1px solid var(--border-light)',
@@ -120,36 +149,18 @@ export function GlobalLeaderboard() {
                       {ch.challengeLogoUrl ? (
                         <img src={ch.challengeLogoUrl} alt="" style={{ width: 32, height: 32, borderRadius: 'var(--radius-sm)', objectFit: 'cover', flexShrink: 0 }} />
                       ) : (
-                        <div style={{
-                          width: 32, height: 32, borderRadius: 'var(--radius-sm)',
-                          background: 'var(--surface-raised)', flexShrink: 0,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: '16px',
-                        }}>🏆</div>
+                        <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-sm)', background: 'var(--surface-raised)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>🏆</div>
                       )}
-                      <p style={{ flex: 1, fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>
-                        {ch.challengeName}
-                      </p>
-                      <Link
-                        to={`/leaderboard/challenge/${ch.challengeId}`}
-                        style={{ textDecoration: 'none', flexShrink: 0 }}
-                      >
-                        <span style={{ fontSize: '12px', fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--accent)' }}>
-                          View all ›
-                        </span>
+                      <p style={{ flex: 1, fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>{ch.challengeName}</p>
+                      <Link to={`/leaderboard/challenge/${ch.challengeId}`} style={{ textDecoration: 'none', flexShrink: 0 }}>
+                        <span style={{ fontSize: '12px', fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--accent)' }}>View all ›</span>
                       </Link>
                     </div>
-                    {/* Top 3 scores */}
                     <div>
                       {ch.topScores.map((s: any, i: number) => (
-                        <Link
-                          to={`/profile/${s.userId}`}
-                          key={s.userId}
-                          style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}
-                        >
+                        <Link to={`/profile/${s.userId}`} key={s.userId} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
                           <div style={{
-                            display: 'flex', alignItems: 'center', gap: '10px',
-                            padding: '9px 16px',
+                            display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 16px',
                             borderBottom: i < ch.topScores.length - 1 ? '1px solid var(--border-light)' : 'none',
                           }}>
                             <span style={{ fontSize: '14px', flexShrink: 0, width: '20px', textAlign: 'center' }}>

@@ -4,6 +4,11 @@ import { prisma } from '../db.js'
 import { optionalAuth } from '../middleware/auth.js'
 import { computeCalculatedPoints, computeTeamScore, isLowerBetter } from '../lib/scoring.js'
 
+async function getUserGroupIds(userId: string): Promise<string[]> {
+  const memberships = await prisma.userGroup.findMany({ where: { userId }, select: { groupId: true } })
+  return memberships.map(m => m.groupId)
+}
+
 function getScoreValue(score: any, st: ScoreType): number | null {
   if (st === 'time_fastest_wins') return score.timeMs ?? null
   if (st === 'placement_lowest_wins') return score.placement ?? null
@@ -49,6 +54,18 @@ export async function leaderboardRoutes(app: FastifyInstance) {
       },
     })
     if (!competition) return reply.status(404).send({ error: 'Competition not found' })
+
+    // Group access check
+    try {
+      await request.jwtVerify()
+      const me = request.user as { id: string; role: string }
+      if (me.role !== 'ADMIN' && competition.groupId) {
+        const groupIds = await getUserGroupIds(me.id)
+        if (!groupIds.includes(competition.groupId)) return reply.status(403).send({ error: 'Access denied' })
+      }
+    } catch {
+      if (competition.status !== 'ACTIVE') return reply.status(403).send({ error: 'Access denied' })
+    }
 
     const numPlayers = competition.players.length
     const numTeams = competition.teams.length
@@ -276,11 +293,21 @@ export async function leaderboardRoutes(app: FastifyInstance) {
     }
   })
 
-  app.get('/challenges/all-time', { preHandler: optionalAuth }, async () => {
+  app.get('/challenges/all-time', { preHandler: optionalAuth }, async (request) => {
+    const { groupId } = request.query as { groupId?: string }
+    let groupFilter: string[] | null = null
+    try {
+      await request.jwtVerify()
+      const me = request.user as { id: string }
+      const userGroupIds = await getUserGroupIds(me.id)
+      groupFilter = groupId ? [groupId] : userGroupIds
+    } catch { /* guest: no filter */ }
+
     const challenges = await prisma.challenge.findMany({
       where: { competitionChallenges: { some: { scores: { some: {} } } } },
       include: {
         competitionChallenges: {
+          where: groupFilter ? { competition: { groupId: { in: groupFilter } } } : undefined,
           include: {
             scores: {
               include: {
@@ -307,12 +334,9 @@ export async function leaderboardRoutes(app: FastifyInstance) {
           const existing = bestPerPlayer[s.userId]
           if (!existing || (lowerBetter ? val < existing.score : val > existing.score)) {
             bestPerPlayer[s.userId] = {
-              userId: s.player.id,
-              displayName: s.player.displayName,
-              username: s.player.username,
-              profileImageUrl: s.player.profileImageUrl,
-              score: val,
-              competitionName: s.competition.name,
+              userId: s.player.id, displayName: s.player.displayName,
+              username: s.player.username, profileImageUrl: s.player.profileImageUrl,
+              score: val, competitionName: s.competition.name,
               competitionDate: s.competition.date?.toISOString() ?? null,
             }
           }
@@ -323,23 +347,27 @@ export async function leaderboardRoutes(app: FastifyInstance) {
         Object.values(bestPerPlayer).sort((a: any, b: any) => lowerBetter ? a.score - b.score : b.score - a.score).slice(0, 3),
         (s: any) => s.score
       )
-
-      return {
-        challengeId: challenge.id,
-        challengeName: challenge.name,
-        challengeLogoUrl: challenge.logoUrl ?? null,
-        scoreType: baseScoreType,
-        lowerIsBetter: lowerBetter,
-        topScores,
-      }
+      return { challengeId: challenge.id, challengeName: challenge.name, challengeLogoUrl: challenge.logoUrl ?? null, scoreType: baseScoreType, lowerIsBetter: lowerBetter, topScores }
     }).filter(c => c.topScores.length > 0)
 
     return { challenges: result }
   })
 
-  app.get('/historical', { preHandler: optionalAuth }, async () => {
+  app.get('/historical', { preHandler: optionalAuth }, async (request) => {
+    const { groupId } = request.query as { groupId?: string }
+    let groupFilter: string[] | null = null
+    try {
+      await request.jwtVerify()
+      const me = request.user as { id: string }
+      const userGroupIds = await getUserGroupIds(me.id)
+      groupFilter = groupId ? [groupId] : userGroupIds
+    } catch { /* guest: no filter */ }
+
     const competitions = await prisma.competition.findMany({
-      where: { status: 'COMPLETED' },
+      where: {
+        status: 'COMPLETED',
+        ...(groupFilter ? { groupId: { in: groupFilter } } : {}),
+      },
       include: { teams: true },
       orderBy: [{ date: 'desc' }, { updatedAt: 'desc' }],
     })
@@ -348,11 +376,20 @@ export async function leaderboardRoutes(app: FastifyInstance) {
 
   app.get('/challenge/:challengeId/all-time', { preHandler: optionalAuth }, async (request, reply) => {
     const { challengeId } = request.params as { challengeId: string }
+    const { groupId } = request.query as { groupId?: string }
+    let groupFilter: string[] | null = null
+    try {
+      await request.jwtVerify()
+      const me = request.user as { id: string }
+      const userGroupIds = await getUserGroupIds(me.id)
+      groupFilter = groupId ? [groupId] : userGroupIds
+    } catch { /* guest: no filter */ }
 
     const challenge = await prisma.challenge.findUnique({
       where: { id: challengeId },
       include: {
         competitionChallenges: {
+          where: groupFilter ? { competition: { groupId: { in: groupFilter } } } : undefined,
           include: {
             scores: {
               include: {
@@ -378,12 +415,9 @@ export async function leaderboardRoutes(app: FastifyInstance) {
         const existing = bestPerPlayer[s.userId]
         if (!existing || (lowerBetter ? val < existing.score : val > existing.score)) {
           bestPerPlayer[s.userId] = {
-            userId: s.player.id,
-            displayName: s.player.displayName,
-            username: s.player.username,
-            profileImageUrl: s.player.profileImageUrl,
-            score: val,
-            competitionName: s.competition.name,
+            userId: s.player.id, displayName: s.player.displayName,
+            username: s.player.username, profileImageUrl: s.player.profileImageUrl,
+            score: val, competitionName: s.competition.name,
             competitionDate: s.competition.date?.toISOString() ?? null,
           }
         }
@@ -396,13 +430,7 @@ export async function leaderboardRoutes(app: FastifyInstance) {
     )
 
     return {
-      challenge: {
-        id: challenge.id,
-        name: challenge.name,
-        logoUrl: challenge.logoUrl ?? null,
-        scoreType: baseScoreType,
-        lowerIsBetter: lowerBetter,
-      },
+      challenge: { id: challenge.id, name: challenge.name, logoUrl: challenge.logoUrl ?? null, scoreType: baseScoreType, lowerIsBetter: lowerBetter },
       allScores,
     }
   })

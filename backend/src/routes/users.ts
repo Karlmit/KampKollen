@@ -16,6 +16,7 @@ const updateUserSchema = z.object({
 const userSelect = {
   id: true, username: true, displayName: true, realName: true,
   profileImageUrl: true, globalRole: true, createdAt: true,
+  groups: { select: { groupId: true, group: { select: { id: true, name: true } } } },
 }
 
 export async function userRoutes(app: FastifyInstance) {

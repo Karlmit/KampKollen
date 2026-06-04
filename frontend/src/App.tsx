@@ -1,6 +1,7 @@
 import { HashRouter as BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { GroupProvider } from './contexts/GroupContext'
 import { PageLoader } from './components/ui/LoadingSpinner'
 
 import { Login } from './pages/Login'
@@ -23,6 +24,7 @@ import { AdminSettings } from './pages/admin/Settings'
 import { AdminImageOptions } from './pages/admin/ImageOptions'
 import { AdminTrophies } from './pages/admin/Trophies'
 import { AdminBackup } from './pages/admin/Backup'
+import { AdminGroups } from './pages/admin/Groups'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -70,6 +72,7 @@ function AppRoutes() {
       <Route path="/admin/image-options" element={<RequireAuth><AdminImageOptions /></RequireAuth>} />
       <Route path="/admin/trophies" element={<RequireAuth><AdminTrophies /></RequireAuth>} />
       <Route path="/admin/backup" element={<RequireAuth><AdminBackup /></RequireAuth>} />
+      <Route path="/admin/groups" element={<RequireAuth><AdminGroups /></RequireAuth>} />
 
       <Route path="*" element={<Navigate to={user ? '/' : '/competitions'} replace />} />
     </Routes>
@@ -81,7 +84,9 @@ export default function App() {
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <AppRoutes />
+          <GroupProvider>
+            <AppRoutes />
+          </GroupProvider>
         </AuthProvider>
       </QueryClientProvider>
     </BrowserRouter>

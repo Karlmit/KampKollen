@@ -16,6 +16,7 @@ const createCompetitionSchema = z.object({
   placementMaxPoints: z.number().int().min(10).max(1000).optional(),
   tieBreakingMode: tieBreakingModeEnum.optional(),
   isTeamCompetition: z.boolean().optional(),
+  groupId: z.string().optional(),
   challengeIds: z.array(z.string()).optional(),
   teamCount: z.number().int().min(1).max(20).optional(),
   teamNames: z.array(z.string()).optional(),
@@ -39,9 +40,25 @@ const addChallengeSchema = z.object({
   bestNPlayersOverride: z.number().int().optional(),
 })
 
+async function getUserGroupIds(userId: string): Promise<string[]> {
+  const memberships = await prisma.userGroup.findMany({ where: { userId }, select: { groupId: true } })
+  return memberships.map(m => m.groupId)
+}
+
 export async function competitionRoutes(app: FastifyInstance) {
-  app.get('/', { preHandler: optionalAuth }, async () => {
+  app.get('/', { preHandler: optionalAuth }, async (request) => {
+    let where: any = {}
+    try {
+      await request.jwtVerify()
+      const me = request.user as { id: string }
+      const groupIds = await getUserGroupIds(me.id)
+      where = { groupId: { in: groupIds } }
+    } catch {
+      // Guest: only active competitions
+      where = { status: 'ACTIVE' }
+    }
     const competitions = await prisma.competition.findMany({
+      where,
       include: {
         teams: { select: { id: true, name: true } },
         _count: { select: { players: true } },
@@ -77,6 +94,24 @@ export async function competitionRoutes(app: FastifyInstance) {
       },
     })
     if (!competition) return reply.status(404).send({ error: 'Competition not found' })
+
+    // Access control: authenticated users must be in the competition's group
+    try {
+      await request.jwtVerify()
+      const me = request.user as { id: string; role: string }
+      if (me.role !== 'ADMIN' && competition.groupId) {
+        const groupIds = await getUserGroupIds(me.id)
+        if (!groupIds.includes(competition.groupId)) {
+          return reply.status(403).send({ error: 'Access denied' })
+        }
+      }
+    } catch {
+      // Guest: only active competitions visible
+      if (competition.status !== 'ACTIVE') {
+        return reply.status(403).send({ error: 'Access denied' })
+      }
+    }
+
     return { competition }
   })
 
@@ -85,7 +120,7 @@ export async function competitionRoutes(app: FastifyInstance) {
     if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
 
     const me = request.user as { id: string }
-    const { name, date, scoringMode, placementMaxPoints, tieBreakingMode, isTeamCompetition, challengeIds, teamCount, teamNames } = body.data
+    const { name, date, scoringMode, placementMaxPoints, tieBreakingMode, isTeamCompetition, groupId, challengeIds, teamCount, teamNames } = body.data
 
     const isTeamComp = isTeamCompetition !== false  // default true
     const competition = await prisma.competition.create({
@@ -97,6 +132,7 @@ export async function competitionRoutes(app: FastifyInstance) {
         ...(placementMaxPoints !== undefined && { placementMaxPoints }),
         ...(tieBreakingMode !== undefined && { tieBreakingMode }),
         isTeamCompetition: isTeamComp,
+        ...(groupId && { groupId }),
       },
     })
 
@@ -210,6 +246,12 @@ export async function competitionRoutes(app: FastifyInstance) {
     if (!competition) return reply.status(404).send({ error: 'Competition not found' })
     if (!['REGISTRATION', 'ACTIVE'].includes(competition.status)) {
       return reply.status(400).send({ error: 'Competition is not open for registration' })
+    }
+    if (competition.groupId) {
+      const groupIds = await getUserGroupIds(me.id)
+      if (!groupIds.includes(competition.groupId)) {
+        return reply.status(403).send({ error: 'You are not a member of this competition\'s group' })
+      }
     }
 
     const existing = await prisma.competitionPlayer.findUnique({

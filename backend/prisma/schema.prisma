@@ -67,6 +67,7 @@ model User {
   enteredScores       Score[]             @relation("ScoreEnteredBy")
   teamLeaderships     Team[]              @relation("TeamLeader")
   trophies            Trophy[]            @relation("UserTrophies")
+  groups              UserGroup[]
 }
 
 model Trophy {
@@ -94,6 +95,8 @@ model Competition {
   placementMaxPoints   Int?
   tieBreakingMode      TieBreakingMode?
   isTeamCompetition    Boolean                @default(true)
+  groupId         String?
+  group           Group?                 @relation(fields: [groupId], references: [id])
   createdByUserId String
   createdByUser   User                   @relation("CompetitionCreatedBy", fields: [createdByUserId], references: [id])
   createdAt       DateTime               @default(now())
@@ -192,4 +195,22 @@ model Score {
   updatedAt              DateTime             @updatedAt
 
   @@unique([competitionChallengeId, userId])
+}
+
+model Group {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  members      UserGroup[]
+  competitions Competition[]
+}
+
+model UserGroup {
+  userId  String
+  groupId String
+  user    User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([userId, groupId])
 }
