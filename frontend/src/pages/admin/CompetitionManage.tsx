@@ -229,15 +229,18 @@ export function AdminCompetitionManage() {
                   <div style={{ flex: 1 }}>
                     <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px' }}>{p.user.displayName ?? p.user.username}</p>
                     <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                      {p.team?.name ?? 'Player Pool'}
-                      {p.isTeamLeader ? ' · Leader' : ''}
+                      {comp.isTeamCompetition !== false && (p.team?.name ?? 'Player Pool')}
+                      {p.isTeamLeader ? (comp.isTeamCompetition !== false ? ' · Leader' : 'Leader') : ''}
+                      {p.isScorekeeper ? (p.isTeamLeader ? ' · SK' : 'Scorekeeper') : ''}
                     </p>
                   </div>
                   <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                    <Button size="sm" variant="ghost" style={{ fontSize: '11px', padding: '4px 10px' }}
-                      onClick={() => setAssignTeamPlayer(p)}>
-                      Team
-                    </Button>
+                    {comp.isTeamCompetition !== false && (
+                      <Button size="sm" variant="ghost" style={{ fontSize: '11px', padding: '4px 10px' }}
+                        onClick={() => setAssignTeamPlayer(p)}>
+                        Team
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant={p.isTeamLeader ? 'success' : 'ghost'}

@@ -222,6 +222,7 @@ export function CompetitionLeaderboardPage() {
           <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {topFive.map((p: any) => {
               const isFirst = p.rank === 1
+              const isMe = p.userId === user?.id
               const rankLabel = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : `#${p.rank}`
               return (
                 <Card
@@ -229,7 +230,7 @@ export function CompetitionLeaderboardPage() {
                   padding="12px"
                   style={{
                     background: isFirst ? 'var(--text-primary)' : undefined,
-                    borderColor: isFirst ? 'var(--text-primary)' : undefined,
+                    borderColor: isFirst ? 'var(--text-primary)' : isMe ? 'var(--accent)' : undefined,
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -256,6 +257,11 @@ export function CompetitionLeaderboardPage() {
                           {p.teamName}
                         </p>
                       )}
+                      {isMe && !isFirst && (
+                        <p style={{ fontSize: '11px', fontFamily: 'var(--font-ui)', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--accent)', marginTop: '1px' }}>
+                          YOU
+                        </p>
+                      )}
                     </div>
                     <p style={{
                       fontFamily: 'var(--font-ui)', fontWeight: 700,
@@ -272,35 +278,40 @@ export function CompetitionLeaderboardPage() {
 
           {lb.individualLeaderboard.length > 5 && (
             <div style={{ marginTop: '8px' }}>
-              {lb.individualLeaderboard.slice(5).map((p: any) => (
-                <div
-                  key={p.userId}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '12px',
-                    padding: '10px 16px',
-                    borderBottom: '1px solid var(--border-light)',
-                  }}
-                >
-                  <span style={{
-                    fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px',
-                    color: 'var(--text-muted)', minWidth: '24px', textAlign: 'center',
-                  }}>
-                    {p.rank}
-                  </span>
-                  <Avatar src={p.profileImageUrl} name={p.displayName ?? p.username ?? p.userId} size={28} />
-                  <div style={{ flex: 1 }}>
-                    <Link to={`/profile/${p.userId}`} style={{ color: 'inherit', textDecoration: 'none' }}>
-                      <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>
-                        {p.displayName ?? p.username ?? p.userId}
-                      </p>
-                    </Link>
-                    {p.teamName && <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{p.teamName}</p>}
+              {lb.individualLeaderboard.slice(5).map((p: any) => {
+                const isMe = p.userId === user?.id
+                return (
+                  <div
+                    key={p.userId}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '12px',
+                      padding: '10px 16px',
+                      borderBottom: '1px solid var(--border-light)',
+                      ...(isMe ? { borderLeft: '3px solid var(--accent)' } : {}),
+                    }}
+                  >
+                    <span style={{
+                      fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px',
+                      color: 'var(--text-muted)', minWidth: '24px', textAlign: 'center',
+                    }}>
+                      {p.rank}
+                    </span>
+                    <Avatar src={p.profileImageUrl} name={p.displayName ?? p.username ?? p.userId} size={28} />
+                    <div style={{ flex: 1 }}>
+                      <Link to={`/profile/${p.userId}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                        <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>
+                          {p.displayName ?? p.username ?? p.userId}
+                        </p>
+                      </Link>
+                      {p.teamName && <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{p.teamName}</p>}
+                      {isMe && <p style={{ fontSize: '11px', fontFamily: 'var(--font-ui)', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--accent)' }}>YOU</p>}
+                    </div>
+                    <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '16px' }}>
+                      {p.totalPoints.toFixed(0)}
+                    </p>
                   </div>
-                  <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '16px' }}>
-                    {p.totalPoints.toFixed(0)}
-                  </p>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
 

@@ -69,14 +69,15 @@ export function CompetitionDetail() {
 
   const myPlayer = comp.players?.find((p: CompetitionPlayer) => p.userId === user?.id)
   const isJoined = !!myPlayer
+  const isTeamComp = comp.isTeamCompetition !== false
   const myTeam = comp.teams?.find((t: Team) => t.id === myPlayer?.teamId)
   const playerPool = comp.players?.filter((p: CompetitionPlayer) => !p.teamId) ?? []
 
   const tabs: { key: Tab; label: string; count?: number }[] = [
     { key: 'overview', label: 'Overview' },
-    { key: 'teams', label: 'Teams', count: comp.teams?.length },
+    ...(isTeamComp ? [{ key: 'teams' as Tab, label: 'Teams', count: comp.teams?.length }] : []),
     { key: 'challenges', label: 'Challenges', count: comp.challenges?.length },
-    { key: 'pool', label: 'Player Pool', count: comp.players?.length },
+    { key: 'pool', label: isTeamComp ? 'Player Pool' : 'Players', count: comp.players?.length },
   ]
 
   return (
@@ -104,8 +105,8 @@ export function CompetitionDetail() {
         </Button>
       )}
 
-      {/* Waiting for team notice */}
-      {isJoined && !myTeam && (
+      {/* Waiting for team notice — only for team competitions */}
+      {isTeamComp && isJoined && !myTeam && (
         <Card style={{ marginBottom: '16px', background: 'var(--surface-raised)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span style={{ fontSize: '28px', flexShrink: 0 }}>⏳</span>
@@ -164,12 +165,15 @@ export function CompetitionDetail() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <Card>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              {[
+              {(isTeamComp ? [
                 { label: 'Teams', value: comp.teams?.length ?? 0 },
                 { label: 'Players', value: comp.players?.length ?? 0 },
                 { label: 'Challenges', value: comp.challenges?.length ?? 0 },
                 { label: 'In pool', value: playerPool.length },
-              ].map(s => (
+              ] : [
+                { label: 'Players', value: comp.players?.length ?? 0 },
+                { label: 'Challenges', value: comp.challenges?.length ?? 0 },
+              ]).map(s => (
                 <div key={s.label} style={{ textAlign: 'center' }}>
                   <p style={{ fontFamily: 'var(--font-ui)', fontSize: '28px', fontWeight: 700 }}>{s.value}</p>
                   <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{s.label}</p>
@@ -177,6 +181,46 @@ export function CompetitionDetail() {
               ))}
             </div>
           </Card>
+
+          {/* Compact individual standings — individual competitions */}
+          {!isTeamComp && lbData?.individualLeaderboard && lbData.individualLeaderboard.length > 0 && (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                  Standings
+                </h2>
+                <Link to={`/competitions/${id}/leaderboard`} style={{ textDecoration: 'none' }}>
+                  <span style={{ fontSize: '12px', fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--accent)' }}>
+                    Full leaderboard ›
+                  </span>
+                </Link>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {(lbData.individualLeaderboard as any[]).slice(0, 3).map((p: any) => {
+                  const isFirst = p.rank === 1
+                  const rankLabel = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : '🥉'
+                  const isMe = p.userId === user?.id
+                  return (
+                    <Card key={p.userId} padding="12px" style={{ background: isFirst ? 'var(--text-primary)' : undefined, borderColor: isFirst ? 'var(--text-primary)' : undefined }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '20px', minWidth: '28px', textAlign: 'center', lineHeight: 1 }}>{rankLabel}</span>
+                        <Avatar src={p.profileImageUrl} name={p.displayName ?? p.username ?? p.userId} size={32} />
+                        <div style={{ flex: 1 }}>
+                          <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', color: isFirst ? '#fff' : undefined }}>
+                            {p.displayName ?? p.username ?? p.userId}
+                          </p>
+                          {isMe && <p style={{ fontSize: '11px', fontFamily: 'var(--font-ui)', fontWeight: 700, letterSpacing: '0.06em', color: isFirst ? 'rgba(255,255,255,0.7)' : 'var(--accent)' }}>YOU</p>}
+                        </div>
+                        <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px', color: isFirst ? '#fff' : undefined }}>
+                          {p.totalPoints.toFixed(0)}
+                        </p>
+                      </div>
+                    </Card>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Compact team standings */}
           {lbData?.teamLeaderboard && lbData.teamLeaderboard.length > 0 && (
@@ -341,8 +385,38 @@ export function CompetitionDetail() {
 
       {tab === 'pool' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Unassigned */}
-          <div>
+          {/* Individual competition: flat player list */}
+          {!isTeamComp && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {(comp.players ?? []).map((p: CompetitionPlayer) => (
+                <Card key={p.userId} padding="12px">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Link to={`/profile/${p.userId}`} style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, textDecoration: 'none', color: 'inherit', minWidth: 0 }}>
+                      <Avatar src={p.user.profileImageUrl} name={p.user.displayName ?? p.user.username} size={36} />
+                      <div>
+                        <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700 }}>{p.user.displayName ?? p.user.username}</p>
+                        {(p.isTeamLeader || p.isScorekeeper) && (
+                          <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                            {[p.isTeamLeader && 'Leader', p.isScorekeeper && 'Scorekeeper'].filter(Boolean).join(' · ')}
+                          </p>
+                        )}
+                      </div>
+                    </Link>
+                    {isAdmin && (
+                      <Button size="sm" variant="danger" style={{ fontSize: '11px', padding: '4px 8px' }}
+                        loading={removeFromPoolMutation.isPending}
+                        onClick={() => removeFromPoolMutation.mutate(p.userId)}>
+                        ×
+                      </Button>
+                    )}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {/* Team competition: unassigned players */}
+          {isTeamComp && <div>
             <h3 style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px' }}>
               Unassigned ({playerPool.length})
             </h3>
@@ -377,10 +451,10 @@ export function CompetitionDetail() {
                 ))}
               </div>
             )}
-          </div>
+          </div>}
 
-          {/* Players by team */}
-          {comp.teams?.map((team: Team) => {
+          {/* Players by team — team competitions only */}
+          {isTeamComp && comp.teams?.map((team: Team) => {
             const teamPlayers = (comp.players?.filter((p: CompetitionPlayer) => p.teamId === team.id) ?? [])
               .sort((a: CompetitionPlayer, b: CompetitionPlayer) => (b.isTeamLeader ? 1 : 0) - (a.isTeamLeader ? 1 : 0))
             return (
