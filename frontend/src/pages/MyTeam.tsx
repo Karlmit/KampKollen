@@ -51,6 +51,7 @@ export function MyTeamPage() {
   })
 
   const [removeError, setRemoveError] = useState<string | null>(null)
+  const [removeConfirmUserId, setRemoveConfirmUserId] = useState<string | null>(null)
 
   const removePlayerMutation = useMutation({
     mutationFn: (userId: string) => api.teams.removePlayer(teamId!, userId),
@@ -196,20 +197,18 @@ export function MyTeamPage() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => removePlayerMutation.mutate(p.userId)}
-                      loading={removePlayerMutation.isPending}
+                      onClick={() => setRemoveConfirmUserId(p.userId)}
                       style={{ fontSize: '12px', padding: '4px 10px' }}
                     >
                       Remove
                     </Button>
                   </div>
                 )}
-                {canManage && !p.user?.isDummy && p.userId === user?.id && (
+                {canManage && !p.user?.isDummy && p.userId === user?.id && (isAdmin || !myPlayer?.isTeamLeader) && (
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => removePlayerMutation.mutate(p.userId)}
-                    loading={removePlayerMutation.isPending}
+                    onClick={() => setRemoveConfirmUserId(p.userId)}
                     style={{ fontSize: '12px', padding: '4px 10px' }}
                   >
                     Leave
@@ -240,8 +239,7 @@ export function MyTeamPage() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => removePlayerMutation.mutate(p.userId)}
-                      loading={removePlayerMutation.isPending}
+                      onClick={() => setRemoveConfirmUserId(p.userId)}
                       style={{ fontSize: '12px', padding: '4px 10px' }}
                     >
                       Remove
@@ -393,6 +391,37 @@ export function MyTeamPage() {
           </p>
         )}
       </Modal>
+
+      {/* Remove / leave confirmation modal */}
+      {(() => {
+        const pending = teamPlayers.find((p: CompetitionPlayer) => p.userId === removeConfirmUserId)
+        const isSelf = removeConfirmUserId === user?.id
+        const name = pending?.user?.displayName ?? pending?.user?.username ?? 'this player'
+        return (
+          <Modal
+            open={!!removeConfirmUserId}
+            onClose={() => setRemoveConfirmUserId(null)}
+            title={isSelf ? 'Leave team?' : `Remove ${name}?`}
+            footer={
+              <>
+                <Button variant="ghost" onClick={() => setRemoveConfirmUserId(null)}>Cancel</Button>
+                <Button
+                  onClick={() => { removePlayerMutation.mutate(removeConfirmUserId!); setRemoveConfirmUserId(null) }}
+                  loading={removePlayerMutation.isPending}
+                >
+                  {isSelf ? 'Leave' : 'Remove'}
+                </Button>
+              </>
+            }
+          >
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontFamily: 'var(--font-ui)' }}>
+              {isSelf
+                ? 'Are you sure you want to leave this team?'
+                : `Are you sure you want to remove ${name} from the team?`}
+            </p>
+          </Modal>
+        )
+      })()}
     </Layout>
   )
 }
