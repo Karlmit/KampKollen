@@ -162,6 +162,11 @@ export function AdminCompetitionManage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['competition', id] }),
   })
 
+  const updateTieBreakingMutation = useMutation({
+    mutationFn: (tieBreakingMode: string | null) => api.competitions.update(id!, { tieBreakingMode }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['competition', id] }),
+  })
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (!over || active.id === over.id) return
@@ -335,6 +340,32 @@ export function AdminCompetitionManage() {
               ))}
             </div>
           </div>
+          {comp.scoringMode === 'placement_points' && (
+            <div>
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-muted)' }}>TIE-BREAKING MODE</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+                {[
+                  { value: 'best_rank', label: 'Best Rank (Recommended)', desc: 'Tied players/teams all get the better rank\'s points. Next distinct rank skips. (e.g. 1st tied → both get 1st-place points, next is 3rd)' },
+                  { value: 'average', label: 'Average', desc: 'Tied players/teams get the mean of the tied positions\' points. (e.g. 1st tied → both get average of 1st and 2nd place points)' },
+                  { value: 'worst_rank', label: 'Worst Rank', desc: 'Tied players/teams all get the lower rank\'s points. (e.g. 1st tied → both get 2nd-place points)' },
+                  { value: null, label: 'Legacy (off)', desc: 'No tie handling — sort order determines rank. Existing competitions default to this.' },
+                ].map(opt => (
+                  <button
+                    key={String(opt.value)}
+                    onClick={() => updateTieBreakingMutation.mutate(opt.value)}
+                    style={{
+                      padding: '12px', borderRadius: 'var(--radius)', cursor: 'pointer', textAlign: 'left',
+                      border: comp.tieBreakingMode === opt.value ? '2px solid var(--accent)' : '2px solid var(--border-light)',
+                      background: comp.tieBreakingMode === opt.value ? 'var(--surface)' : 'var(--background)',
+                    }}
+                  >
+                    <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', marginBottom: '2px' }}>{opt.label}</p>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{opt.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {comp.scoringMode === 'placement_points' && (
             <div>
               <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, marginBottom: '4px', color: 'var(--text-muted)' }}>MAX POINTS PER CHALLENGE</p>

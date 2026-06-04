@@ -43,6 +43,12 @@ enum CompetitionScoringMode {
   placement_points
 }
 
+enum TieBreakingMode {
+  best_rank
+  average
+  worst_rank
+}
+
 model User {
   id              String     @id @default(cuid())
   username        String     @unique
@@ -86,6 +92,7 @@ model Competition {
   status          CompetitionStatus      @default(DRAFT)
   scoringMode          CompetitionScoringMode @default(raw_sum)
   placementMaxPoints   Int?
+  tieBreakingMode      TieBreakingMode?
   createdByUserId String
   createdByUser   User                   @relation("CompetitionCreatedBy", fields: [createdByUserId], references: [id])
   createdAt       DateTime               @default(now())
