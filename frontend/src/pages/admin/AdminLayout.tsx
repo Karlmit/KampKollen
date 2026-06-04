@@ -10,6 +10,7 @@ const sections = [
   { to: '/admin/image-options', icon: '🎨', label: 'Image Options' },
   { to: '/admin/trophies', icon: '🎁', label: 'Awards' },
   { to: '/admin/settings', icon: '🔧', label: 'Settings' },
+  { to: '/admin/backup', icon: '💾', label: 'Backup' },
 ]
 
 export function AdminLayout({ children, title }: { children: ReactNode; title: string }) {

@@ -3,6 +3,7 @@ import fastifyJwt from '@fastify/jwt'
 import fastifyCookie from '@fastify/cookie'
 import fastifyCors from '@fastify/cors'
 import fastifyStatic from '@fastify/static'
+import fastifyMultipart from '@fastify/multipart'
 import path from 'path'
 import { config } from './config.js'
 import { authRoutes } from './routes/auth.js'
@@ -14,6 +15,7 @@ import { scoreRoutes } from './routes/scores.js'
 import { leaderboardRoutes } from './routes/leaderboards.js'
 import { settingsRoutes, imageOptionRoutes } from './routes/settings.js'
 import { trophyRoutes, trophyWordRoutes } from './routes/trophies.js'
+import { backupRoutes } from './routes/backup.js'
 
 export async function buildServer() {
   const app = Fastify({
@@ -22,6 +24,7 @@ export async function buildServer() {
   })
 
   await app.register(fastifyCookie, { secret: config.cookieSecret })
+  await app.register(fastifyMultipart, { limits: { fileSize: 500 * 1024 * 1024 } })
   await app.register(fastifyJwt, {
     secret: config.jwtSecret,
     cookie: { cookieName: 'token', signed: false },
@@ -60,6 +63,7 @@ export async function buildServer() {
   await app.register(imageOptionRoutes, { prefix: '/api/image-options' })
   await app.register(trophyRoutes, { prefix: '/api/trophies' })
   await app.register(trophyWordRoutes, { prefix: '/api/admin/trophy-words' })
+  await app.register(backupRoutes, { prefix: '/api/admin/backup' })
 
   // Catch-all for SPA — serve index.html for all non-API routes in production
   if (!config.isDev) {

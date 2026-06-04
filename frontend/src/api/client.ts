@@ -130,6 +130,39 @@ export const api = {
     updateWords: (words: string[]) => request<{ success: boolean }>('/admin/trophy-words', { method: 'PUT', body: JSON.stringify({ words }) }),
   },
 
+  // Backup
+  backup: {
+    download: async () => {
+      const res = await fetch('api/admin/backup/download', { credentials: 'include' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: res.statusText }))
+        throw new ApiError(res.status, body.error ?? 'Download failed')
+      }
+      const blob = await res.blob()
+      const disposition = res.headers.get('Content-Disposition') ?? ''
+      const match = disposition.match(/filename="([^"]+)"/)
+      const filename = match?.[1] ?? 'kampkollen-backup.zip'
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(url)
+    },
+    restore: (file: File) => {
+      const form = new FormData()
+      form.append('file', file)
+      return fetch('api/admin/backup/restore', { method: 'POST', credentials: 'include', body: form })
+        .then(async res => {
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({ error: res.statusText }))
+            throw new ApiError(res.status, body.error ?? 'Restore failed')
+          }
+          return res.json() as Promise<{ success: boolean }>
+        })
+    },
+  },
+
   // Leaderboards
   leaderboards: {
     competition: (id: string) => request<any>(`/leaderboards/competition/${id}`),
