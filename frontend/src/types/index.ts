@@ -22,6 +22,7 @@ export interface Competition {
   imageUrl?: string
   status: CompetitionStatus
   scoringMode?: CompetitionScoringMode
+  isTeamCompetition?: boolean
   createdAt: string
   teams?: Team[]
   players?: CompetitionPlayer[]
@@ -103,7 +104,7 @@ export interface LeaderboardTeam {
 }
 
 export interface CompetitionLeaderboard {
-  competition: { id: string; name: string; scoringMode: CompetitionScoringMode; status?: string }
+  competition: { id: string; name: string; scoringMode: CompetitionScoringMode; isTeamCompetition?: boolean; status?: string }
   teamLeaderboard: LeaderboardTeam[]
   individualLeaderboard: Array<{
     userId: string

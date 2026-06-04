@@ -15,6 +15,7 @@ const createCompetitionSchema = z.object({
   scoringMode: scoringModeEnum.optional(),
   placementMaxPoints: z.number().int().min(10).max(1000).optional(),
   tieBreakingMode: tieBreakingModeEnum.optional(),
+  isTeamCompetition: z.boolean().optional(),
   challengeIds: z.array(z.string()).optional(),
   teamCount: z.number().int().min(1).max(20).optional(),
   teamNames: z.array(z.string()).optional(),
@@ -27,6 +28,7 @@ const updateCompetitionSchema = z.object({
   scoringMode: scoringModeEnum.optional(),
   placementMaxPoints: z.number().int().min(10).max(1000).nullable().optional(),
   tieBreakingMode: tieBreakingModeEnum.nullable().optional(),
+  isTeamCompetition: z.boolean().optional(),
 })
 
 const addChallengeSchema = z.object({
@@ -83,8 +85,9 @@ export async function competitionRoutes(app: FastifyInstance) {
     if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
 
     const me = request.user as { id: string }
-    const { name, date, scoringMode, placementMaxPoints, tieBreakingMode, challengeIds, teamCount, teamNames } = body.data
+    const { name, date, scoringMode, placementMaxPoints, tieBreakingMode, isTeamCompetition, challengeIds, teamCount, teamNames } = body.data
 
+    const isTeamComp = isTeamCompetition !== false  // default true
     const competition = await prisma.competition.create({
       data: {
         name,
@@ -93,6 +96,7 @@ export async function competitionRoutes(app: FastifyInstance) {
         ...(scoringMode && { scoringMode }),
         ...(placementMaxPoints !== undefined && { placementMaxPoints }),
         ...(tieBreakingMode !== undefined && { tieBreakingMode }),
+        isTeamCompetition: isTeamComp,
       },
     })
 
@@ -106,14 +110,16 @@ export async function competitionRoutes(app: FastifyInstance) {
       })
     }
 
-    const count = teamCount ?? 3
-    const names = teamNames ?? Array.from({ length: count }, (_, i) => `Team ${i + 1}`)
-    await prisma.team.createMany({
-      data: names.slice(0, count).map(teamName => ({
-        competitionId: competition.id,
-        name: teamName,
-      })),
-    })
+    if (isTeamComp) {
+      const count = teamCount ?? 3
+      const names = teamNames ?? Array.from({ length: count }, (_, i) => `Team ${i + 1}`)
+      await prisma.team.createMany({
+        data: names.slice(0, count).map(teamName => ({
+          competitionId: competition.id,
+          name: teamName,
+        })),
+      })
+    }
 
     const full = await prisma.competition.findUnique({
       where: { id: competition.id },

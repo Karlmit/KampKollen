@@ -52,6 +52,9 @@ export async function leaderboardRoutes(app: FastifyInstance) {
 
     const numPlayers = competition.players.length
     const numTeams = competition.teams.length
+    const playerMaxPts = (!competition.isTeamCompetition && competition.placementMaxPoints)
+      ? competition.placementMaxPoints
+      : numPlayers * 10
 
     // Mutable totals
     const teamPoints: Record<string, { totalPoints: number; challengeBreakdown: Record<string, number> }> = {}
@@ -99,7 +102,7 @@ export async function leaderboardRoutes(app: FastifyInstance) {
           for (const item of withRanks) {
             if (item.score === 0) continue
             if (playerPoints[item.userId] !== undefined)
-              playerPoints[item.userId] += calcPlacementPts(item.rank, numPlayers * 10, rankSizes[item.rank], tbm)
+              playerPoints[item.userId] += calcPlacementPts(item.rank, playerMaxPts, rankSizes[item.rank], tbm)
           }
         } else {
           sortedPlayers.forEach(({ userId, score }, i) => {
@@ -196,7 +199,7 @@ export async function leaderboardRoutes(app: FastifyInstance) {
           rank,
           ...(competition.scoringMode === 'placement_points' && score > 0
             ? { placementPoints: tbm
-                ? calcPlacementPts(rank, numPlayers * 10, cpRankSizes[rank], tbm)
+                ? calcPlacementPts(rank, playerMaxPts, cpRankSizes[rank], tbm)
                 : (numPlayers - (rank - 1)) * 10 }
             : {}),
         }
@@ -266,7 +269,7 @@ export async function leaderboardRoutes(app: FastifyInstance) {
       : sortedPlayers.map((p, i) => ({ ...p, rank: i + 1 }))
 
     return {
-      competition: { id: competition.id, name: competition.name, scoringMode: competition.scoringMode, tieBreakingMode: competition.tieBreakingMode, status: competition.status },
+      competition: { id: competition.id, name: competition.name, scoringMode: competition.scoringMode, tieBreakingMode: competition.tieBreakingMode, isTeamCompetition: competition.isTeamCompetition, status: competition.status },
       teamLeaderboard,
       individualLeaderboard,
       challengeLeaderboards,

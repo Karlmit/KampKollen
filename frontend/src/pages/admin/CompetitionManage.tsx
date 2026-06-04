@@ -167,6 +167,11 @@ export function AdminCompetitionManage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['competition', id] }),
   })
 
+  const updateTypeMutation = useMutation({
+    mutationFn: (isTeamCompetition: boolean) => api.competitions.update(id!, { isTeamCompetition }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['competition', id] }),
+  })
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (!over || active.id === over.id) return
@@ -185,7 +190,7 @@ export function AdminCompetitionManage() {
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'players', label: `Players (${comp.players?.length ?? 0})` },
-    { key: 'teams', label: `Teams (${comp.teams?.length ?? 0})` },
+    ...(comp.isTeamCompetition !== false ? [{ key: 'teams' as Tab, label: `Teams (${comp.teams?.length ?? 0})` }] : []),
     { key: 'challenges', label: `Challenges (${comp.challenges?.length ?? 0})` },
     { key: 'status', label: 'Settings' },
   ]
@@ -319,6 +324,28 @@ export function AdminCompetitionManage() {
             </div>
           </div>
           <div>
+            <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-muted)' }}>COMPETITION TYPE</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {[
+                { value: true, label: '🛡️ Team', desc: 'Players compete in teams' },
+                { value: false, label: '👤 Individual', desc: 'Players compete directly, no teams' },
+              ].map(opt => (
+                <button
+                  key={String(opt.value)}
+                  onClick={() => updateTypeMutation.mutate(opt.value)}
+                  style={{
+                    padding: '12px', borderRadius: 'var(--radius)', cursor: 'pointer', textAlign: 'left',
+                    border: (comp.isTeamCompetition !== false) === opt.value ? '2px solid var(--accent)' : '2px solid var(--border-light)',
+                    background: (comp.isTeamCompetition !== false) === opt.value ? 'var(--surface)' : 'var(--background)',
+                  }}
+                >
+                  <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', marginBottom: '2px' }}>{opt.label}</p>
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{opt.desc}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
             <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-muted)' }}>SCORING MODE</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {[
@@ -345,9 +372,9 @@ export function AdminCompetitionManage() {
               <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-muted)' }}>TIE-BREAKING MODE</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
                 {[
-                  { value: 'best_rank', label: 'Best Rank (Recommended)', desc: 'Tied players/teams all get the better rank\'s points. Next distinct rank skips. (e.g. 1st tied → both get 1st-place points, next is 3rd)' },
-                  { value: 'average', label: 'Average', desc: 'Tied players/teams get the mean of the tied positions\' points. (e.g. 1st tied → both get average of 1st and 2nd place points)' },
-                  { value: 'worst_rank', label: 'Worst Rank', desc: 'Tied players/teams all get the lower rank\'s points. (e.g. 1st tied → both get 2nd-place points)' },
+                  { value: 'best_rank', label: 'Best Rank (Recommended)', desc: `Tied ${comp.isTeamCompetition !== false ? 'teams/players' : 'players'} all get the better rank's points. Next distinct rank skips. (e.g. 1st tied → both get 1st-place points, next is 3rd)` },
+                  { value: 'average', label: 'Average', desc: `Tied ${comp.isTeamCompetition !== false ? 'teams/players' : 'players'} get the mean of the tied positions' points. (e.g. 1st tied → both get average of 1st and 2nd place points)` },
+                  { value: 'worst_rank', label: 'Worst Rank', desc: `Tied ${comp.isTeamCompetition !== false ? 'teams/players' : 'players'} all get the lower rank's points. (e.g. 1st tied → both get 2nd-place points)` },
                   { value: null, label: 'Legacy (off)', desc: 'No tie handling — sort order determines rank. Existing competitions default to this.' },
                 ].map(opt => (
                   <button
@@ -370,7 +397,7 @@ export function AdminCompetitionManage() {
             <div>
               <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, marginBottom: '4px', color: 'var(--text-muted)' }}>MAX POINTS PER CHALLENGE</p>
               <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                Currently: {comp.placementMaxPoints != null ? `${comp.placementMaxPoints} pts` : `auto (${comp.teams?.length ?? 0} teams × 10 = ${(comp.teams?.length ?? 0) * 10} pts)`}
+                Currently: {comp.placementMaxPoints != null ? `${comp.placementMaxPoints} pts` : comp.isTeamCompetition !== false ? `auto (${comp.teams?.length ?? 0} teams × 10 = ${(comp.teams?.length ?? 0) * 10} pts)` : `auto (${comp.players?.length ?? 0} players × 10 = ${(comp.players?.length ?? 0) * 10} pts)`}
                 {' — '}Enter a number to override, or leave blank / press Reset to use auto.
               </p>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
@@ -380,7 +407,7 @@ export function AdminCompetitionManage() {
                     min="10"
                     max="1000"
                     step="10"
-                    placeholder={`Leave blank = auto (${(comp.teams?.length ?? 0) * 10})`}
+                    placeholder={`Leave blank = auto (${comp.isTeamCompetition !== false ? (comp.teams?.length ?? 0) * 10 : (comp.players?.length ?? 0) * 10})`}
                     value={maxPointsInput}
                     onChange={e => setMaxPointsInput(e.target.value)}
                     style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', fontSize: '16px' }}

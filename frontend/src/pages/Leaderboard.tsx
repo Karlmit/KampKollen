@@ -16,7 +16,6 @@ export function CompetitionLeaderboardPage() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
-  const view = (searchParams.get('view') as View) ?? 'teams'
   const setView = (v: View) => setSearchParams({ view: v }, { replace: true })
   const [expandedChallenge, setExpandedChallenge] = useState<string | null>(null)
 
@@ -37,6 +36,8 @@ export function CompetitionLeaderboardPage() {
 
   const isPlacementMode = lb.competition.scoringMode === 'placement_points'
   const isLive = lb.competition.status === 'ACTIVE'
+  const isTeamComp = lb.competition.isTeamCompetition !== false
+  const view: View = isTeamComp ? ((searchParams.get('view') as View) ?? 'teams') : 'individual'
 
   const toggleChallenge = (ccId: string) =>
     setExpandedChallenge(prev => prev === ccId ? null : ccId)
@@ -93,41 +94,43 @@ export function CompetitionLeaderboardPage() {
         </span>
       </div>
 
-      {/* View toggle */}
-      <div style={{
-        position: 'relative', display: 'flex',
-        background: 'var(--surface)', borderRadius: 'var(--radius)',
-        padding: '4px', marginBottom: '20px', gap: '4px',
-      }}>
-        <span style={{
-          position: 'absolute',
-          top: 4, bottom: 4,
-          left: view === 'teams' ? 4 : 'calc(50% + 2px)',
-          width: 'calc(50% - 6px)',
-          background: 'var(--background)',
-          borderRadius: '10px',
-          boxShadow: 'var(--shadow-sm)',
-          transition: 'left 220ms var(--ease-out)',
-          pointerEvents: 'none',
-        }} />
-        {(['teams', 'individual'] as View[]).map(v => (
-          <button
-            key={v}
-            onClick={() => setView(v)}
-            style={{
-              flex: 1, padding: '8px', borderRadius: '10px',
-              background: 'transparent',
-              color: view === v ? 'var(--text-primary)' : 'var(--text-muted)',
-              fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px',
-              cursor: 'pointer', border: 'none',
-              position: 'relative', zIndex: 1,
-              transition: 'color 200ms var(--ease-out)',
-            }}
-          >
-            {v === 'teams' ? '🛡️ Teams' : '👤 Individual'}
-          </button>
-        ))}
-      </div>
+      {/* View toggle — only shown for team competitions */}
+      {isTeamComp && (
+        <div style={{
+          position: 'relative', display: 'flex',
+          background: 'var(--surface)', borderRadius: 'var(--radius)',
+          padding: '4px', marginBottom: '20px', gap: '4px',
+        }}>
+          <span style={{
+            position: 'absolute',
+            top: 4, bottom: 4,
+            left: view === 'teams' ? 4 : 'calc(50% + 2px)',
+            width: 'calc(50% - 6px)',
+            background: 'var(--background)',
+            borderRadius: '10px',
+            boxShadow: 'var(--shadow-sm)',
+            transition: 'left 220ms var(--ease-out)',
+            pointerEvents: 'none',
+          }} />
+          {(['teams', 'individual'] as View[]).map(v => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              style={{
+                flex: 1, padding: '8px', borderRadius: '10px',
+                background: 'transparent',
+                color: view === v ? 'var(--text-primary)' : 'var(--text-muted)',
+                fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px',
+                cursor: 'pointer', border: 'none',
+                position: 'relative', zIndex: 1,
+                transition: 'color 200ms var(--ease-out)',
+              }}
+            >
+              {v === 'teams' ? '🛡️ Teams' : '👤 Individual'}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Teams leaderboard */}
       {view === 'teams' && (

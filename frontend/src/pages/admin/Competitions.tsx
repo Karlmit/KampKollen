@@ -28,7 +28,7 @@ function displayToIso(display: string): string {
 export function AdminCompetitions() {
   const qc = useQueryClient()
   const [createOpen, setCreateOpen] = useState(false)
-  const [form, setForm] = useState({ name: '', dateDisplay: '', teamCount: '3', scoringMode: 'placement_points', placementMaxPoints: '' })
+  const [form, setForm] = useState({ name: '', dateDisplay: '', competitionType: 'team' as 'team' | 'individual', teamCount: '3', scoringMode: 'placement_points', placementMaxPoints: '' })
 
   const { data: compsData, isLoading } = useQuery({ queryKey: ['competitions'], queryFn: () => api.competitions.list() })
 
@@ -38,12 +38,13 @@ export function AdminCompetitions() {
       return api.competitions.create({
         name: form.name,
         date: iso ? new Date(iso + 'T12:00:00').toISOString() : undefined,
-        teamCount: parseInt(form.teamCount, 10),
+        isTeamCompetition: form.competitionType === 'team',
+        ...(form.competitionType === 'team' ? { teamCount: parseInt(form.teamCount, 10) } : {}),
         scoringMode: form.scoringMode,
         ...(form.placementMaxPoints ? { placementMaxPoints: parseInt(form.placementMaxPoints, 10) } : {}),
       })
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['competitions'] }); setCreateOpen(false); setForm({ name: '', dateDisplay: '', teamCount: '3', scoringMode: 'placement_points', placementMaxPoints: '' }) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['competitions'] }); setCreateOpen(false); setForm({ name: '', dateDisplay: '', competitionType: 'team', teamCount: '3', scoringMode: 'placement_points', placementMaxPoints: '' }) },
   })
 
   return (
@@ -80,12 +81,35 @@ export function AdminCompetitions() {
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Create Competition"
         footer={
           <>
-            <Button variant="ghost" onClick={() => { setCreateOpen(false); setForm({ name: '', dateDisplay: '', teamCount: '3', scoringMode: 'placement_points', placementMaxPoints: '' }) }}>Cancel</Button>
+            <Button variant="ghost" onClick={() => { setCreateOpen(false); setForm({ name: '', dateDisplay: '', competitionType: 'team', teamCount: '3', scoringMode: 'placement_points', placementMaxPoints: '' }) }}>Cancel</Button>
             <Button onClick={() => createMutation.mutate()} loading={createMutation.isPending} disabled={!form.name}>Create</Button>
           </>
         }
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>Competition type</label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {([
+                { value: 'team', label: '🛡️ Team', desc: 'Players compete in teams' },
+                { value: 'individual', label: '👤 Individual', desc: 'Players compete directly' },
+              ] as const).map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, competitionType: opt.value }))}
+                  style={{
+                    flex: 1, padding: '10px 12px', borderRadius: 'var(--radius)', cursor: 'pointer', textAlign: 'left',
+                    border: form.competitionType === opt.value ? '2px solid var(--accent)' : '2px solid var(--border-light)',
+                    background: form.competitionType === opt.value ? 'color-mix(in srgb, var(--accent) 8%, transparent)' : 'var(--background)',
+                  }}
+                >
+                  <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', marginBottom: '2px' }}>{opt.label}</p>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{opt.desc}</p>
+                </button>
+              ))}
+            </div>
+          </div>
           <Input label="Competition name *" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
           <Input
             label="Date (optional)"
@@ -95,7 +119,9 @@ export function AdminCompetitions() {
             value={form.dateDisplay}
             onChange={e => setForm(f => ({ ...f, dateDisplay: maskDateInput(e.target.value) }))}
           />
-          <Input label="Number of teams" type="number" min="1" max="20" value={form.teamCount} onChange={e => setForm(f => ({ ...f, teamCount: e.target.value }))} />
+          {form.competitionType === 'team' && (
+            <Input label="Number of teams" type="number" min="1" max="20" value={form.teamCount} onChange={e => setForm(f => ({ ...f, teamCount: e.target.value }))} />
+          )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>Scoring mode</label>
             <select

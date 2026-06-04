@@ -93,6 +93,7 @@ model Competition {
   scoringMode          CompetitionScoringMode @default(raw_sum)
   placementMaxPoints   Int?
   tieBreakingMode      TieBreakingMode?
+  isTeamCompetition    Boolean                @default(true)
   createdByUserId String
   createdByUser   User                   @relation("CompetitionCreatedBy", fields: [createdByUserId], references: [id])
   createdAt       DateTime               @default(now())
