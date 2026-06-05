@@ -8,8 +8,10 @@ import fs from 'fs'
 import { config } from '../config.js'
 
 // ── SSE broadcast ─────────────────────────────────────────────────────────────
-// Map of ccId → Set of reply objects (SSE connections)
 const sseClients = new Map<string, Set<FastifyReply>>()
+
+// In-memory countdown state (5-second window — no need to persist to DB)
+const countdownMap = new Map<string, number>() // ccId → endsAt (unix ms)
 
 function broadcast(ccId: string) {
   const clients = sseClients.get(ccId)
@@ -236,7 +238,7 @@ export async function quizRoutes(app: FastifyInstance) {
             count: isTeamComp
               ? q.answers.filter(a => a.optionId === o.id && a.teamId).length
               : q.answers.filter(a => a.optionId === o.id && a.userId).length,
-            teams: isTeamComp && (isBeingCorrected || isPastCorrection || isCompleted_)
+            teams: isTeamComp && (isQM || isBeingCorrected || isPastCorrection || isCompleted_)
               ? q.answers.filter(a => a.optionId === o.id && a.teamId).map(a => a.teamId)
               : [],
             users: !isTeamComp && isCompleted_
@@ -284,6 +286,7 @@ export async function quizRoutes(app: FastifyInstance) {
         correctionIndex: session.correctionIndex,
         correctAnswerVisible: session.correctAnswerVisible,
         readyEntries: session.readyEntries,
+        countdownEndsAt: countdownMap.get(ccId) ?? null,
       },
       isQM,
       isTeamComp,
@@ -481,6 +484,7 @@ export async function quizRoutes(app: FastifyInstance) {
     return { success: true }
   })
 
+  // QM presses "Next Question" → 5-second countdown visible to everyone, then auto-advance
   app.post('/:ccId/session/next-question', { preHandler: requireAuth }, async (request, reply) => {
     const { ccId } = request.params as { ccId: string }
     const me = request.user as { id: string; role: string }
@@ -489,28 +493,29 @@ export async function quizRoutes(app: FastifyInstance) {
     const session = await getOrCreateSession(ccId)
     if (session.status !== 'ACTIVE') return reply.status(400).send({ error: 'Quiz not active' })
 
-    // Count questions to know if we've run out
-    const qCount = await prisma.quizQuestion.count({ where: { challengeId: (await prisma.competitionChallenge.findUnique({ where: { id: ccId }, select: { challengeId: true } }))!.challengeId } })
-    const nextIdx = session.currentQuestionIndex + 1
-
-    if (nextIdx >= qCount) {
-      // All questions asked — move to correcting
-      await prisma.quizSession.update({ where: { id: session.id }, data: { status: 'CORRECTING', questionLocked: true, correctionIndex: 0, correctAnswerVisible: false } })
-    } else {
-      await prisma.quizSession.update({ where: { id: session.id }, data: { currentQuestionIndex: nextIdx, questionLocked: false } })
-    }
+    // Start 5-second countdown — broadcast immediately so all clients show it
+    const endsAt = Date.now() + 5000
+    countdownMap.set(ccId, endsAt)
     broadcast(ccId)
-    return { success: true }
-  })
 
-  app.post('/:ccId/session/lock-question', { preHandler: requireAuth }, async (request, reply) => {
-    const { ccId } = request.params as { ccId: string }
-    const me = request.user as { id: string; role: string }
-    if (!await isQM(me.id, ccId)) return reply.status(403).send({ error: 'QM or admin required' })
+    // Auto-advance after 5 seconds
+    setTimeout(async () => {
+      countdownMap.delete(ccId)
+      try {
+        const s = await getOrCreateSession(ccId)
+        if (s.status !== 'ACTIVE') { broadcast(ccId); return }
+        const cc = await prisma.competitionChallenge.findUnique({ where: { id: ccId }, select: { challengeId: true } })
+        const qCount = await prisma.quizQuestion.count({ where: { challengeId: cc!.challengeId } })
+        const nextIdx = s.currentQuestionIndex + 1
+        if (nextIdx >= qCount) {
+          await prisma.quizSession.update({ where: { id: s.id }, data: { status: 'CORRECTING', questionLocked: true, correctionIndex: 0, correctAnswerVisible: false } })
+        } else {
+          await prisma.quizSession.update({ where: { id: s.id }, data: { currentQuestionIndex: nextIdx, questionLocked: false } })
+        }
+      } catch { /* session may have been manually advanced */ }
+      broadcast(ccId)
+    }, 5000)
 
-    const session = await getOrCreateSession(ccId)
-    await prisma.quizSession.update({ where: { id: session.id }, data: { questionLocked: true } })
-    broadcast(ccId)
     return { success: true }
   })
 

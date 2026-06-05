@@ -90,6 +90,7 @@ export function QuizPage() {
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
   const [confirmStart, setConfirmStart] = useState(false)
+  const [countdownSecs, setCountdownSecs] = useState<number | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['quiz', ccId],
@@ -112,7 +113,20 @@ export function QuizPage() {
   // Reset local selection when question advances
   const sessionStatus = data?.session?.status
   const currentIdx = data?.session?.currentQuestionIndex
+  const countdownEndsAt: number | null = data?.session?.countdownEndsAt ?? null
   useEffect(() => { setSelectedOption(null); setSubmitted(false) }, [currentIdx, sessionStatus])
+
+  // Live countdown tick from server-provided endsAt timestamp
+  useEffect(() => {
+    if (!countdownEndsAt) { setCountdownSecs(null); return }
+    const tick = () => {
+      const s = Math.ceil((countdownEndsAt - Date.now()) / 1000)
+      setCountdownSecs(s > 0 ? s : null)
+    }
+    tick()
+    const id = setInterval(tick, 200)
+    return () => clearInterval(id)
+  }, [countdownEndsAt])
 
   const submitAnswer = useMutation({
     mutationFn: ({ optionId, teamId }: { optionId: string; teamId?: string }) =>
@@ -260,9 +274,31 @@ export function QuizPage() {
             <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{currentQ.points} pt{currentQ.points !== 1 ? 's' : ''}</p>
           </div>
 
-          {/* Timer */}
-          {currentQ.timerSeconds > 0 && !currentQ.locked && (
+          {/* Per-question timer */}
+          {currentQ.timerSeconds > 0 && !currentQ.locked && !countdownSecs && (
             <TimerBar key={session.currentQuestionIndex} seconds={currentQ.timerSeconds} onExpire={() => {}} />
+          )}
+
+          {/* Next-question countdown — shown to everyone */}
+          {countdownSecs !== null && (
+            <div style={{ marginBottom: 4 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', color: 'var(--accent-warm)' }}>
+                  Next question in…
+                </span>
+                <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '22px', color: 'var(--accent-warm)', lineHeight: 1 }}>
+                  {countdownSecs}
+                </span>
+              </div>
+              <div style={{ height: 8, background: 'var(--surface)', borderRadius: 99, overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%', borderRadius: 99,
+                  background: 'var(--accent-warm)',
+                  width: `${(countdownSecs / 5) * 100}%`,
+                  transition: 'width 200ms linear',
+                }} />
+              </div>
+            </div>
           )}
 
           {/* Question card */}
@@ -284,23 +320,32 @@ export function QuizPage() {
                 const answered = isTeamComp ? teams.length : (count?.count ?? 0)
                 const total = isTeamComp ? competition.teams.length : competition.players.length
                 const pct = total > 0 ? Math.round((answered / total) * 100) : 0
+                const hasPicks = answered > 0
                 return (
-                  <div key={opt.id} style={{ borderRadius: 'var(--radius)', border: '2px solid var(--border-light)', overflow: 'hidden', background: 'var(--background)', position: 'relative' }}>
-                    {/* fill bar */}
-                    <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: `${pct}%`, background: 'color-mix(in srgb, var(--accent) 12%, transparent)', transition: 'width 300ms' }} />
+                  <div key={opt.id} style={{
+                    borderRadius: 'var(--radius)', border: `2px solid ${hasPicks ? 'var(--accent)' : 'var(--border-light)'}`,
+                    overflow: 'hidden', background: 'var(--background)', position: 'relative',
+                    transition: 'border-color 200ms',
+                  }}>
+                    {/* fill bar — only shown when there are picks */}
+                    {hasPicks && (
+                      <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: `${pct}%`, background: 'color-mix(in srgb, var(--accent) 12%, transparent)', transition: 'width 300ms' }} />
+                    )}
                     <div style={{ position: 'relative', padding: '12px 14px' }}>
                       {opt.imageUrl && (
                         <img src={opt.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginBottom: 8, display: 'block' }} />
                       )}
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                        <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: '15px' }}>{opt.text}</p>
-                        <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', color: 'var(--text-muted)', flexShrink: 0 }}>{answered}/{total}</span>
+                        <p style={{ fontFamily: 'var(--font-ui)', fontWeight: hasPicks ? 700 : 500, fontSize: '15px' }}>{opt.text}</p>
+                        {hasPicks && !isTeamComp && (
+                          <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', color: 'var(--accent)', flexShrink: 0 }}>{answered}</span>
+                        )}
                       </div>
                       {isTeamComp && teams.length > 0 && (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '6px' }}>
                           {teams.map((teamId: string) => {
                             const t = competition.teams.find((x: any) => x.id === teamId)
-                            return <span key={teamId} style={{ padding: '2px 8px', borderRadius: '99px', fontSize: '11px', fontFamily: 'var(--font-ui)', fontWeight: 600, background: 'var(--surface)', color: 'var(--text-muted)' }}>{t?.name ?? teamId}</span>
+                            return <span key={teamId} style={{ padding: '2px 8px', borderRadius: '99px', fontSize: '11px', fontFamily: 'var(--font-ui)', fontWeight: 700, background: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--accent)' }}>{t?.name ?? teamId}</span>
                           })}
                         </div>
                       )}
@@ -379,13 +424,14 @@ export function QuizPage() {
               </div>
 
               <div style={{ display: 'flex', gap: '8px' }}>
-                {!session.questionLocked && (
-                  <Button size="sm" variant="ghost" onClick={() => qmMutate(() => api.quiz.lockQuestion(ccId!))}>
-                    🔒 Lock Answers
-                  </Button>
-                )}
-                <Button size="sm" onClick={() => qmMutate(() => api.quiz.nextQuestion(ccId!))}>
-                  {session.currentQuestionIndex >= questions.length - 1 ? '✅ Start Correction' : '→ Next Question'}
+                <Button
+                  size="sm"
+                  disabled={countdownSecs !== null}
+                  onClick={() => qmMutate(() => api.quiz.nextQuestion(ccId!))}
+                >
+                  {countdownSecs !== null
+                    ? `⏳ ${countdownSecs}s…`
+                    : session.currentQuestionIndex >= questions.length - 1 ? '✅ Start Correction' : '→ Next Question'}
                 </Button>
               </div>
             </div>
