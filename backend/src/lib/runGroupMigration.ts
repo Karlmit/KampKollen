@@ -1,8 +1,28 @@
 import { prisma } from '../db.js'
 
+// Idempotent: rewrite old-style subtitle text to use bold markers.
+// REPLACE is naturally idempotent — the old patterns won't appear once updated.
+async function migrateAwardSubtitles(): Promise<void> {
+  await prisma.$executeRaw`
+    UPDATE "Trophy"
+    SET subtitle =
+      REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
+        subtitle,
+        'the top score in',  'the **top score** in'),
+        'the winning team ', 'the **winning team** '),
+        '🥇 1st place',     '🥇 **1st place**'),
+        '🥈 2nd place',     '🥈 **2nd place**'),
+        '🥉 3rd place',     '🥉 **3rd place**')
+    WHERE subtitle IS NOT NULL
+  `
+}
+
 // Idempotent: runs on every startup. Creates "Bjorn Lunden" group and assigns
 // all existing users, competitions, and trophies to it as needed.
 export async function runGroupMigration(): Promise<void> {
+  // Always run subtitle migration (idempotent)
+  await migrateAwardSubtitles()
+
   let group = await prisma.group.findUnique({ where: { name: 'Bjorn Lunden' } })
 
   // Always stamp awarded trophies that have no group yet (covers existing deploys)
