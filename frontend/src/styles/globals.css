@@ -215,6 +215,11 @@ img {
 }
 
 /* ─── Live indicator ─── */
+@keyframes joinPulse {
+  0%, 100% { box-shadow: 0 4px 20px rgba(249,115,22,0.45); }
+  50%       { box-shadow: 0 4px 32px rgba(249,115,22,0.75), 0 0 0 6px rgba(249,115,22,0.15); }
+}
+
 @keyframes livePulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.35; transform: scale(0.6); }

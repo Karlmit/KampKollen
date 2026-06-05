@@ -97,15 +97,32 @@ export function CompetitionDetail() {
 
       {/* Join CTA */}
       {!isJoined && ['REGISTRATION', 'ACTIVE'].includes(comp.status) && (
-        <Button
-          fullWidth
-          size="lg"
+        <button
           onClick={() => joinMutation.mutate()}
-          loading={joinMutation.isPending}
-          style={{ marginBottom: '16px' }}
+          disabled={joinMutation.isPending}
+          style={{
+            width: '100%', marginBottom: '16px', padding: '18px 24px',
+            borderRadius: 'var(--radius-lg)', border: 'none', cursor: 'pointer',
+            background: 'linear-gradient(135deg, #f97316 0%, #ef4444 100%)',
+            color: '#fff', fontFamily: 'var(--font-ui)', fontWeight: 800,
+            fontSize: '18px', letterSpacing: '0.02em',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+            boxShadow: '0 4px 20px rgba(249,115,22,0.45)',
+            animation: 'joinPulse 2s ease-in-out infinite',
+            opacity: joinMutation.isPending ? 0.7 : 1,
+            transition: 'opacity 150ms',
+          }}
         >
-          Join Competition
-        </Button>
+          {joinMutation.isPending ? (
+            <span style={{ fontSize: '16px' }}>Joining…</span>
+          ) : (
+            <>
+              <span style={{ fontSize: '22px', lineHeight: 1 }}>🏁</span>
+              Join Competition
+              <span style={{ fontSize: '20px', lineHeight: 1 }}>→</span>
+            </>
+          )}
+        </button>
       )}
 
       {/* Waiting for team notice — only for team competitions */}
