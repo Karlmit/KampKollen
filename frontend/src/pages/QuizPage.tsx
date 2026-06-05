@@ -258,16 +258,49 @@ export function QuizPage() {
 
           {/* Question card */}
           <Card>
-            <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px', lineHeight: 1.4, marginBottom: currentQ.imageUrl ? 12 : 0 }}>
+            <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px', lineHeight: 1.4 }}>
               {currentQ.text}
             </p>
             {currentQ.imageUrl && (
-              <img src={currentQ.imageUrl} alt="" style={{ width: '100%', maxHeight: 200, objectFit: 'cover', borderRadius: 'var(--radius-sm)', marginTop: 8 }} />
+              <img src={currentQ.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginTop: 10, display: 'block' }} />
             )}
           </Card>
 
-          {/* Options */}
-          {currentQ.locked ? (
+          {/* Options — QM sees live distribution, players see answer buttons */}
+          {isQM ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {currentQ.options.map((opt: any) => {
+                const count = currentQ.answerCounts?.find((ac: any) => ac.optionId === opt.id)
+                const teams: string[] = count?.teams ?? []
+                const answered = isTeamComp ? teams.length : (count?.count ?? 0)
+                const total = isTeamComp ? competition.teams.length : competition.players.length
+                const pct = total > 0 ? Math.round((answered / total) * 100) : 0
+                return (
+                  <div key={opt.id} style={{ borderRadius: 'var(--radius)', border: '2px solid var(--border-light)', overflow: 'hidden', background: 'var(--background)', position: 'relative' }}>
+                    {/* fill bar */}
+                    <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: `${pct}%`, background: 'color-mix(in srgb, var(--accent) 12%, transparent)', transition: 'width 300ms' }} />
+                    <div style={{ position: 'relative', padding: '12px 14px' }}>
+                      {opt.imageUrl && (
+                        <img src={opt.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginBottom: 8, display: 'block' }} />
+                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                        <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: '15px' }}>{opt.text}</p>
+                        <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', color: 'var(--text-muted)', flexShrink: 0 }}>{answered}/{total}</span>
+                      </div>
+                      {isTeamComp && teams.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '6px' }}>
+                          {teams.map((teamId: string) => {
+                            const t = competition.teams.find((x: any) => x.id === teamId)
+                            return <span key={teamId} style={{ padding: '2px 8px', borderRadius: '99px', fontSize: '11px', fontFamily: 'var(--font-ui)', fontWeight: 600, background: 'var(--surface)', color: 'var(--text-muted)' }}>{t?.name ?? teamId}</span>
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : currentQ.locked ? (
             <Card padding="14px" style={{ textAlign: 'center' }}>
               <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--text-muted)' }}>
                 {mySubmittedOption ? '✓ Answer submitted — waiting for next question' : '⏸ Question locked'}
@@ -283,14 +316,16 @@ export function QuizPage() {
                     type="button"
                     onClick={() => handleSelectOption(opt.id)}
                     style={{
-                      padding: '14px 16px', borderRadius: 'var(--radius)', cursor: 'pointer', textAlign: 'left', width: '100%',
+                      padding: opt.imageUrl ? '12px' : '14px 16px',
+                      borderRadius: 'var(--radius)', cursor: 'pointer', textAlign: 'left', width: '100%',
                       border: `2px solid ${picked ? 'var(--accent)' : 'var(--border-light)'}`,
                       background: picked ? 'color-mix(in srgb, var(--accent) 10%, transparent)' : 'var(--background)',
-                      display: 'flex', alignItems: 'center', gap: '10px',
                       transition: 'border-color 120ms, background 120ms',
                     }}
                   >
-                    {opt.imageUrl && <img src={opt.imageUrl} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 'var(--radius-sm)', flexShrink: 0 }} />}
+                    {opt.imageUrl && (
+                      <img src={opt.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginBottom: 8, display: 'block' }} />
+                    )}
                     <p style={{ fontFamily: 'var(--font-ui)', fontWeight: picked ? 700 : 500, fontSize: '15px' }}>{opt.text}</p>
                   </button>
                 )
@@ -358,7 +393,7 @@ export function QuizPage() {
 
           <Card>
             <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px', lineHeight: 1.4 }}>{correctionQ.text}</p>
-            {correctionQ.imageUrl && <img src={correctionQ.imageUrl} alt="" style={{ width: '100%', maxHeight: 180, objectFit: 'cover', borderRadius: 'var(--radius-sm)', marginTop: 8 }} />}
+            {correctionQ.imageUrl && <img src={correctionQ.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginTop: 8, display: 'block' }} />}
           </Card>
 
           {/* Answer options with distribution + correct reveal */}
@@ -389,17 +424,21 @@ export function QuizPage() {
                     <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: `${pct}%`, background: isCorrect ? 'color-mix(in srgb, var(--accent-green) 12%, transparent)' : 'color-mix(in srgb, var(--text-muted) 8%, transparent)', transition: 'width 400ms' }} />
                   )}
 
-                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    {opt.imageUrl && <img src={opt.imageUrl} alt="" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 'var(--radius-sm)', flexShrink: 0 }} />}
-                    <p style={{ flex: 1, fontFamily: 'var(--font-ui)', fontWeight: isMine ? 700 : 500, fontSize: '15px' }}>
-                      {opt.text}
-                      {isMine && <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: 6 }}>(your answer)</span>}
-                      {isCorrect && <span style={{ marginLeft: 8 }}>✅</span>}
-                      {isWrong && <span style={{ marginLeft: 8 }}>❌</span>}
-                    </p>
-                    {session.correctAnswerVisible && (
-                      <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', color: 'var(--text-muted)', flexShrink: 0 }}>{pct}%</span>
+                  <div style={{ position: 'relative' }}>
+                    {opt.imageUrl && (
+                      <img src={opt.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginBottom: 8, display: 'block' }} />
                     )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <p style={{ flex: 1, fontFamily: 'var(--font-ui)', fontWeight: isMine ? 700 : 500, fontSize: '15px' }}>
+                        {opt.text}
+                        {isMine && <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: 6 }}>(your answer)</span>}
+                        {isCorrect && <span style={{ marginLeft: 8 }}>✅</span>}
+                        {isWrong && <span style={{ marginLeft: 8 }}>❌</span>}
+                      </p>
+                      {session.correctAnswerVisible && (
+                        <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', color: 'var(--text-muted)', flexShrink: 0 }}>{pct}%</span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Team badges */}
@@ -464,6 +503,9 @@ export function QuizPage() {
                   </p>
                   <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: 8, flexShrink: 0 }}>{q.points} pt{q.points !== 1 ? 's' : ''}</span>
                 </div>
+                {q.imageUrl && (
+                  <img src={q.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginBottom: 10, display: 'block' }} />
+                )}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {q.options.map((opt: any) => {
                     const isMine = q.myOptionId === opt.id
@@ -475,6 +517,9 @@ export function QuizPage() {
                         border: `1.5px solid ${opt.isCorrect ? 'var(--accent-green)' : isMine ? 'var(--accent)' : 'var(--border-light)'}`,
                         background: opt.isCorrect ? 'color-mix(in srgb, var(--accent-green) 8%, transparent)' : 'transparent',
                       }}>
+                        {opt.imageUrl && (
+                          <img src={opt.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginBottom: 6, display: 'block' }} />
+                        )}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <span style={{ fontSize: '13px' }}>{opt.isCorrect ? '✅' : isMine ? '❌' : '○'}</span>
                           <p style={{ flex: 1, fontSize: '14px', fontFamily: 'var(--font-ui)', fontWeight: opt.isCorrect ? 700 : 400 }}>{opt.text}</p>
