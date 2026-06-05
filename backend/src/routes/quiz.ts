@@ -29,8 +29,7 @@ async function getOrCreateSession(ccId: string) {
   })
 }
 
-// QM check: only the isQuizMaster flag counts — admins are treated as regular
-// players unless they are also explicitly marked as QM in this competition.
+// QM check by ccId: only isQuizMaster flag, no admin bypass.
 async function isQM(userId: string, ccId: string): Promise<boolean> {
   const cc = await prisma.competitionChallenge.findUnique({ where: { id: ccId }, select: { competitionId: true } })
   if (!cc) return false
@@ -39,6 +38,35 @@ async function isQM(userId: string, ccId: string): Promise<boolean> {
     select: { isQuizMaster: true },
   })
   return player?.isQuizMaster ?? false
+}
+
+// Edit access: admin OR a QM in any competition that uses this challenge.
+async function canEditQuiz(userId: string, role: string, challengeId: string): Promise<boolean> {
+  if (role === GlobalRole.ADMIN) return true
+  const ccs = await prisma.competitionChallenge.findMany({
+    where: { challengeId },
+    select: { competitionId: true },
+  })
+  for (const cc of ccs) {
+    const player = await prisma.competitionPlayer.findUnique({
+      where: { competitionId_userId: { competitionId: cc.competitionId, userId } },
+      select: { isQuizMaster: true },
+    })
+    if (player?.isQuizMaster) return true
+  }
+  return false
+}
+
+// Resolve challengeId from an option id (option → question → challenge)
+async function challengeIdFromOption(optionId: string): Promise<string | null> {
+  const opt = await prisma.quizOption.findUnique({ where: { id: optionId }, select: { question: { select: { challengeId: true } } } })
+  return opt?.question?.challengeId ?? null
+}
+
+// Resolve challengeId from a question id
+async function challengeIdFromQuestion(questionId: string): Promise<string | null> {
+  const q = await prisma.quizQuestion.findUnique({ where: { id: questionId }, select: { challengeId: true } })
+  return q?.challengeId ?? null
 }
 
 async function computeAndSaveScores(ccId: string, actorId: string) {
@@ -104,9 +132,11 @@ async function computeAndSaveScores(ccId: string, actorId: string) {
 // ── Route handler ─────────────────────────────────────────────────────────────
 export async function quizRoutes(app: FastifyInstance) {
 
-  // ── Challenge questions (admin editor) ──────────────────────────────────────
-  app.get('/challenge/:challengeId/questions', { preHandler: requireAdmin }, async (request, reply) => {
+  // ── Challenge questions (admin/QM editor) ──────────────────────────────────
+  app.get('/challenge/:challengeId/questions', { preHandler: requireAuth }, async (request, reply) => {
     const { challengeId } = request.params as { challengeId: string }
+    const me = request.user as { id: string; role: string }
+    if (!await canEditQuiz(me.id, me.role, challengeId)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
     const challenge = await prisma.challenge.findUnique({ where: { id: challengeId } })
     if (!challenge) return reply.status(404).send({ error: 'Not found' })
     const questions = await prisma.quizQuestion.findMany({
@@ -265,8 +295,9 @@ export async function quizRoutes(app: FastifyInstance) {
     }
   })
 
-  // ── Question CRUD (admin only) ──────────────────────────────────────────────
-  app.post('/questions', { preHandler: requireAdmin }, async (request, reply) => {
+  // ── Question CRUD (admin or QM) ─────────────────────────────────────────────
+  app.post('/questions', { preHandler: requireAuth }, async (request, reply) => {
+    const me = request.user as { id: string; role: string }
     const body = z.object({
       challengeId: z.string(),
       text: z.string().min(1),
@@ -274,11 +305,9 @@ export async function quizRoutes(app: FastifyInstance) {
       timerSeconds: z.number().int().min(0).default(0),
     }).safeParse(request.body)
     if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
+    if (!await canEditQuiz(me.id, me.role, body.data.challengeId)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
 
-    const maxOrder = await prisma.quizQuestion.aggregate({
-      where: { challengeId: body.data.challengeId },
-      _max: { order: true },
-    })
+    const maxOrder = await prisma.quizQuestion.aggregate({ where: { challengeId: body.data.challengeId }, _max: { order: true } })
     const question = await prisma.quizQuestion.create({
       data: { ...body.data, order: (maxOrder._max.order ?? -1) + 1 },
       include: { options: true },
@@ -286,8 +315,11 @@ export async function quizRoutes(app: FastifyInstance) {
     return reply.status(201).send({ question })
   })
 
-  app.put('/questions/:id', { preHandler: requireAdmin }, async (request, reply) => {
+  app.put('/questions/:id', { preHandler: requireAuth }, async (request, reply) => {
     const { id } = request.params as { id: string }
+    const me = request.user as { id: string; role: string }
+    const cid = await challengeIdFromQuestion(id)
+    if (!cid || !await canEditQuiz(me.id, me.role, cid)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
     const body = z.object({
       text: z.string().min(1).optional(),
       points: z.number().int().min(1).optional(),
@@ -298,24 +330,33 @@ export async function quizRoutes(app: FastifyInstance) {
     return { question }
   })
 
-  app.delete('/questions/:id', { preHandler: requireAdmin }, async (request) => {
+  app.delete('/questions/:id', { preHandler: requireAuth }, async (request, reply) => {
     const { id } = request.params as { id: string }
+    const me = request.user as { id: string; role: string }
+    const cid = await challengeIdFromQuestion(id)
+    if (!cid || !await canEditQuiz(me.id, me.role, cid)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
     await prisma.quizQuestion.delete({ where: { id } })
     return { success: true }
   })
 
-  app.put('/questions/reorder', { preHandler: requireAdmin }, async (request, reply) => {
+  app.put('/questions/reorder', { preHandler: requireAuth }, async (request, reply) => {
+    const me = request.user as { id: string; role: string }
     const body = z.object({ order: z.array(z.string()) }).safeParse(request.body)
     if (!body.success) return reply.status(400).send({ error: 'order must be an array of IDs' })
-    await Promise.all(body.data.order.map((id, i) =>
-      prisma.quizQuestion.update({ where: { id }, data: { order: i } })
-    ))
+    if (body.data.order.length > 0) {
+      const cid = await challengeIdFromQuestion(body.data.order[0])
+      if (!cid || !await canEditQuiz(me.id, me.role, cid)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
+    }
+    await Promise.all(body.data.order.map((id, i) => prisma.quizQuestion.update({ where: { id }, data: { order: i } })))
     return { success: true }
   })
 
   // ── Image upload for question ───────────────────────────────────────────────
-  app.post('/questions/:id/image', { preHandler: requireAdmin }, async (request, reply) => {
+  app.post('/questions/:id/image', { preHandler: requireAuth }, async (request, reply) => {
     const { id } = request.params as { id: string }
+    const me = request.user as { id: string; role: string }
+    const cid = await challengeIdFromQuestion(id)
+    if (!cid || !await canEditQuiz(me.id, me.role, cid)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
     const data = await request.file()
     if (!data) return reply.status(400).send({ error: 'No file' })
     const ext = path.extname(data.filename) || '.jpg'
@@ -332,26 +373,30 @@ export async function quizRoutes(app: FastifyInstance) {
   })
 
   // ── Option CRUD ─────────────────────────────────────────────────────────────
-  app.post('/questions/:questionId/options', { preHandler: requireAdmin }, async (request, reply) => {
+  app.post('/questions/:questionId/options', { preHandler: requireAuth }, async (request, reply) => {
     const { questionId } = request.params as { questionId: string }
+    const me = request.user as { id: string; role: string }
+    const cid = await challengeIdFromQuestion(questionId)
+    if (!cid || !await canEditQuiz(me.id, me.role, cid)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
     const body = z.object({ text: z.string().min(1), isCorrect: z.boolean().default(false) }).safeParse(request.body)
     if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
     const maxOrder = await prisma.quizOption.aggregate({ where: { questionId }, _max: { order: true } })
     const option = await prisma.quizOption.create({
       data: { questionId, text: body.data.text, isCorrect: body.data.isCorrect, order: (maxOrder._max.order ?? -1) + 1 },
     })
-    // If marking correct, clear other correct flags (only one correct answer)
     if (body.data.isCorrect) {
       await prisma.quizOption.updateMany({ where: { questionId, id: { not: option.id } }, data: { isCorrect: false } })
     }
     return reply.status(201).send({ option })
   })
 
-  app.put('/options/:id', { preHandler: requireAdmin }, async (request, reply) => {
+  app.put('/options/:id', { preHandler: requireAuth }, async (request, reply) => {
     const { id } = request.params as { id: string }
+    const me = request.user as { id: string; role: string }
+    const cid = await challengeIdFromOption(id)
+    if (!cid || !await canEditQuiz(me.id, me.role, cid)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
     const body = z.object({ text: z.string().min(1).optional(), isCorrect: z.boolean().optional() }).safeParse(request.body)
     if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
-
     if (body.data.isCorrect) {
       const opt = await prisma.quizOption.findUnique({ where: { id }, select: { questionId: true } })
       if (opt) await prisma.quizOption.updateMany({ where: { questionId: opt.questionId, id: { not: id } }, data: { isCorrect: false } })
@@ -360,15 +405,21 @@ export async function quizRoutes(app: FastifyInstance) {
     return { option }
   })
 
-  app.delete('/options/:id', { preHandler: requireAdmin }, async (request) => {
+  app.delete('/options/:id', { preHandler: requireAuth }, async (request, reply) => {
     const { id } = request.params as { id: string }
+    const me = request.user as { id: string; role: string }
+    const cid = await challengeIdFromOption(id)
+    if (!cid || !await canEditQuiz(me.id, me.role, cid)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
     await prisma.quizOption.delete({ where: { id } })
     return { success: true }
   })
 
   // ── Image upload for option ─────────────────────────────────────────────────
-  app.post('/options/:id/image', { preHandler: requireAdmin }, async (request, reply) => {
+  app.post('/options/:id/image', { preHandler: requireAuth }, async (request, reply) => {
     const { id } = request.params as { id: string }
+    const me = request.user as { id: string; role: string }
+    const cid = await challengeIdFromOption(id)
+    if (!cid || !await canEditQuiz(me.id, me.role, cid)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
     const data = await request.file()
     if (!data) return reply.status(400).send({ error: 'No file' })
     const ext = path.extname(data.filename) || '.jpg'

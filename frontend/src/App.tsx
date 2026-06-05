@@ -27,6 +27,7 @@ import { AdminBackup } from './pages/admin/Backup'
 import { AdminGroups } from './pages/admin/Groups'
 import { AdminQuizEditor } from './pages/admin/QuizEditor'
 import { QuizPage } from './pages/QuizPage'
+import { QuizEditorPage } from './pages/QuizEditorPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -77,6 +78,7 @@ function AppRoutes() {
       <Route path="/admin/groups" element={<RequireAuth><AdminGroups /></RequireAuth>} />
       <Route path="/admin/quiz/:challengeId" element={<RequireAuth><AdminQuizEditor /></RequireAuth>} />
       <Route path="/competitions/:competitionId/quiz/:ccId" element={<RequireAuth><QuizPage /></RequireAuth>} />
+      <Route path="/competitions/:competitionId/quiz/:ccId/edit" element={<RequireAuth><QuizEditorPage /></RequireAuth>} />
 
       <Route path="*" element={<Navigate to={user ? '/' : '/competitions'} replace />} />
     </Routes>

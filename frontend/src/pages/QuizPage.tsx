@@ -210,7 +210,7 @@ export function QuizPage() {
           {/* QM controls */}
           {isQM && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <Link to={`/admin/quiz/${challengeId}`} style={{ textDecoration: 'none' }}>
+              <Link to={`/competitions/${competitionId}/quiz/${ccId}/edit`} style={{ textDecoration: 'none' }}>
                 <Button fullWidth variant="ghost" size="lg">✏️ Edit Quiz Questions</Button>
               </Link>
               <Button fullWidth size="lg" onClick={() => setConfirmStart(true)}>
