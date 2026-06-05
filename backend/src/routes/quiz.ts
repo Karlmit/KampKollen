@@ -255,6 +255,7 @@ export async function quizRoutes(app: FastifyInstance) {
       isQM,
       isTeamComp,
       myTeamId,
+      challengeId: cc.challenge.id,
       competition: {
         id: cc.competition.id,
         teams: cc.competition.teams,

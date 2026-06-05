@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Layout } from '../components/layout/Layout'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
+import { Modal } from '../components/ui/Modal'
 import { Avatar } from '../components/ui/Avatar'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { useAuth } from '../contexts/AuthContext'
@@ -88,6 +89,7 @@ export function QuizPage() {
   const qc = useQueryClient()
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
+  const [confirmStart, setConfirmStart] = useState(false)
 
   const { data, isLoading } = useQuery({
     queryKey: ['quiz', ccId],
@@ -130,7 +132,7 @@ export function QuizPage() {
   if (isLoading) return <Layout title="Quiz" back={`/competitions/${competitionId}`}><LoadingSpinner /></Layout>
   if (!data) return <Layout title="Quiz" back={`/competitions/${competitionId}`}><p>Not found</p></Layout>
 
-  const { session, isQM, isTeamComp, myTeamId, competition, questions } = data
+  const { session, isQM, isTeamComp, myTeamId, competition, questions, challengeId } = data
   const myTeam = competition.teams.find((t: any) => t.id === myTeamId)
   const currentQ = questions[session.currentQuestionIndex]
   const correctionQ = questions[session.correctionIndex]
@@ -207,12 +209,36 @@ export function QuizPage() {
 
           {/* QM controls */}
           {isQM && (
-            <Button fullWidth size="lg" onClick={() => qmMutate(() => api.quiz.start(ccId!))}>
-              🚀 Start Quiz
-            </Button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <Link to={`/admin/quiz/${challengeId}`} style={{ textDecoration: 'none' }}>
+                <Button fullWidth variant="ghost" size="lg">✏️ Edit Quiz Questions</Button>
+              </Link>
+              <Button fullWidth size="lg" onClick={() => setConfirmStart(true)}>
+                🚀 Start Quiz
+              </Button>
+            </div>
           )}
         </div>
       )}
+
+      {/* Start quiz confirmation */}
+      <Modal
+        open={confirmStart}
+        onClose={() => setConfirmStart(false)}
+        title="Start Quiz?"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirmStart(false)}>Cancel</Button>
+            <Button onClick={() => { setConfirmStart(false); qmMutate(() => api.quiz.start(ccId!)) }}>
+              Start Quiz
+            </Button>
+          </>
+        }
+      >
+        <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+          Once the quiz starts, <strong>questions can no longer be edited</strong>. Make sure all questions and answer options are correct before continuing.
+        </p>
+      </Modal>
 
       {/* ── ACTIVE ───────────────────────────────────────────────────────── */}
       {session.status === 'ACTIVE' && currentQ && (
