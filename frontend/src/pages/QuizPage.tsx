@@ -584,20 +584,33 @@ export function QuizPage() {
           }
         }
 
-        const podium = isTeamComp
+        // Build sorted list with tied ranks
+        const allEntries = (isTeamComp
           ? competition.teams
               .map((t: any) => ({ id: t.id, name: t.name, imageUrl: t.imageUrl, score: scoreMap[t.id] ?? 0 }))
-              .sort((a: any, b: any) => b.score - a.score)
-              .slice(0, 3)
           : competition.players
               .filter((p: any) => !p.user?.isDummy)
               .map((p: any) => ({ id: p.userId, name: p.user?.displayName ?? p.user?.username, imageUrl: p.user?.profileImageUrl, score: scoreMap[p.userId] ?? 0 }))
-              .sort((a: any, b: any) => b.score - a.score)
-              .slice(0, 3)
+        ).sort((a: any, b: any) => b.score - a.score)
 
-        const podiumOrder = [podium[1], podium[0], podium[2]].filter(Boolean) // 2nd, 1st, 3rd visual order
-        const podiumRankLabel = (rank: number) => rank === 0 ? '🥇' : rank === 1 ? '🥈' : '🥉'
-        const podiumHeight = [80, 100, 60] // visual heights for 2nd, 1st, 3rd columns
+        // Assign tied ranks (1,1,3 style)
+        const ranked: Array<any & { rank: number }> = []
+        let currentRank = 1
+        for (let i = 0; i < allEntries.length; i++) {
+          if (i > 0 && allEntries[i].score !== allEntries[i - 1].score) currentRank = i + 1
+          ranked.push({ ...allEntries[i], rank: currentRank })
+        }
+
+        // Group by rank, keep only rank 1, 2, 3
+        const rankGroups: Record<number, typeof ranked> = {}
+        for (const e of ranked) {
+          if (e.rank > 3) break
+          if (!rankGroups[e.rank]) rankGroups[e.rank] = []
+          rankGroups[e.rank].push(e)
+        }
+        const rankMedal = (rank: number) => rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'
+        const rankBg = (rank: number) => rank === 1 ? 'var(--text-primary)' : 'var(--surface)'
+        const rankColor = (rank: number) => rank === 1 ? '#fff' : 'var(--text-primary)'
 
         return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -607,35 +620,41 @@ export function QuizPage() {
             <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>Scores submitted to competition leaderboard.</p>
           </Card>
 
-          {/* Top 3 podium */}
-          {podium.length > 0 && (
+          {/* Results — supports tied ranks */}
+          {Object.keys(rankGroups).length > 0 && (
             <Card padding="16px">
-              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '16px', textAlign: 'center' }}>
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '12px', textAlign: 'center' }}>
                 {isTeamComp ? 'Team Scores' : 'Player Scores'}
               </p>
-              <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: '8px' }}>
-                {podiumOrder.map((entry: any, visualIdx: number) => {
-                  const rank = podium.indexOf(entry)
-                  const h = podiumHeight[visualIdx]
-                  const isFirst = rank === 0
-                  return (
-                    <div key={entry.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', flex: 1 }}>
-                      <span style={{ fontSize: '22px', lineHeight: 1 }}>{podiumRankLabel(rank)}</span>
-                      <Avatar src={entry.imageUrl} name={entry.name} size={isFirst ? 44 : 36} style={isTeamComp ? { borderRadius: '50%' } : undefined} />
-                      <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px', textAlign: 'center', lineHeight: 1.2 }}>{entry.name}</p>
-                      <div style={{
-                        width: '100%', height: h, borderRadius: 'var(--radius-sm) var(--radius-sm) 0 0',
-                        background: isFirst ? 'var(--text-primary)' : 'var(--surface)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        border: isFirst ? '2px solid var(--text-primary)' : '1.5px solid var(--border-light)',
-                      }}>
-                        <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: isFirst ? '20px' : '16px', color: isFirst ? '#fff' : 'var(--text-primary)' }}>
-                          {entry.score}
-                        </p>
-                      </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {[1, 2, 3].filter(r => rankGroups[r]).map(rank => (
+                  <div key={rank} style={{
+                    borderRadius: 'var(--radius)',
+                    background: rankBg(rank),
+                    border: rank === 1 ? 'none' : '1.5px solid var(--border-light)',
+                    padding: '12px 14px',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: rankGroups[rank].length > 1 ? '10px' : 0 }}>
+                      <span style={{ fontSize: '24px', lineHeight: 1, flexShrink: 0 }}>{rankMedal(rank)}</span>
+                      <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '20px', color: rankColor(rank), lineHeight: 1 }}>
+                        {rankGroups[rank][0].score} <span style={{ fontWeight: 400, fontSize: '13px', opacity: 0.7 }}>pts</span>
+                      </p>
+                      {rankGroups[rank].length > 1 && (
+                        <span style={{ fontSize: '11px', fontFamily: 'var(--font-ui)', fontWeight: 700, color: rank === 1 ? 'rgba(255,255,255,0.6)' : 'var(--text-muted)', marginLeft: 'auto' }}>
+                          {rankGroups[rank].length}-way tie
+                        </span>
+                      )}
                     </div>
-                  )
-                })}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                      {rankGroups[rank].map((entry: any) => (
+                        <div key={entry.id} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <Avatar src={entry.imageUrl} name={entry.name} size={32} style={isTeamComp ? { borderRadius: '50%' } : undefined} />
+                          <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', color: rankColor(rank) }}>{entry.name}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             </Card>
           )}
