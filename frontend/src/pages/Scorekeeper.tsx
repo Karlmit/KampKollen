@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Layout } from '../components/layout/Layout'
 import { Card } from '../components/ui/Card'
@@ -321,16 +321,28 @@ export function ScorekeeperPage() {
                   {selectedCc.challenge.name}
                 </p>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                  Score type: <strong>{SCORE_TYPE_LABELS[scoreType]}</strong>
+                  {selectedCc.challenge.isQuiz ? '🎯 Quiz challenge' : <>Score type: <strong>{SCORE_TYPE_LABELS[scoreType]}</strong></>}
                 </p>
-                {scoreType === 'time_fastest_wins' && (
-                  <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Enter time in seconds</p>
-                )}
               </div>
             </div>
           </Card>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
+          {selectedCc.challenge.isQuiz && (
+            <Card padding="16px" style={{ textAlign: 'center', marginBottom: '20px' }}>
+              <p style={{ fontSize: '22px', marginBottom: '8px' }}>🎯</p>
+              <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px', marginBottom: '6px' }}>
+                Quiz scores are automatic
+              </p>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '14px', lineHeight: 1.5 }}>
+                Scores for this challenge are calculated automatically when the quiz is completed. Use the Quiz page to run the quiz.
+              </p>
+              <Link to={`/competitions/${competitionId}/quiz/${selectedCc.id}`} style={{ textDecoration: 'none' }}>
+                <Button size="sm">Open Quiz →</Button>
+              </Link>
+            </Card>
+          )}
+
+          {!selectedCc.challenge.isQuiz && <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
             {groupedTeams.map(team => (
               <div key={team.id ?? 'pool'}>
                 {showTeamHeaders && (
@@ -382,7 +394,7 @@ export function ScorekeeperPage() {
                 </div>
               </div>
             ))}
-          </div>
+          </div>}
 
         </>
       )}
