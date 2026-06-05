@@ -359,6 +359,19 @@ export async function quizRoutes(app: FastifyInstance) {
     return { success: true }
   })
 
+  // ── Reorder options ─────────────────────────────────────────────────────────
+  app.put('/options/reorder', { preHandler: requireAuth }, async (request, reply) => {
+    const me = request.user as { id: string; role: string }
+    const body = z.object({ order: z.array(z.string()) }).safeParse(request.body)
+    if (!body.success) return reply.status(400).send({ error: 'order must be an array of IDs' })
+    if (body.data.order.length > 0) {
+      const cid = await challengeIdFromOption(body.data.order[0])
+      if (!cid || !await canEditQuiz(me.id, me.role, cid)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
+    }
+    await Promise.all(body.data.order.map((id, i) => prisma.quizOption.update({ where: { id }, data: { order: i } })))
+    return { success: true }
+  })
+
   // ── Image upload for question ───────────────────────────────────────────────
   app.post('/questions/:id/image', { preHandler: requireAuth }, async (request, reply) => {
     const { id } = request.params as { id: string }

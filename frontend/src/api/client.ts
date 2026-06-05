@@ -140,6 +140,7 @@ export const api = {
       request<{ question: any }>(`/quiz/questions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteQuestion: (id: string) => request(`/quiz/questions/${id}`, { method: 'DELETE' }),
     reorderQuestions: (order: string[]) => request('/quiz/questions/reorder', { method: 'PUT', body: JSON.stringify({ order }) }),
+    reorderOptions: (order: string[]) => request('/quiz/options/reorder', { method: 'PUT', body: JSON.stringify({ order }) }),
     uploadQuestionImage: (id: string, file: File) => {
       const form = new FormData(); form.append('file', file)
       return fetch(`api/quiz/questions/${id}/image`, { method: 'POST', credentials: 'include', body: form })

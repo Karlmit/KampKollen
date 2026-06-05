@@ -271,7 +271,13 @@ export function QuizPage() {
             <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
               QUESTION {session.currentQuestionIndex + 1} / {questions.length}
             </p>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{currentQ.points} pt{currentQ.points !== 1 ? 's' : ''}</p>
+            <span style={{
+              padding: '3px 10px', borderRadius: '99px',
+              background: 'var(--accent)', color: '#fff',
+              fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '13px',
+            }}>
+              {currentQ.points} {currentQ.points === 1 ? 'point' : 'points'}
+            </span>
           </div>
 
           {/* Per-question timer */}
@@ -284,7 +290,7 @@ export function QuizPage() {
             <div style={{ marginBottom: 4 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                 <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', color: 'var(--accent-warm)' }}>
-                  Next question in…
+                  {session.currentQuestionIndex >= questions.length - 1 ? 'Quiz completes in…' : 'Next question in…'}
                 </span>
                 <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '22px', color: 'var(--accent-warm)', lineHeight: 1 }}>
                   {countdownSecs}
@@ -442,14 +448,25 @@ export function QuizPage() {
       {/* ── CORRECTING ───────────────────────────────────────────────────── */}
       {session.status === 'CORRECTING' && correctionQ && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {/* Scoreboard strip */}
-          <MiniScoreboard questions={questions.slice(0, session.correctionIndex)} teams={competition.teams} players={competition.players} isTeamComp={isTeamComp} />
+          {/* Scoreboard strip — includes current question once answer is revealed */}
+          <MiniScoreboard
+            questions={questions.slice(0, session.correctionIndex + (session.correctAnswerVisible ? 1 : 0))}
+            teams={competition.teams}
+            players={competition.players}
+            isTeamComp={isTeamComp}
+          />
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
               CORRECTING {session.correctionIndex + 1} / {questions.length}
             </p>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{correctionQ.points} pt{correctionQ.points !== 1 ? 's' : ''}</p>
+            <span style={{
+              padding: '3px 10px', borderRadius: '99px',
+              background: 'var(--accent)', color: '#fff',
+              fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '13px',
+            }}>
+              {correctionQ.points} {correctionQ.points === 1 ? 'point' : 'points'}
+            </span>
           </div>
 
           <Card>
