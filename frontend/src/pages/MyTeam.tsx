@@ -213,15 +213,30 @@ export function MyTeamPage() {
                     </Button>
                   </div>
                 )}
-                {canManage && !p.user?.isDummy && p.userId === user?.id && (isAdmin || !myPlayer?.isTeamLeader) && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setRemoveConfirmUserId(p.userId)}
-                    style={{ fontSize: '12px', padding: '4px 10px' }}
-                  >
-                    Leave
-                  </Button>
+                {canManage && !p.user?.isDummy && p.userId === user?.id && (
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    {isAdmin && (
+                      <Button
+                        size="sm"
+                        variant={p.isQuizMaster ? 'success' : 'ghost'}
+                        onClick={() => toggleQuizMasterMutation.mutate({ userId: p.userId, isQuizMaster: !p.isQuizMaster })}
+                        loading={toggleQuizMasterMutation.isPending}
+                        style={{ fontSize: '11px', padding: '4px 10px' }}
+                      >
+                        {p.isQuizMaster ? '🎯 QM' : 'QM'}
+                      </Button>
+                    )}
+                    {(isAdmin || !myPlayer?.isTeamLeader) && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setRemoveConfirmUserId(p.userId)}
+                        style={{ fontSize: '12px', padding: '4px 10px' }}
+                      >
+                        Leave
+                      </Button>
+                    )}
+                  </div>
                 )}
                 {canManage && !p.user?.isDummy && p.userId !== user?.id && (
                   <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>

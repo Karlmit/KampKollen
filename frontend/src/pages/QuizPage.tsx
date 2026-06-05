@@ -85,7 +85,7 @@ function MiniScoreboard({ questions, teams, players, isTeamComp }: any) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 export function QuizPage() {
   const { competitionId, ccId } = useParams<{ competitionId: string; ccId: string }>()
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
   const qc = useQueryClient()
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
@@ -133,8 +133,8 @@ export function QuizPage() {
   if (!data) return <Layout title="Quiz" back={`/competitions/${competitionId}`}><p>Not found</p></Layout>
 
   const { session, isQM, isTeamComp, myTeamId, myIsTeamLeader, myIsScorekeeper, competition, questions, challengeId } = data
-  // In team mode only leaders/scorekeepers can act; in individual mode anyone can
-  const canAct = !isTeamComp || isQM || myIsTeamLeader || myIsScorekeeper
+  // In team mode: leaders, scorekeepers, and non-QM admins can act; individual mode: everyone
+  const canAct = !isTeamComp || myIsTeamLeader || myIsScorekeeper || (isAdmin && !isQM)
   const myTeam = competition.teams.find((t: any) => t.id === myTeamId)
   const currentQ = questions[session.currentQuestionIndex]
   const correctionQ = questions[session.correctionIndex]
