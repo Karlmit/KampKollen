@@ -284,7 +284,7 @@ async function computeWinners(competitionId: string): Promise<AwardRecipient[]> 
       for (const member of members) {
         recipients.push({
           userId: member.userId,
-          subtitle: `Awarded in **${competition.name}** for being in the **winning team** **${winningTeam.name}**`,
+          subtitle: `Awarded for being in the **winning team** **${winningTeam.name}** in **${competition.name}**`,
         })
       }
     }

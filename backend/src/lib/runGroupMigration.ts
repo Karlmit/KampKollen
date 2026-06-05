@@ -3,6 +3,22 @@ import { prisma } from '../db.js'
 // Idempotent: rewrite old-style subtitle text to use bold markers.
 // REPLACE is naturally idempotent — the old patterns won't appear once updated.
 async function migrateAwardSubtitles(): Promise<void> {
+  // Step 1: Reorder winning-team sentences
+  // Old: "Awarded in **X** for being in the winning team **Y**"  (pre-bold migration)
+  // Old: "Awarded in **X** for being in the **winning team** **Y**"  (post-bold migration)
+  // New: "Awarded for being in the **winning team** **Y** in **X**"
+  await prisma.$executeRaw`
+    UPDATE "Trophy"
+    SET subtitle = REGEXP_REPLACE(
+      subtitle,
+      E'Awarded in \\*\\*(.+?)\\*\\* for being in the (\\*\\*)?winning team(\\*\\*)? \\*\\*(.+?)\\*\\*',
+      E'Awarded for being in the **winning team** **\\4** in **\\1**'
+    )
+    WHERE subtitle IS NOT NULL
+      AND subtitle LIKE 'Awarded in **%** for being in the%winning team%'
+  `
+
+  // Step 2: Bold remaining plain-text phrases (idempotent)
   await prisma.$executeRaw`
     UPDATE "Trophy"
     SET subtitle =
