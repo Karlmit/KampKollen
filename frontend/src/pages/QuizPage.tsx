@@ -132,7 +132,9 @@ export function QuizPage() {
   if (isLoading) return <Layout title="Quiz" back={`/competitions/${competitionId}`}><LoadingSpinner /></Layout>
   if (!data) return <Layout title="Quiz" back={`/competitions/${competitionId}`}><p>Not found</p></Layout>
 
-  const { session, isQM, isTeamComp, myTeamId, competition, questions, challengeId } = data
+  const { session, isQM, isTeamComp, myTeamId, myIsTeamLeader, myIsScorekeeper, competition, questions, challengeId } = data
+  // In team mode only leaders/scorekeepers can act; in individual mode anyone can
+  const canAct = !isTeamComp || isQM || myIsTeamLeader || myIsScorekeeper
   const myTeam = competition.teams.find((t: any) => t.id === myTeamId)
   const currentQ = questions[session.currentQuestionIndex]
   const correctionQ = questions[session.correctionIndex]
@@ -166,8 +168,8 @@ export function QuizPage() {
             </p>
           </Card>
 
-          {/* Ready button */}
-          {!isQM && !amReady && (
+          {/* Ready button — team mode: leaders/SK only; individual mode: everyone */}
+          {!isQM && canAct && !amReady && (
             <Button
               fullWidth
               size="lg"
@@ -176,6 +178,13 @@ export function QuizPage() {
             >
               ✅ Mark {isTeamComp ? (myTeam?.name ?? 'team') : 'me'} as Ready
             </Button>
+          )}
+          {!isQM && !canAct && !amReady && (
+            <Card padding="12px" style={{ textAlign: 'center' }}>
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '14px', color: 'var(--text-muted)' }}>
+                Waiting for your team leader or scorekeeper to mark the team ready.
+              </p>
+            </Card>
           )}
           {amReady && (
             <Card padding="12px" style={{ textAlign: 'center', background: 'color-mix(in srgb, var(--accent-green) 10%, transparent)', border: '1px solid var(--accent-green)' }}>
@@ -304,6 +313,12 @@ export function QuizPage() {
             <Card padding="14px" style={{ textAlign: 'center' }}>
               <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--text-muted)' }}>
                 {mySubmittedOption ? '✓ Answer submitted — waiting for next question' : '⏸ Question locked'}
+              </p>
+            </Card>
+          ) : !canAct ? (
+            <Card padding="14px" style={{ textAlign: 'center', background: 'var(--surface)' }}>
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '14px', color: 'var(--text-muted)' }}>
+                {mySubmittedOption ? '✓ Your team has answered' : 'Waiting for your team leader or scorekeeper to answer…'}
               </p>
             </Card>
           ) : (

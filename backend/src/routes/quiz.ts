@@ -285,6 +285,8 @@ export async function quizRoutes(app: FastifyInstance) {
       isQM,
       isTeamComp,
       myTeamId,
+      myIsTeamLeader: myPlayer?.isTeamLeader ?? false,
+      myIsScorekeeper: myPlayer?.isScorekeeper ?? false,
       challengeId: cc.challenge.id,
       competition: {
         id: cc.competition.id,
