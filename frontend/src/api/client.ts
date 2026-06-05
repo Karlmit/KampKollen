@@ -119,6 +119,7 @@ export const api = {
     ensureForCompetition: (competitionId: string) => request<{ started: boolean }>(`/trophies/ensure-for-competition/${competitionId}`, { method: 'POST' }),
     getStorage: () => request<{ trophies: any[] }>('/trophies/storage'),
     getForUser: (userId: string) => request<{ trophies: any[] }>(`/trophies/user/${userId}`),
+    history: () => request<{ players: any[] }>('/trophies/history'),
     generate: (word?: string) => request<{ trophy: any }>('/trophies/generate', { method: 'POST', body: JSON.stringify({ word }) }),
     reserve: (id: string, competitionId: string | null) => request<{ trophy: any }>(`/trophies/${id}/reserve`, { method: 'PUT', body: JSON.stringify({ competitionId }) }),
     generateSend: (userId: string) => request<{ trophy: any }>('/trophies/generate-send', { method: 'POST', body: JSON.stringify({ userId }) }),

@@ -92,6 +92,42 @@ export async function trophyRoutes(app: FastifyInstance) {
     return { trophies }
   })
 
+  // Award history — all players in the caller's groups sorted by trophy count
+  app.get('/history', { preHandler: requireAuth }, async (request) => {
+    const me = request.user as { id: string }
+    const memberships = await prisma.userGroup.findMany({ where: { userId: me.id }, select: { groupId: true } })
+    const groupIds = memberships.map(m => m.groupId)
+
+    const usersWithTrophies = await prisma.user.findMany({
+      where: {
+        isDummy: false,
+        ...(groupIds.length > 0 ? { groups: { some: { groupId: { in: groupIds } } } } : {}),
+        trophies: { some: { sentAt: { not: null } } },
+      },
+      include: {
+        trophies: {
+          where: { sentAt: { not: null } },
+          orderBy: { sentAt: 'desc' },
+          select: { id: true, title: true, subtitle: true, imageUrl: true, sentAt: true },
+        },
+      },
+    })
+
+    const players = usersWithTrophies
+      .filter(u => u.trophies.length > 0)
+      .sort((a, b) => b.trophies.length - a.trophies.length)
+      .map(u => ({
+        userId: u.id,
+        displayName: u.displayName,
+        username: u.username,
+        profileImageUrl: u.profileImageUrl,
+        trophyCount: u.trophies.length,
+        trophies: u.trophies,
+      }))
+
+    return { players }
+  })
+
   // List trophies for a user
   app.get('/user/:userId', { preHandler: requireAuth }, async (request, reply) => {
     const { userId } = request.params as { userId: string }
