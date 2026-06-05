@@ -297,12 +297,6 @@ export async function quizRoutes(app: FastifyInstance) {
     return { question }
   })
 
-  app.delete('/questions/:id', { preHandler: requireAdmin }, async () => {
-    const { id } = (arguments[0] as FastifyRequest).params as { id: string }
-    await prisma.quizQuestion.delete({ where: { id } })
-    return { success: true }
-  })
-
   app.delete('/questions/:id', { preHandler: requireAdmin }, async (request) => {
     const { id } = request.params as { id: string }
     await prisma.quizQuestion.delete({ where: { id } })
