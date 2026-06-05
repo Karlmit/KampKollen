@@ -110,7 +110,9 @@ export function MyTeamPage() {
   ]
 
   const myPlayer = comp.players?.find((p: CompetitionPlayer) => p.userId === user?.id)
-  const canManage = isAdmin || myPlayer?.isTeamLeader || team.leaderUserId === user?.id
+  // Non-admin team leaders can only manage their OWN team
+  const isOwnTeam = myPlayer?.teamId === team.id
+  const canManage = isAdmin || ((myPlayer?.isTeamLeader || team.leaderUserId === user?.id) && isOwnTeam)
 
   function openConvert(p: CompetitionPlayer) {
     setConvertingDummy(p)
@@ -227,15 +229,17 @@ export function MyTeamPage() {
                         {p.isTeamLeader ? '⭐ Leader' : 'Leader'}
                       </Button>
                     )}
-                    <Button
-                      size="sm"
-                      variant={p.isScorekeeper ? 'success' : 'ghost'}
-                      onClick={() => toggleScorekeeperMutation.mutate({ userId: p.userId, isScorekeeper: !p.isScorekeeper })}
-                      loading={toggleScorekeeperMutation.isPending}
-                      style={{ fontSize: '11px', padding: '4px 10px' }}
-                    >
-                      Scorekeeper
-                    </Button>
+                    {isAdmin && (
+                      <Button
+                        size="sm"
+                        variant={p.isScorekeeper ? 'success' : 'ghost'}
+                        onClick={() => toggleScorekeeperMutation.mutate({ userId: p.userId, isScorekeeper: !p.isScorekeeper })}
+                        loading={toggleScorekeeperMutation.isPending}
+                        style={{ fontSize: '11px', padding: '4px 10px' }}
+                      >
+                        Scorekeeper
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="ghost"
