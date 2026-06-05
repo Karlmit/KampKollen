@@ -27,7 +27,15 @@ export async function userRoutes(app: FastifyInstance) {
 
   app.get('/:id', { preHandler: requireAuth }, async (request, reply) => {
     const { id } = request.params as { id: string }
-    const me = request.user as { id: string }
+    const me = request.user as { id: string; role: GlobalRole }
+
+    // For other users' profiles, only show trophies from groups the caller is in
+    let trophyWhere: any = {}
+    if (me.id !== id && me.role !== GlobalRole.ADMIN) {
+      const callerGroups = await prisma.userGroup.findMany({ where: { userId: me.id }, select: { groupId: true } })
+      const callerGroupIds = callerGroups.map(g => g.groupId)
+      trophyWhere = { groupId: callerGroupIds.length > 0 ? { in: callerGroupIds } : undefined }
+    }
 
     const user = await prisma.user.findUnique({
       where: { id },
@@ -47,6 +55,7 @@ export async function userRoutes(app: FastifyInstance) {
           orderBy: { createdAt: 'desc' },
         },
         trophies: {
+          where: Object.keys(trophyWhere).length > 0 ? trophyWhere : undefined,
           orderBy: { sentAt: 'desc' },
         },
       },

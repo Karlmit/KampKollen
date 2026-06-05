@@ -36,8 +36,8 @@ export function GlobalLeaderboard() {
   })
 
   const { data: awardsData, isLoading: awardsLoading } = useQuery({
-    queryKey: ['trophies-history'],
-    queryFn: () => api.trophies.history(),
+    queryKey: ['trophies-history', activeGroupId],
+    queryFn: () => api.trophies.history(activeGroupId),
     enabled: view === 'awards',
   })
 

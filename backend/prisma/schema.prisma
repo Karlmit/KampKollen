@@ -79,6 +79,8 @@ model Trophy {
   user                     User?        @relation("UserTrophies", fields: [userId], references: [id])
   isOpened                 Boolean      @default(false)
   sentAt                   DateTime?
+  groupId                  String?
+  group                    Group?       @relation(fields: [groupId], references: [id], onDelete: SetNull)
   reservedForCompetitionId String?
   reservedForCompetition   Competition? @relation("TrophyReservation", fields: [reservedForCompetitionId], references: [id], onDelete: SetNull)
   createdAt                DateTime     @default(now())
@@ -204,6 +206,7 @@ model Group {
   updatedAt    DateTime      @updatedAt
   members      UserGroup[]
   competitions Competition[]
+  trophies     Trophy[]
 }
 
 model UserGroup {

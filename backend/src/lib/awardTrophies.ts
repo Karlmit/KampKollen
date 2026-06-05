@@ -313,6 +313,10 @@ export async function awardCompetitionTrophies(competitionId: string): Promise<v
   const recipients = await computeWinners(competitionId)
   if (recipients.length === 0) return
 
+  // Fetch competition's group so we can stamp trophies
+  const comp = await prisma.competition.findUnique({ where: { id: competitionId }, select: { groupId: true } })
+  const trophyGroupId = comp?.groupId ?? null
+
   await ensureForCompetition(competitionId)
 
   // Prefer trophies reserved for this competition, then fall back to unreserved
@@ -347,6 +351,7 @@ export async function awardCompetitionTrophies(competitionId: string): Promise<v
           sentAt: now,
           isOpened: false,
           reservedForCompetitionId: null,
+          ...(trophyGroupId ? { groupId: trophyGroupId } : {}),
         },
       })
     )

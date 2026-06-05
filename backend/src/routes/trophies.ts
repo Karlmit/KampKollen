@@ -92,21 +92,28 @@ export async function trophyRoutes(app: FastifyInstance) {
     return { trophies }
   })
 
-  // Award history — all players in the caller's groups sorted by trophy count
+  // Award history — players with trophies visible to the caller, sorted by count
   app.get('/history', { preHandler: requireAuth }, async (request) => {
     const me = request.user as { id: string }
+    const { groupId: filterGroupId } = request.query as { groupId?: string }
     const memberships = await prisma.userGroup.findMany({ where: { userId: me.id }, select: { groupId: true } })
-    const groupIds = memberships.map(m => m.groupId)
+    const callerGroupIds = memberships.map(m => m.groupId)
+    // Use specific group filter if provided (and caller is in it), else all caller's groups
+    const activeGroupIds = filterGroupId && callerGroupIds.includes(filterGroupId)
+      ? [filterGroupId]
+      : callerGroupIds
 
     const usersWithTrophies = await prisma.user.findMany({
       where: {
         isDummy: false,
-        ...(groupIds.length > 0 ? { groups: { some: { groupId: { in: groupIds } } } } : {}),
-        trophies: { some: { sentAt: { not: null } } },
+        trophies: { some: { sentAt: { not: null }, groupId: activeGroupIds.length > 0 ? { in: activeGroupIds } : undefined } },
       },
       include: {
         trophies: {
-          where: { sentAt: { not: null } },
+          where: {
+            sentAt: { not: null },
+            ...(activeGroupIds.length > 0 ? { groupId: { in: activeGroupIds } } : {}),
+          },
           orderBy: { sentAt: 'desc' },
           select: { id: true, title: true, subtitle: true, imageUrl: true, sentAt: true },
         },
@@ -179,15 +186,19 @@ export async function trophyRoutes(app: FastifyInstance) {
     const body = request.body as { userId?: string }
     if (!body.userId) return reply.status(400).send({ error: 'userId required' })
 
-    const user = await prisma.user.findUnique({ where: { id: body.userId } })
+    const user = await prisma.user.findUnique({
+      where: { id: body.userId },
+      include: { groups: { select: { groupId: true }, take: 1 } },
+    })
     if (!user) return reply.status(404).send({ error: 'User not found' })
 
+    const recipientGroupId = user.groups[0]?.groupId ?? null
     const words = await getTrophyWords()
     const title = randomFrom(words)
     const prompt = `A flat 2D cartoon illustration of "${title}". Pure white background, exactly #ffffff, no off-white or cream. Object centered, bold outlines, bright colors. No text, no shadows, no gradients.`
     const result = await generateImage({ prompt }, 'trophies')
     const trophy = await prisma.trophy.create({
-      data: { title, imageUrl: result.publicUrl, userId: body.userId, sentAt: new Date() },
+      data: { title, imageUrl: result.publicUrl, userId: body.userId, sentAt: new Date(), ...(recipientGroupId ? { groupId: recipientGroupId } : {}) },
     })
     return { trophy }
   })
@@ -198,13 +209,16 @@ export async function trophyRoutes(app: FastifyInstance) {
     const body = request.body as { userId?: string }
     if (!body.userId) return reply.status(400).send({ error: 'userId required' })
 
-    const trophy = await prisma.trophy.findUnique({ where: { id } })
+    const [trophy, recipient] = await Promise.all([
+      prisma.trophy.findUnique({ where: { id } }),
+      prisma.userGroup.findFirst({ where: { userId: body.userId }, select: { groupId: true } }),
+    ])
     if (!trophy) return reply.status(404).send({ error: 'Trophy not found' })
     if (trophy.userId) return reply.status(400).send({ error: 'Trophy already assigned' })
 
     const updated = await prisma.trophy.update({
       where: { id },
-      data: { userId: body.userId, sentAt: new Date(), isOpened: false },
+      data: { userId: body.userId, sentAt: new Date(), isOpened: false, ...(recipient?.groupId ? { groupId: recipient.groupId } : {}) },
     })
     return { trophy: updated }
   })

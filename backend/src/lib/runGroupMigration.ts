@@ -1,12 +1,20 @@
 import { prisma } from '../db.js'
 
 // Idempotent: runs on every startup. Creates "Bjorn Lunden" group and assigns
-// all existing users and competitions to it if it doesn't already exist.
+// all existing users, competitions, and trophies to it as needed.
 export async function runGroupMigration(): Promise<void> {
-  const existing = await prisma.group.findUnique({ where: { name: 'Bjorn Lunden' } })
-  if (existing) return
+  let group = await prisma.group.findUnique({ where: { name: 'Bjorn Lunden' } })
 
-  const group = await prisma.group.create({ data: { name: 'Bjorn Lunden' } })
+  // Always stamp awarded trophies that have no group yet (covers existing deploys)
+  if (group) {
+    await prisma.trophy.updateMany({
+      where: { userId: { not: null }, groupId: null },
+      data: { groupId: group.id },
+    })
+    return
+  }
+
+  group = await prisma.group.create({ data: { name: 'Bjorn Lunden' } })
 
   const [users, competitions] = await Promise.all([
     prisma.user.findMany({ select: { id: true } }),
@@ -20,6 +28,11 @@ export async function runGroupMigration(): Promise<void> {
     }),
     prisma.competition.updateMany({
       where: { groupId: null },
+      data: { groupId: group.id },
+    }),
+    // Stamp all existing awarded trophies with the Bjorn Lunden group
+    prisma.trophy.updateMany({
+      where: { userId: { not: null }, groupId: null },
       data: { groupId: group.id },
     }),
   ])
