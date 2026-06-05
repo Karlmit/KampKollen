@@ -3,22 +3,25 @@ import { prisma } from '../db.js'
 // Idempotent: rewrite old-style subtitle text to use bold markers.
 // REPLACE is naturally idempotent — the old patterns won't appear once updated.
 async function migrateAwardSubtitles(): Promise<void> {
-  // Step 1: Reorder winning-team sentences
-  // Old: "Awarded in **X** for being in the winning team **Y**"  (pre-bold migration)
-  // Old: "Awarded in **X** for being in the **winning team** **Y**"  (post-bold migration)
+  // Step 1: Reorder winning-team sentences using JS regex (PostgreSQL POSIX doesn't support non-greedy)
+  // Old: "Awarded in **X** for being in the [**]winning team[**] **Y**"
   // New: "Awarded for being in the **winning team** **Y** in **X**"
-  await prisma.$executeRaw`
-    UPDATE "Trophy"
-    SET subtitle = REGEXP_REPLACE(
-      subtitle,
-      E'Awarded in \\*\\*(.+?)\\*\\* for being in the (\\*\\*)?winning team(\\*\\*)? \\*\\*(.+?)\\*\\*',
-      E'Awarded for being in the **winning team** **\\4** in **\\1**'
-    )
-    WHERE subtitle IS NOT NULL
-      AND subtitle LIKE 'Awarded in **%** for being in the%winning team%'
-  `
+  const winningTeamTrophies = await prisma.trophy.findMany({
+    where: { subtitle: { contains: 'for being in the' } },
+    select: { id: true, subtitle: true },
+  })
+  for (const trophy of winningTeamTrophies) {
+    if (!trophy.subtitle) continue
+    const match = trophy.subtitle.match(/^Awarded in \*\*(.+?)\*\* for being in the (?:\*\*)?winning team(?:\*\*)? \*\*(.+?)\*\*/)
+    if (match) {
+      await prisma.trophy.update({
+        where: { id: trophy.id },
+        data: { subtitle: `Awarded for being in the **winning team** **${match[2]}** in **${match[1]}**` },
+      })
+    }
+  }
 
-  // Step 2: Bold remaining plain-text phrases (idempotent)
+  // Step 2: Bold remaining plain-text phrases via SQL REPLACE (idempotent)
   await prisma.$executeRaw`
     UPDATE "Trophy"
     SET subtitle =
