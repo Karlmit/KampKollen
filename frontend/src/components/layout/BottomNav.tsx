@@ -1,5 +1,6 @@
 import { useRef, useState, useLayoutEffect, useEffect } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../contexts/AuthContext'
 
 const NAV_ITEMS = [
@@ -21,8 +22,24 @@ function matchItem(to: string, pathname: string) {
 }
 
 export function BottomNav() {
-  const { user, isAdmin, hasUnopenedTrophies } = useAuth()
+  const { user, isAdmin, isScorekeeper, hasUnopenedTrophies } = useAuth()
   const location = useLocation()
+  const navigate = useNavigate()
+  const qc = useQueryClient()
+
+  const showScoreFab = !!user && (isAdmin || isScorekeeper)
+
+  function handleScoreNav() {
+    const cached = qc.getQueryData<{ competitions: any[] }>(['competitions'])
+    const active = (cached?.competitions ?? []).filter(
+      (c: any) => c.status === 'ACTIVE' || c.status === 'REGISTRATION'
+    )
+    if (active.length === 1) {
+      navigate(`/competitions/${active[0].id}/scores`)
+    } else {
+      navigate('/competitions')
+    }
+  }
   const navRef = useRef<HTMLElement>(null)
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const [ind, setInd] = useState({ left: 0, width: 0, animate: false })
@@ -83,49 +100,84 @@ export function BottomNav() {
           : 'none',
       }} />
 
-      {items.map(item => (
-        <div
-          key={item.to}
-          ref={el => { itemRefs.current[item.to] = el }}
-          style={{ flex: 1, display: 'flex' }}
-        >
-          <NavLink
-            to={item.to}
-            end={item.to === '/'}
-            style={({ isActive }) => ({
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px',
-              padding: '8px 0', flex: 1, textDecoration: 'none',
-              color: isActive ? 'var(--accent)' : 'var(--text-muted)',
-              fontSize: '10px', fontFamily: 'var(--font-ui)', fontWeight: 700,
-              transition: 'color 180ms var(--ease-out)',
-            })}
+      {(() => {
+        const mid = Math.floor(items.length / 2)
+        const leftItems = showScoreFab ? items.slice(0, mid) : items
+        const rightItems = showScoreFab ? items.slice(mid) : []
+
+        const renderItem = (item: typeof items[0]) => (
+          <div
+            key={item.to}
+            ref={el => { itemRefs.current[item.to] = el }}
+            style={{ flex: 1, display: 'flex' }}
           >
-            {({ isActive }) => (
-              <>
-                <span style={{ position: 'relative', display: 'inline-block' }}>
-                  <span style={{
-                    fontSize: '22px', lineHeight: 1, display: 'block',
-                    transform: isActive ? 'scale(1.12)' : 'scale(1)',
-                    transition: 'transform 220ms var(--ease-out)',
-                  }}>
-                    {item.icon}
-                  </span>
-                  {item.to === '/profile' && hasUnopenedTrophies && (
+            <NavLink
+              to={item.to}
+              end={item.to === '/'}
+              style={({ isActive }) => ({
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px',
+                padding: '8px 0', flex: 1, textDecoration: 'none',
+                color: isActive ? 'var(--accent)' : 'var(--text-muted)',
+                fontSize: '10px', fontFamily: 'var(--font-ui)', fontWeight: 700,
+                transition: 'color 180ms var(--ease-out)',
+              })}
+            >
+              {({ isActive }) => (
+                <>
+                  <span style={{ position: 'relative', display: 'inline-block' }}>
                     <span style={{
-                      position: 'absolute', top: 0, right: -2,
-                      width: 8, height: 8, borderRadius: '50%',
-                      background: 'var(--accent-warm)',
-                      border: '2px solid var(--background)',
-                      pointerEvents: 'none',
-                    }} />
-                  )}
-                </span>
-                <span>{item.label}</span>
-              </>
+                      fontSize: '22px', lineHeight: 1, display: 'block',
+                      transform: isActive ? 'scale(1.12)' : 'scale(1)',
+                      transition: 'transform 220ms var(--ease-out)',
+                    }}>
+                      {item.icon}
+                    </span>
+                    {item.to === '/profile' && hasUnopenedTrophies && (
+                      <span style={{
+                        position: 'absolute', top: 0, right: -2,
+                        width: 8, height: 8, borderRadius: '50%',
+                        background: 'var(--accent-warm)',
+                        border: '2px solid var(--background)',
+                        pointerEvents: 'none',
+                      }} />
+                    )}
+                  </span>
+                  <span>{item.label}</span>
+                </>
+              )}
+            </NavLink>
+          </div>
+        )
+
+        return (
+          <>
+            {leftItems.map(renderItem)}
+            {showScoreFab && (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <button
+                  onClick={handleScoreNav}
+                  style={{
+                    width: 54, height: 54,
+                    borderRadius: '50%',
+                    background: 'var(--accent)',
+                    color: '#fff',
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1px',
+                    boxShadow: '0 4px 18px rgba(12,68,51,0.5)',
+                    transform: 'translateY(-10px)',
+                    flexShrink: 0,
+                  }}
+                >
+                  <span style={{ fontSize: '20px', lineHeight: 1 }}>✏️</span>
+                  <span style={{ fontSize: '9px', fontFamily: 'var(--font-ui)', fontWeight: 700, letterSpacing: '0.05em' }}>SCORE</span>
+                </button>
+              </div>
             )}
-          </NavLink>
-        </div>
-      ))}
+            {rightItems.map(renderItem)}
+          </>
+        )
+      })()}
     </nav>
   )
 }
