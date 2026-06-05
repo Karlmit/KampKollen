@@ -216,14 +216,16 @@ export function QuizPage() {
                 const id = isTeamComp ? item.id : item.userId
                 const name = isTeamComp ? item.name : (item.user?.displayName ?? item.user?.username)
                 const isReady = readyIds.has(id)
+                const isMyTeam = isTeamComp && id === myTeamId
+                const isMe = !isTeamComp && id === user?.id
                 return (
                   <span key={id} style={{
                     padding: '4px 10px', borderRadius: '99px', fontSize: '13px', fontFamily: 'var(--font-ui)', fontWeight: 600,
-                    background: isReady ? 'color-mix(in srgb, var(--accent-green) 15%, transparent)' : 'var(--surface)',
-                    color: isReady ? 'var(--accent-green)' : 'var(--text-muted)',
-                    border: `1px solid ${isReady ? 'var(--accent-green)' : 'var(--border-light)'}`,
+                    background: isReady ? 'color-mix(in srgb, var(--accent-green) 15%, transparent)' : (isMyTeam || isMe) ? 'color-mix(in srgb, var(--accent) 10%, transparent)' : 'var(--surface)',
+                    color: isReady ? 'var(--accent-green)' : (isMyTeam || isMe) ? 'var(--accent)' : 'var(--text-muted)',
+                    border: `1.5px solid ${isReady ? 'var(--accent-green)' : (isMyTeam || isMe) ? 'var(--accent)' : 'var(--border-light)'}`
                   }}>
-                    {isReady ? '✓ ' : ''}{name}
+                    {isReady ? '✓ ' : ''}{name}{(isMyTeam || isMe) ? ' (you)' : ''}
                   </span>
                 )
               })}

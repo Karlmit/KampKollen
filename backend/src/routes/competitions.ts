@@ -57,15 +57,31 @@ export async function competitionRoutes(app: FastifyInstance) {
       // Guest: only active competitions
       where = { status: 'ACTIVE' }
     }
+    // Get caller's userId if authenticated (already verified above)
+    let callerId: string | null = null
+    try { callerId = (request.user as { id: string }).id } catch { /* guest */ }
+
     const competitions = await prisma.competition.findMany({
       where,
       include: {
         teams: { select: { id: true, name: true } },
         _count: { select: { players: true } },
+        ...(callerId ? {
+          players: {
+            where: { userId: callerId },
+            select: { userId: true, isTeamLeader: true, isScorekeeper: true, isQuizMaster: true, teamId: true },
+          },
+        } : {}),
       },
       orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
     })
-    return { competitions }
+
+    // Flatten myPlayer onto each competition so the frontend can read roles directly
+    const result = competitions.map(c => {
+      const { players, ...rest } = c as any
+      return { ...rest, myPlayer: players?.[0] ?? null }
+    })
+    return { competitions: result }
   })
 
   app.get('/:id', { preHandler: optionalAuth }, async (request, reply) => {

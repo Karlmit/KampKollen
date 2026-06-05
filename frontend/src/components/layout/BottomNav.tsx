@@ -39,19 +39,15 @@ export function BottomNav() {
     }
   }
 
-  // Show FAB for global admins/scorekeepers, or if user is a team leader/scorekeeper in any cached active competition
+  // Show FAB for global admins/scorekeepers, or if user is a team leader/scorekeeper in any active competition.
+  // Uses myPlayer from the competitions list (always fresh) so the button survives page refreshes.
   const showScoreFab = !!user && (() => {
     if (isAdmin || isScorekeeper) return true
     const cached = qc.getQueryData<{ competitions: any[] }>(['competitions'])
-    const activeComps = (cached?.competitions ?? []).filter(
-      (c: any) => c.status === 'ACTIVE' || c.status === 'REGISTRATION'
+    return (cached?.competitions ?? []).some((c: any) =>
+      (c.status === 'ACTIVE' || c.status === 'REGISTRATION') &&
+      (c.myPlayer?.isTeamLeader || c.myPlayer?.isScorekeeper)
     )
-    for (const comp of activeComps) {
-      const detail = qc.getQueryData<{ competition: any }>(['competition', comp.id])
-      const myPlayer = detail?.competition?.players?.find((p: any) => p.userId === user.id)
-      if (myPlayer?.isTeamLeader || myPlayer?.isScorekeeper) return true
-    }
-    return false
   })()
   const navRef = useRef<HTMLElement>(null)
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({})
