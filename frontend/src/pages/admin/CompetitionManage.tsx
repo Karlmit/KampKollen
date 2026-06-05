@@ -195,9 +195,15 @@ export function AdminCompetitionManage() {
     { key: 'status', label: 'Settings' },
   ]
 
-  const availableUsers = usersData?.users?.filter((u: any) =>
-    !comp.players?.some((p: any) => p.userId === u.id)
-  ) ?? []
+  const availableUsers = usersData?.users?.filter((u: any) => {
+    if (comp.players?.some((p: any) => p.userId === u.id)) return false
+    if (u.isDummy) return false
+    // Only show users who are in the competition's group
+    if (comp.groupId) {
+      return u.groups?.some((ug: any) => ug.groupId === comp.groupId)
+    }
+    return true
+  }) ?? []
 
   const availableChallenges = challengesData?.challenges?.filter((c: any) =>
     !comp.challenges?.some((cc: any) => cc.challengeId === c.id)
@@ -465,7 +471,9 @@ export function AdminCompetitionManage() {
             </button>
           ))}
           {availableUsers.length === 0 && (
-            <p style={{ color: 'var(--text-muted)', fontSize: '14px', textAlign: 'center', padding: '16px 0' }}>All users are already in this competition</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '14px', textAlign: 'center', padding: '16px 0' }}>
+              {comp.groupId ? 'All group members are already in this competition' : 'All users are already in this competition'}
+            </p>
           )}
         </div>
       </Modal>
