@@ -237,7 +237,7 @@ export function AdminCompetitionManage() {
                     <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                       {comp.isTeamCompetition !== false && (p.team?.name ?? 'Player Pool')}
                       {p.isTeamLeader ? (comp.isTeamCompetition !== false ? ' · Leader' : 'Leader') : ''}
-                      {p.isScorekeeper ? (p.isTeamLeader ? ' · SK' : 'Scorekeeper') : ''}
+                      {p.isScorekeeper ? (p.isTeamLeader ? ' · Scorekeeper' : 'Scorekeeper') : ''}
                     </p>
                   </div>
                   <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>

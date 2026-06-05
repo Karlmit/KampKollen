@@ -12,10 +12,11 @@ import { useAuth } from '../contexts/AuthContext'
 import { formatDate } from '../utils'
 import { TabBar } from '../components/ui/TabBar'
 import { api } from '../api/client'
-import { Competition, CompetitionPlayer, Team, SCORE_TYPE_LABELS, LeaderboardTeam } from '../types'
+import { Competition, CompetitionPlayer, Team, SCORE_TYPE_LABELS, LeaderboardTeam, CompetitionLeaderboard } from '../types'
 import { GuestCompetitionView } from './GuestCompetitionView'
+import { CompetitionLeaderboardContent } from '../components/CompetitionLeaderboardContent'
 
-type Tab = 'overview' | 'teams' | 'challenges' | 'pool'
+type Tab = 'overview' | 'leaderboard' | 'teams' | 'challenges' | 'pool'
 
 export function CompetitionDetail() {
   const { id } = useParams<{ id: string }>()
@@ -31,7 +32,7 @@ export function CompetitionDetail() {
     enabled: !!id,
   })
 
-  const { data: lbData } = useQuery({
+  const { data: lbDataRaw } = useQuery({
     queryKey: ['leaderboard', id],
     queryFn: () => api.leaderboards.competition(id!),
     enabled: !!id,
@@ -73,8 +74,11 @@ export function CompetitionDetail() {
   const myTeam = comp.teams?.find((t: Team) => t.id === myPlayer?.teamId)
   const playerPool = comp.players?.filter((p: CompetitionPlayer) => !p.teamId) ?? []
 
+  const lbData: CompetitionLeaderboard | undefined = (lbDataRaw as any)
+
   const tabs: { key: Tab; label: string; count?: number }[] = [
     { key: 'overview', label: 'Overview' },
+    { key: 'leaderboard', label: '📊 Leaderboard' },
     ...(isTeamComp ? [{ key: 'teams' as Tab, label: 'Teams', count: comp.teams?.length }] : []),
     { key: 'challenges', label: 'Challenges', count: comp.challenges?.length },
     { key: 'pool', label: isTeamComp ? 'Player Pool' : 'Players', count: comp.players?.length },
@@ -159,6 +163,13 @@ export function CompetitionDetail() {
         onChange={key => setTab(key as Tab)}
         style={{ marginBottom: '16px' }}
       />
+
+      {/* Leaderboard tab */}
+      {tab === 'leaderboard' && (
+        lbData
+          ? <CompetitionLeaderboardContent lb={lbData} id={id!} userId={user?.id} />
+          : <LoadingSpinner />
+      )}
 
       {/* Tab content */}
       {tab === 'overview' && (

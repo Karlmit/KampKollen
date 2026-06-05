@@ -234,7 +234,7 @@ export function MyTeamPage() {
                       loading={toggleScorekeeperMutation.isPending}
                       style={{ fontSize: '11px', padding: '4px 10px' }}
                     >
-                      SK
+                      Scorekeeper
                     </Button>
                     <Button
                       size="sm"

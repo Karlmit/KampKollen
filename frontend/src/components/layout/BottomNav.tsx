@@ -27,8 +27,6 @@ export function BottomNav() {
   const navigate = useNavigate()
   const qc = useQueryClient()
 
-  const showScoreFab = !!user && (isAdmin || isScorekeeper)
-
   function handleScoreNav() {
     const cached = qc.getQueryData<{ competitions: any[] }>(['competitions'])
     const active = (cached?.competitions ?? []).filter(
@@ -40,6 +38,21 @@ export function BottomNav() {
       navigate('/competitions')
     }
   }
+
+  // Show FAB for global admins/scorekeepers, or if user is a team leader/scorekeeper in any cached active competition
+  const showScoreFab = !!user && (() => {
+    if (isAdmin || isScorekeeper) return true
+    const cached = qc.getQueryData<{ competitions: any[] }>(['competitions'])
+    const activeComps = (cached?.competitions ?? []).filter(
+      (c: any) => c.status === 'ACTIVE' || c.status === 'REGISTRATION'
+    )
+    for (const comp of activeComps) {
+      const detail = qc.getQueryData<{ competition: any }>(['competition', comp.id])
+      const myPlayer = detail?.competition?.players?.find((p: any) => p.userId === user.id)
+      if (myPlayer?.isTeamLeader || myPlayer?.isScorekeeper) return true
+    }
+    return false
+  })()
   const navRef = useRef<HTMLElement>(null)
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const [ind, setInd] = useState({ left: 0, width: 0, animate: false })
