@@ -202,7 +202,7 @@ async function computeWinners(competitionId: string): Promise<AwardRecipient[]> 
     if (sortedPlayers.length > 0) {
       challengeTopScorers.push({
         userId: sortedPlayers[0][0],
-        subtitle: `Awarded for having the top score in **${cc.challenge.name}** in **${competition.name}**`,
+        subtitle: `Awarded for having the **top score** in **${cc.challenge.name}** in **${competition.name}**`,
       })
     }
 
@@ -256,7 +256,7 @@ async function computeWinners(competitionId: string): Promise<AwardRecipient[]> 
 
   if (!competition.isTeamCompetition) {
     // Individual competition: top 3 players by total points
-    const posLabels = ['🥇 1st place', '🥈 2nd place', '🥉 3rd place']
+    const posLabels = ['🥇 **1st place**', '🥈 **2nd place**', '🥉 **3rd place**']
     const top3 = Object.entries(playerTotalPoints)
       .filter(([userId]) => {
         const cp = competition.players.find(p => p.userId === userId)
@@ -284,7 +284,7 @@ async function computeWinners(competitionId: string): Promise<AwardRecipient[]> 
       for (const member of members) {
         recipients.push({
           userId: member.userId,
-          subtitle: `Awarded in **${competition.name}** for being in the winning team **${winningTeam.name}**`,
+          subtitle: `Awarded in **${competition.name}** for being in the **winning team** **${winningTeam.name}**`,
         })
       }
     }
