@@ -7,6 +7,7 @@ import { StatusBadge } from '../components/ui/Badge'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { useAuth } from '../contexts/AuthContext'
 import { useGroup } from '../contexts/GroupContext'
+import { BoldText } from '../components/ui/BoldText'
 import { api } from '../api/client'
 import { formatDate, formatScore } from '../utils'
 
@@ -251,7 +252,7 @@ export function GlobalLeaderboard() {
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>{t.title}</p>
                           {t.subtitle && (
-                            <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px', lineHeight: 1.4 }}>{t.subtitle}</p>
+                            <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px', lineHeight: 1.4 }}><BoldText text={t.subtitle} /></p>
                           )}
                         </div>
                       </div>

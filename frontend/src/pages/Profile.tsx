@@ -14,15 +14,7 @@ import { ProfileImageGenerator } from '../components/ProfileImageGenerator'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../api/client'
 import { formatScore, extractScoreValue } from '../utils'
-
-function BoldText({ text }: { text: string }) {
-  const parts = text.split(/\*\*(.*?)\*\*/g)
-  return (
-    <>
-      {parts.map((part, i) => i % 2 === 1 ? <strong key={i}>{part}</strong> : part)}
-    </>
-  )
-}
+import { BoldText } from '../components/ui/BoldText'
 
 function TrophyCard({ trophy, isSelf, adminMode, giftAnimData, onOpen, onTakeBack }: {
   trophy: any
