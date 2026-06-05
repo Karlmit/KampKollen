@@ -131,6 +131,44 @@ export const api = {
     updateWords: (words: string[]) => request<{ success: boolean }>('/admin/trophy-words', { method: 'PUT', body: JSON.stringify({ words }) }),
   },
 
+  // Quiz
+  quiz: {
+    getState: (ccId: string) => request<any>(`/quiz/${ccId}/state`),
+    createQuestion: (data: { challengeId: string; text: string; points?: number; timerSeconds?: number }) =>
+      request<{ question: any }>('/quiz/questions', { method: 'POST', body: JSON.stringify(data) }),
+    updateQuestion: (id: string, data: { text?: string; points?: number; timerSeconds?: number }) =>
+      request<{ question: any }>(`/quiz/questions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteQuestion: (id: string) => request(`/quiz/questions/${id}`, { method: 'DELETE' }),
+    reorderQuestions: (order: string[]) => request('/quiz/questions/reorder', { method: 'PUT', body: JSON.stringify({ order }) }),
+    uploadQuestionImage: (id: string, file: File) => {
+      const form = new FormData(); form.append('file', file)
+      return fetch(`api/quiz/questions/${id}/image`, { method: 'POST', credentials: 'include', body: form })
+        .then(r => r.json()) as Promise<{ imageUrl: string }>
+    },
+    createOption: (questionId: string, data: { text: string; isCorrect?: boolean }) =>
+      request<{ option: any }>(`/quiz/questions/${questionId}/options`, { method: 'POST', body: JSON.stringify(data) }),
+    updateOption: (id: string, data: { text?: string; isCorrect?: boolean }) =>
+      request<{ option: any }>(`/quiz/options/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteOption: (id: string) => request(`/quiz/options/${id}`, { method: 'DELETE' }),
+    uploadOptionImage: (id: string, file: File) => {
+      const form = new FormData(); form.append('file', file)
+      return fetch(`api/quiz/options/${id}/image`, { method: 'POST', credentials: 'include', body: form })
+        .then(r => r.json()) as Promise<{ imageUrl: string }>
+    },
+    markReady: (ccId: string, teamId?: string) =>
+      request(`/quiz/${ccId}/session/ready`, { method: 'POST', body: JSON.stringify({ teamId }) }),
+    start: (ccId: string) => request(`/quiz/${ccId}/session/start`, { method: 'POST', body: '{}' }),
+    nextQuestion: (ccId: string) => request(`/quiz/${ccId}/session/next-question`, { method: 'POST', body: '{}' }),
+    lockQuestion: (ccId: string) => request(`/quiz/${ccId}/session/lock-question`, { method: 'POST', body: '{}' }),
+    showAnswer: (ccId: string) => request(`/quiz/${ccId}/session/show-answer`, { method: 'POST', body: '{}' }),
+    nextCorrection: (ccId: string) => request(`/quiz/${ccId}/session/next-correction`, { method: 'POST', body: '{}' }),
+    complete: (ccId: string) => request(`/quiz/${ccId}/session/complete`, { method: 'POST', body: '{}' }),
+    submitAnswer: (ccId: string, data: { questionId: string; optionId: string; teamId?: string }) =>
+      request(`/quiz/${ccId}/answers`, { method: 'POST', body: JSON.stringify(data) }),
+    setQuizMaster: (compId: string, userId: string, isQuizMaster: boolean) =>
+      request(`/quiz/competition/${compId}/players/${userId}/quiz-master`, { method: 'PUT', body: JSON.stringify({ isQuizMaster }) }),
+  },
+
   // Groups
   groups: {
     listPublic: () => request<{ groups: any[] }>('/groups/public'),

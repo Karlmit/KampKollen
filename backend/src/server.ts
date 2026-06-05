@@ -17,6 +17,7 @@ import { settingsRoutes, imageOptionRoutes } from './routes/settings.js'
 import { trophyRoutes, trophyWordRoutes } from './routes/trophies.js'
 import { backupRoutes } from './routes/backup.js'
 import { groupRoutes } from './routes/groups.js'
+import { quizRoutes } from './routes/quiz.js'
 import { runGroupMigration } from './lib/runGroupMigration.js'
 
 export async function buildServer() {
@@ -67,6 +68,7 @@ export async function buildServer() {
   await app.register(trophyWordRoutes, { prefix: '/api/admin/trophy-words' })
   await app.register(backupRoutes, { prefix: '/api/admin/backup' })
   await app.register(groupRoutes, { prefix: '/api/groups' })
+  await app.register(quizRoutes, { prefix: '/api/quiz' })
 
   // Idempotent data migration: create "Bjorn Lunden" group if it doesn't exist
   await runGroupMigration()

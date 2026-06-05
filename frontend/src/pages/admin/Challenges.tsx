@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AdminLayout } from './AdminLayout'
 import { Card } from '../../components/ui/Card'
@@ -45,20 +46,20 @@ export function AdminChallenges() {
   const [form, setForm] = useState({
     name: '', description: '', scoreType: 'number_highest_wins' as ScoreType,
     defaultTeamScoreMode: 'sum_all_players' as TeamScoreMode,
-    bestNPlayers: '', isGlobalTemplate: true,
+    bestNPlayers: '', isGlobalTemplate: true, isQuiz: false,
   })
 
   const { data, isLoading } = useQuery({ queryKey: ['challenges'], queryFn: () => api.challenges.list() })
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ name: '', description: '', scoreType: 'number_highest_wins', defaultTeamScoreMode: 'sum_all_players', bestNPlayers: '', isGlobalTemplate: true })
+    setForm({ name: '', description: '', scoreType: 'number_highest_wins', defaultTeamScoreMode: 'sum_all_players', bestNPlayers: '', isGlobalTemplate: true, isQuiz: false })
     setOpen(true)
   }
 
   const openEdit = (c: any) => {
     setEditing(c)
-    setForm({ name: c.name, description: c.description ?? '', scoreType: c.scoreType, defaultTeamScoreMode: c.defaultTeamScoreMode, bestNPlayers: c.bestNPlayers?.toString() ?? '', isGlobalTemplate: c.isGlobalTemplate })
+    setForm({ name: c.name, description: c.description ?? '', scoreType: c.scoreType, defaultTeamScoreMode: c.defaultTeamScoreMode, bestNPlayers: c.bestNPlayers?.toString() ?? '', isGlobalTemplate: c.isGlobalTemplate, isQuiz: c.isQuiz ?? false })
     setOpen(true)
   }
 
@@ -94,12 +95,20 @@ export function AdminChallenges() {
                   <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px' }}>{c.name}</p>
                   <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{SCORE_TYPE_LABELS[c.scoreType as ScoreType]}</p>
                 </div>
-                {c.isGlobalTemplate && <Badge variant="info">Template</Badge>}
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  {c.isGlobalTemplate && <Badge variant="info">Template</Badge>}
+                  {c.isQuiz && <Badge variant="success">🎯 Quiz ({c._count?.quizQuestions ?? 0} Q)</Badge>}
+                </div>
               </div>
               {c.description && <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>{c.description}</p>}
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                 <Button size="sm" variant="ghost" style={{ fontSize: '12px' }} onClick={() => openEdit(c)}>Edit</Button>
-                <Button size="sm" variant="ghost" style={{ fontSize: '12px' }} onClick={() => setImageChallenge(c)}>✨ Image</Button>
+                {c.isQuiz && (
+                  <Link to={`/admin/quiz/${c.id}`}>
+                    <Button size="sm" variant="ghost" style={{ fontSize: '12px' }}>📝 Questions</Button>
+                  </Link>
+                )}
+                {!c.isQuiz && <Button size="sm" variant="ghost" style={{ fontSize: '12px' }} onClick={() => setImageChallenge(c)}>✨ Image</Button>}
                 <Button size="sm" variant="danger" style={{ fontSize: '12px' }} onClick={() => setDeleteConfirm(c)}>Delete</Button>
               </div>
             </Card>
@@ -150,34 +159,47 @@ export function AdminChallenges() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <Input label="Name *" value={form.name} onChange={set('name')} autoFocus />
           <Input label="Description" value={form.description} onChange={set('description')} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>Score type</label>
-            <select value={form.scoreType} onChange={set('scoreType') as any}
-              style={{ padding: '10px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', fontSize: '15px' }}>
-              {SCORE_TYPES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
-            </select>
+          <div>
+            <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+              <input type="checkbox" checked={form.isQuiz} onChange={e => setForm(f => ({ ...f, isQuiz: e.target.checked }))} />
+              🎯 This is a quiz challenge
+            </label>
+            {form.isQuiz && (
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Quiz challenges use multiple-choice questions with guided correction. Score type is fixed to manual points.</p>
+            )}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>How team score is calculated</label>
-            {TEAM_MODE_OPTIONS.map(opt => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setForm(f => ({ ...f, defaultTeamScoreMode: opt.value as TeamScoreMode }))}
-                style={{
-                  padding: '10px 12px', borderRadius: 'var(--radius)', cursor: 'pointer', textAlign: 'left',
-                  border: form.defaultTeamScoreMode === opt.value ? '2px solid var(--accent)' : '1.5px solid var(--border-light)',
-                  background: form.defaultTeamScoreMode === opt.value ? 'var(--surface)' : 'var(--background)',
-                  width: '100%',
-                }}
-              >
-                <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', marginBottom: '2px' }}>{opt.label}</p>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.4 }}>{opt.desc}</p>
-              </button>
-            ))}
-          </div>
-          {form.defaultTeamScoreMode === 'best_n_players' && (
-            <Input label="How many top players to count" type="number" value={form.bestNPlayers} onChange={set('bestNPlayers')} placeholder="e.g. 3" />
+          {!form.isQuiz && (
+            <>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>Score type</label>
+                <select value={form.scoreType} onChange={set('scoreType') as any}
+                  style={{ padding: '10px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', fontSize: '15px' }}>
+                  {SCORE_TYPES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>How team score is calculated</label>
+                {TEAM_MODE_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, defaultTeamScoreMode: opt.value as TeamScoreMode }))}
+                    style={{
+                      padding: '10px 12px', borderRadius: 'var(--radius)', cursor: 'pointer', textAlign: 'left',
+                      border: form.defaultTeamScoreMode === opt.value ? '2px solid var(--accent)' : '1.5px solid var(--border-light)',
+                      background: form.defaultTeamScoreMode === opt.value ? 'var(--surface)' : 'var(--background)',
+                      width: '100%',
+                    }}
+                  >
+                    <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', marginBottom: '2px' }}>{opt.label}</p>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.4 }}>{opt.desc}</p>
+                  </button>
+                ))}
+              </div>
+              {form.defaultTeamScoreMode === 'best_n_players' && (
+                <Input label="How many top players to count" type="number" value={form.bestNPlayers} onChange={set('bestNPlayers')} placeholder="e.g. 3" />
+              )}
+            </>
           )}
         </div>
       </Modal>

@@ -82,7 +82,10 @@ export async function competitionRoutes(app: FastifyInstance) {
           },
         },
         challenges: {
-          include: { challenge: true },
+          include: {
+            challenge: true,
+            quizSession: { select: { id: true, status: true } },
+          },
           orderBy: { order: 'asc' },
         },
         players: {
@@ -294,7 +297,7 @@ export async function competitionRoutes(app: FastifyInstance) {
   app.put('/:id/players/:userId', { preHandler: requireAuth }, async (request, reply) => {
     const { id, userId } = request.params as { id: string; userId: string }
     const me = request.user as { id: string; role: GlobalRole }
-    const body = request.body as { teamId?: string | null; isTeamLeader?: boolean; isScorekeeper?: boolean }
+    const body = request.body as { teamId?: string | null; isTeamLeader?: boolean; isScorekeeper?: boolean; isQuizMaster?: boolean }
 
     if (me.role !== GlobalRole.ADMIN) {
       const myPlayer = await prisma.competitionPlayer.findUnique({
@@ -303,8 +306,8 @@ export async function competitionRoutes(app: FastifyInstance) {
       if (!myPlayer?.isTeamLeader) {
         return reply.status(403).send({ error: 'Admin access required' })
       }
-      if (body.teamId !== undefined || body.isTeamLeader !== undefined) {
-        return reply.status(403).send({ error: 'Only admins can change team assignment or leader status' })
+      if (body.teamId !== undefined || body.isTeamLeader !== undefined || body.isQuizMaster !== undefined) {
+        return reply.status(403).send({ error: 'Only admins can change team assignment, leader, or QM status' })
       }
       const targetPlayer = await prisma.competitionPlayer.findUnique({
         where: { competitionId_userId: { competitionId: id, userId } },

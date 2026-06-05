@@ -238,6 +238,7 @@ export function AdminCompetitionManage() {
                       {comp.isTeamCompetition !== false && (p.team?.name ?? 'Player Pool')}
                       {p.isTeamLeader ? (comp.isTeamCompetition !== false ? ' · Leader' : 'Leader') : ''}
                       {p.isScorekeeper ? (p.isTeamLeader ? ' · Scorekeeper' : 'Scorekeeper') : ''}
+                      {p.isQuizMaster ? ' · QM' : ''}
                     </p>
                   </div>
                   <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -255,6 +256,14 @@ export function AdminCompetitionManage() {
                       onClick={() => toggleLeaderMutation.mutate({ userId: p.userId, isTeamLeader: !p.isTeamLeader })}
                     >
                       {p.isTeamLeader ? '⭐ Leader' : 'Leader'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={p.isQuizMaster ? 'success' : 'ghost'}
+                      style={{ fontSize: '11px', padding: '4px 10px' }}
+                      onClick={() => api.competitions.updatePlayer(id!, p.userId, { isQuizMaster: !p.isQuizMaster }).then(() => qc.invalidateQueries({ queryKey: ['competition', id] }))}
+                    >
+                      {p.isQuizMaster ? '🎯 QM' : 'QM'}
                     </Button>
                     <Button size="sm" variant="danger" style={{ fontSize: '11px', padding: '4px 8px' }}
                       onClick={() => removePlayerMutation.mutate(p.userId)}>

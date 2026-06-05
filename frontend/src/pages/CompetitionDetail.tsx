@@ -220,15 +220,29 @@ export function CompetitionDetail() {
                   </div>
                 )}
                 <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px' }}>
+                  {cc.challenge.isQuiz && <span style={{ fontSize: '14px', marginRight: 6 }}>🎯</span>}
                   {cc.challenge.name}
                 </p>
                 <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '3px' }}>
-                  {SCORE_TYPE_LABELS[cc.challenge.scoreType as keyof typeof SCORE_TYPE_LABELS]}
+                  {cc.challenge.isQuiz
+                    ? `Quiz${cc.quizSession ? ` · ${cc.quizSession.status}` : ' · Not started'}`
+                    : SCORE_TYPE_LABELS[cc.challenge.scoreType as keyof typeof SCORE_TYPE_LABELS]}
                 </p>
                 {cc.challenge.description && (
                   <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: 1.5 }}>
                     {cc.challenge.description}
                   </p>
+                )}
+                {cc.challenge.isQuiz && (
+                  <Link to={`/competitions/${id}/quiz/${cc.id}`} style={{ textDecoration: 'none', display: 'inline-block', marginTop: '10px' }}>
+                    <Button size="sm" variant={cc.quizSession?.status === 'ACTIVE' || cc.quizSession?.status === 'CORRECTING' ? 'primary' : 'ghost'} style={{ fontSize: '13px' }}>
+                      {cc.quizSession?.status === 'LOBBY' ? '⏳ Join Lobby' :
+                       cc.quizSession?.status === 'ACTIVE' ? '🔴 Quiz Live!' :
+                       cc.quizSession?.status === 'CORRECTING' ? '🟡 Correction' :
+                       cc.quizSession?.status === 'COMPLETED' ? '✅ View Results' :
+                       '🎯 Open Quiz'}
+                    </Button>
+                  </Link>
                 )}
               </div>
             </Card>

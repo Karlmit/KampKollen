@@ -120,10 +120,12 @@ model Challenge {
   defaultTeamScoreMode TeamScoreMode @default(sum_all_players)
   bestNPlayers         Int?
   isGlobalTemplate     Boolean       @default(false)
+  isQuiz               Boolean       @default(false)
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
 
   competitionChallenges CompetitionChallenge[]
+  quizQuestions         QuizQuestion[]
 }
 
 model CompetitionChallenge {
@@ -137,7 +139,8 @@ model CompetitionChallenge {
   teamScoreModeOverride TeamScoreMode?
   bestNPlayersOverride  Int?
 
-  scores Score[]
+  scores      Score[]
+  quizSession QuizSession?
 
   @@unique([competitionId, challengeId])
 }
@@ -166,6 +169,7 @@ model CompetitionPlayer {
   team          Team?       @relation(fields: [teamId], references: [id])
   isTeamLeader  Boolean     @default(false)
   isScorekeeper Boolean     @default(false)
+  isQuizMaster  Boolean     @default(false)
   joinedAt      DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
@@ -216,4 +220,81 @@ model UserGroup {
   group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@id([userId, groupId])
+}
+
+// ── Quiz ─────────────────────────────────────────────────────────────────────
+
+enum QuizSessionStatus {
+  LOBBY
+  ACTIVE
+  CORRECTING
+  COMPLETED
+}
+
+model QuizQuestion {
+  id           String    @id @default(cuid())
+  challengeId  String
+  challenge    Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  text         String
+  imageUrl     String?
+  points       Int       @default(1)
+  order        Int       @default(0)
+  timerSeconds Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  options QuizOption[]
+  answers QuizAnswer[]
+}
+
+model QuizOption {
+  id         String       @id @default(cuid())
+  questionId String
+  question   QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  text       String
+  imageUrl   String?
+  isCorrect  Boolean      @default(false)
+  order      Int          @default(0)
+
+  answers QuizAnswer[]
+}
+
+model QuizSession {
+  id                     String               @id @default(cuid())
+  competitionChallengeId String               @unique
+  competitionChallenge   CompetitionChallenge @relation(fields: [competitionChallengeId], references: [id], onDelete: Cascade)
+  status                 QuizSessionStatus    @default(LOBBY)
+  currentQuestionIndex   Int                  @default(0)
+  questionLocked         Boolean              @default(false)
+  correctionIndex        Int                  @default(0)
+  correctAnswerVisible   Boolean              @default(false)
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+
+  readyEntries QuizReady[]
+}
+
+model QuizReady {
+  id        String      @id @default(cuid())
+  sessionId String
+  session   QuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  teamId    String?
+  userId    String?
+
+  @@unique([sessionId, teamId])
+  @@unique([sessionId, userId])
+}
+
+model QuizAnswer {
+  id          String       @id @default(cuid())
+  questionId  String
+  question    QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  optionId    String
+  option      QuizOption   @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  userId      String?
+  teamId      String?
+  submittedAt DateTime     @default(now())
+
+  @@unique([questionId, userId])
+  @@unique([questionId, teamId])
 }

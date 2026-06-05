@@ -12,6 +12,7 @@ const challengeSchema = z.object({
   defaultTeamScoreMode: z.nativeEnum(TeamScoreMode).optional(),
   bestNPlayers: z.number().int().min(1).optional(),
   isGlobalTemplate: z.boolean().optional(),
+  isQuiz: z.boolean().optional(),
 })
 
 export async function challengeRoutes(app: FastifyInstance) {
@@ -19,6 +20,7 @@ export async function challengeRoutes(app: FastifyInstance) {
     const me = request.user as { role: string }
     const challenges = await prisma.challenge.findMany({
       orderBy: { name: 'asc' },
+      include: { _count: { select: { quizQuestions: true } } },
     })
     return { challenges }
   })
