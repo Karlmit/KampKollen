@@ -48,14 +48,16 @@ function TrophyCard({ trophy, isSelf, adminMode, giftAnimData, onOpen, onTakeBac
 
   const imgUrl = trophy.imageUrl
   const canTap = isSelf && !revealed && !playing && !!giftAnimData
+  // Admins see all content even for unopened trophies
+  const showContent = revealed || adminMode
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', width: 88 }}>
-      {revealed ? (
+      {showContent ? (
         <img
           src={imgUrl}
           alt={trophy.title}
-          style={{ width: 80, height: 80, borderRadius: 'var(--radius)', objectFit: 'cover' }}
+          style={{ width: 80, height: 80, borderRadius: 'var(--radius)', objectFit: 'cover', opacity: revealed ? 1 : 0.7 }}
         />
       ) : giftAnimData ? (
         <div
@@ -82,8 +84,13 @@ function TrophyCard({ trophy, isSelf, adminMode, giftAnimData, onOpen, onTakeBac
           background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px',
         }}>🎁</div>
       )}
-      {revealed ? (
+      {showContent ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
+          {!revealed && (
+            <p style={{ fontSize: '9px', fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--accent-warm)', textAlign: 'center', letterSpacing: '0.04em' }}>
+              UNOPENED
+            </p>
+          )}
           <p style={{
             fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '11px',
             textAlign: 'center', color: 'var(--text-primary)', lineHeight: 1.2,
