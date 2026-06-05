@@ -87,6 +87,7 @@ export interface CompetitionPlayer {
   team?: Pick<Team, 'id' | 'name'>
   isTeamLeader: boolean
   isScorekeeper: boolean
+  isQuizMaster: boolean
   joinedAt: string
 }
 

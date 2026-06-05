@@ -75,6 +75,12 @@ export function MyTeamPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['competition', competitionId] }),
   })
 
+  const toggleQuizMasterMutation = useMutation({
+    mutationFn: ({ userId, isQuizMaster }: { userId: string; isQuizMaster: boolean }) =>
+      api.competitions.updatePlayer(competitionId!, userId, { isQuizMaster }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['competition', competitionId] }),
+  })
+
   const addGuestMutation = useMutation({
     mutationFn: () => api.competitions.createDummyPlayer(competitionId!, { name: guestName.trim(), teamId: teamId! }),
     onSuccess: () => {
@@ -184,6 +190,7 @@ export function MyTeamPage() {
                     {p.user?.isDummy && <Badge style={{ fontSize: '11px', background: 'var(--border-light)', color: 'var(--text-muted)' }}>Guest</Badge>}
                     {p.isTeamLeader && <Badge variant="info" style={{ fontSize: '11px' }}>Leader</Badge>}
                     {p.isScorekeeper && <Badge variant="success" style={{ fontSize: '11px' }}>Scorekeeper</Badge>}
+                    {p.isQuizMaster && <Badge style={{ fontSize: '11px', background: 'var(--accent-orange)', color: '#fff' }}>🎯 QM</Badge>}
                   </div>
                 </div>
                 {canManage && p.user?.isDummy && (
@@ -238,6 +245,17 @@ export function MyTeamPage() {
                         style={{ fontSize: '11px', padding: '4px 10px' }}
                       >
                         Scorekeeper
+                      </Button>
+                    )}
+                    {isAdmin && (
+                      <Button
+                        size="sm"
+                        variant={p.isQuizMaster ? 'success' : 'ghost'}
+                        onClick={() => toggleQuizMasterMutation.mutate({ userId: p.userId, isQuizMaster: !p.isQuizMaster })}
+                        loading={toggleQuizMasterMutation.isPending}
+                        style={{ fontSize: '11px', padding: '4px 10px' }}
+                      >
+                        {p.isQuizMaster ? '🎯 QM' : 'QM'}
                       </Button>
                     )}
                     <Button
