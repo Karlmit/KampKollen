@@ -108,7 +108,7 @@ export function AdminChallenges() {
                     <Button size="sm" variant="ghost" style={{ fontSize: '12px' }}>📝 Questions</Button>
                   </Link>
                 )}
-                {!c.isQuiz && <Button size="sm" variant="ghost" style={{ fontSize: '12px' }} onClick={() => setImageChallenge(c)}>✨ Image</Button>}
+                <Button size="sm" variant="ghost" style={{ fontSize: '12px' }} onClick={() => setImageChallenge(c)}>✨ Image</Button>
                 <Button size="sm" variant="danger" style={{ fontSize: '12px' }} onClick={() => setDeleteConfirm(c)}>Delete</Button>
               </div>
             </Card>
