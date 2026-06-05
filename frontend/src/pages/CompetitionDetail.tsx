@@ -16,14 +16,14 @@ import { Competition, CompetitionPlayer, Team, SCORE_TYPE_LABELS, LeaderboardTea
 import { GuestCompetitionView } from './GuestCompetitionView'
 import { CompetitionLeaderboardContent } from '../components/CompetitionLeaderboardContent'
 
-type Tab = 'overview' | 'leaderboard' | 'teams' | 'challenges' | 'pool'
+type Tab = 'leaderboard' | 'teams' | 'challenges' | 'pool'
 
 export function CompetitionDetail() {
   const { id } = useParams<{ id: string }>()
   const { user, isAdmin } = useAuth()
   const qc = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
-  const tab = (searchParams.get('tab') as Tab) ?? 'overview'
+  const tab = (searchParams.get('tab') as Tab) ?? 'leaderboard'
   const setTab = (key: Tab) => setSearchParams({ tab: key }, { replace: true })
 
   const { data, isLoading } = useQuery({
@@ -77,7 +77,6 @@ export function CompetitionDetail() {
   const lbData: CompetitionLeaderboard | undefined = (lbDataRaw as any)
 
   const tabs: { key: Tab; label: string; count?: number }[] = [
-    { key: 'overview', label: 'Overview' },
     { key: 'leaderboard', label: '📊 Leaderboard' },
     ...(isTeamComp ? [{ key: 'teams' as Tab, label: 'Teams', count: comp.teams?.length }] : []),
     { key: 'challenges', label: 'Challenges', count: comp.challenges?.length },
@@ -141,18 +140,6 @@ export function CompetitionDetail() {
         </Link>
       )}
 
-      {/* Action buttons */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
-        <Link to={`/competitions/${id}/leaderboard`}>
-          <Button variant="ghost" size="sm">📊 Leaderboard</Button>
-        </Link>
-        {(isAdmin || myPlayer?.isTeamLeader || myPlayer?.isScorekeeper) && (
-          <Link to={`/competitions/${id}/scores`}>
-            <Button variant="ghost" size="sm">✏️ Enter Scores</Button>
-          </Link>
-        )}
-      </div>
-
       {/* Tabs */}
       <TabBar
         tabs={tabs.map(t => ({
@@ -171,151 +158,6 @@ export function CompetitionDetail() {
           : <LoadingSpinner />
       )}
 
-      {/* Tab content */}
-      {tab === 'overview' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <Card>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              {(isTeamComp ? [
-                { label: 'Teams', value: comp.teams?.length ?? 0 },
-                { label: 'Players', value: comp.players?.length ?? 0 },
-                { label: 'Challenges', value: comp.challenges?.length ?? 0 },
-                { label: 'In pool', value: playerPool.length },
-              ] : [
-                { label: 'Players', value: comp.players?.length ?? 0 },
-                { label: 'Challenges', value: comp.challenges?.length ?? 0 },
-              ]).map(s => (
-                <div key={s.label} style={{ textAlign: 'center' }}>
-                  <p style={{ fontFamily: 'var(--font-ui)', fontSize: '28px', fontWeight: 700 }}>{s.value}</p>
-                  <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{s.label}</p>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          {/* Compact individual standings — individual competitions */}
-          {!isTeamComp && lbData?.individualLeaderboard && lbData.individualLeaderboard.length > 0 && (
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-                  Standings
-                </h2>
-                <Link to={`/competitions/${id}/leaderboard`} style={{ textDecoration: 'none' }}>
-                  <span style={{ fontSize: '12px', fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--accent)' }}>
-                    Full leaderboard ›
-                  </span>
-                </Link>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {(lbData.individualLeaderboard as any[]).slice(0, 3).map((p: any) => {
-                  const isFirst = p.rank === 1
-                  const rankLabel = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : '🥉'
-                  const isMe = p.userId === user?.id
-                  return (
-                    <Card key={p.userId} padding="12px" style={{ background: isFirst ? 'var(--text-primary)' : undefined, borderColor: isFirst ? 'var(--text-primary)' : undefined }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span style={{ fontSize: '20px', minWidth: '28px', textAlign: 'center', lineHeight: 1 }}>{rankLabel}</span>
-                        <Avatar src={p.profileImageUrl} name={p.displayName ?? p.username ?? p.userId} size={32} />
-                        <div style={{ flex: 1 }}>
-                          <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', color: isFirst ? '#fff' : undefined }}>
-                            {p.displayName ?? p.username ?? p.userId}
-                          </p>
-                          {isMe && <p style={{ fontSize: '11px', fontFamily: 'var(--font-ui)', fontWeight: 700, letterSpacing: '0.06em', color: isFirst ? 'rgba(255,255,255,0.7)' : 'var(--accent)' }}>YOU</p>}
-                        </div>
-                        <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px', color: isFirst ? '#fff' : undefined }}>
-                          {p.totalPoints.toFixed(0)}
-                        </p>
-                      </div>
-                    </Card>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Compact team standings */}
-          {lbData?.teamLeaderboard && lbData.teamLeaderboard.length > 0 && (
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                <h2 style={{
-                  fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '0.08em',
-                  textTransform: 'uppercase', color: 'var(--text-muted)',
-                }}>
-                  Team Standings
-                </h2>
-                <Link to={`/competitions/${id}/leaderboard`} style={{ textDecoration: 'none' }}>
-                  <span style={{ fontSize: '12px', fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--accent)' }}>
-                    Full leaderboard ›
-                  </span>
-                </Link>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {lbData.teamLeaderboard.map((team: LeaderboardTeam) => {
-                  const isFirst = team.rank === 1
-                  const rankLabel = team.rank === 1 ? '🥇' : team.rank === 2 ? '🥈' : team.rank === 3 ? '🥉' : String(team.rank)
-                  const isMyTeam = myTeam?.id === team.teamId
-                  return (
-                    <Card
-                      key={team.teamId}
-                      padding="12px"
-                      style={{
-                        background: isFirst ? 'var(--text-primary)' : undefined,
-                        borderColor: isFirst ? 'var(--text-primary)' : undefined,
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span style={{ fontSize: isFirst ? '22px' : '18px', minWidth: '28px', textAlign: 'center', lineHeight: 1 }}>
-                          {rankLabel}
-                        </span>
-                        <Link
-                          to={`/competitions/${id}/team/${team.teamId}`}
-                          style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0, textDecoration: 'none' }}
-                        >
-                          <Avatar
-                            src={team.teamImageUrl}
-                            name={team.teamName}
-                            size={isFirst ? 40 : 34}
-                            style={{ borderRadius: '50%', border: isFirst ? '2px solid rgba(255,255,255,0.25)' : undefined }}
-                          />
-                          <div style={{ minWidth: 0 }}>
-                            <p style={{
-                              fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px',
-                              color: isFirst ? '#fff' : undefined,
-                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                            }}>
-                              {team.teamName}
-                            </p>
-                            {isMyTeam && (
-                              <p style={{
-                                fontSize: '10px', fontFamily: 'var(--font-ui)', fontWeight: 700,
-                                letterSpacing: '0.06em',
-                                color: isFirst ? 'rgba(255,255,255,0.7)' : 'var(--accent)',
-                              }}>
-                                YOUR TEAM
-                              </p>
-                            )}
-                          </div>
-                        </Link>
-                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                          <p style={{
-                            fontFamily: 'var(--font-ui)', fontWeight: 700,
-                            fontSize: isFirst ? '24px' : '18px',
-                            color: isFirst ? '#fff' : undefined,
-                            lineHeight: 1,
-                          }}>
-                            {team.totalPoints.toFixed(0)}
-                          </p>
-                          <p style={{ fontSize: '10px', color: isFirst ? 'rgba(255,255,255,0.55)' : 'var(--text-muted)', marginTop: '1px' }}>pts</p>
-                        </div>
-                      </div>
-                    </Card>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {tab === 'teams' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
