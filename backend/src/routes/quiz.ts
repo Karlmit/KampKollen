@@ -29,8 +29,9 @@ async function getOrCreateSession(ccId: string) {
   })
 }
 
-async function isQMorAdmin(userId: string, role: string, ccId: string): Promise<boolean> {
-  if (role === GlobalRole.ADMIN) return true
+// QM check: only the isQuizMaster flag counts — admins are treated as regular
+// players unless they are also explicitly marked as QM in this competition.
+async function isQM(userId: string, ccId: string): Promise<boolean> {
   const cc = await prisma.competitionChallenge.findUnique({ where: { id: ccId }, select: { competitionId: true } })
   if (!cc) return false
   const player = await prisma.competitionPlayer.findUnique({
@@ -169,9 +170,8 @@ export async function quizRoutes(app: FastifyInstance) {
     })
     if (!cc) return reply.status(404).send({ error: 'Not found' })
 
-    const isAdmin = me.role === GlobalRole.ADMIN
     const myPlayer = cc.competition.players.find(p => p.userId === me.id)
-    const isQM = isAdmin || myPlayer?.isQuizMaster
+    const isQM = myPlayer?.isQuizMaster ?? false
     const rawSession = cc.quizSession ?? await getOrCreateSession(ccId)
     const sessionWithReady = await prisma.quizSession.findUnique({ where: { id: rawSession.id }, include: { readyEntries: true } })
     const session = sessionWithReady!
@@ -413,7 +413,7 @@ export async function quizRoutes(app: FastifyInstance) {
   app.post('/:ccId/session/start', { preHandler: requireAuth }, async (request, reply) => {
     const { ccId } = request.params as { ccId: string }
     const me = request.user as { id: string; role: string }
-    if (!await isQMorAdmin(me.id, me.role, ccId)) return reply.status(403).send({ error: 'QM or admin required' })
+    if (!await isQM(me.id, ccId)) return reply.status(403).send({ error: 'QM or admin required' })
 
     await prisma.quizSession.upsert({
       where: { competitionChallengeId: ccId },
@@ -427,7 +427,7 @@ export async function quizRoutes(app: FastifyInstance) {
   app.post('/:ccId/session/next-question', { preHandler: requireAuth }, async (request, reply) => {
     const { ccId } = request.params as { ccId: string }
     const me = request.user as { id: string; role: string }
-    if (!await isQMorAdmin(me.id, me.role, ccId)) return reply.status(403).send({ error: 'QM or admin required' })
+    if (!await isQM(me.id, ccId)) return reply.status(403).send({ error: 'QM or admin required' })
 
     const session = await getOrCreateSession(ccId)
     if (session.status !== 'ACTIVE') return reply.status(400).send({ error: 'Quiz not active' })
@@ -449,7 +449,7 @@ export async function quizRoutes(app: FastifyInstance) {
   app.post('/:ccId/session/lock-question', { preHandler: requireAuth }, async (request, reply) => {
     const { ccId } = request.params as { ccId: string }
     const me = request.user as { id: string; role: string }
-    if (!await isQMorAdmin(me.id, me.role, ccId)) return reply.status(403).send({ error: 'QM or admin required' })
+    if (!await isQM(me.id, ccId)) return reply.status(403).send({ error: 'QM or admin required' })
 
     const session = await getOrCreateSession(ccId)
     await prisma.quizSession.update({ where: { id: session.id }, data: { questionLocked: true } })
@@ -460,7 +460,7 @@ export async function quizRoutes(app: FastifyInstance) {
   app.post('/:ccId/session/show-answer', { preHandler: requireAuth }, async (request, reply) => {
     const { ccId } = request.params as { ccId: string }
     const me = request.user as { id: string; role: string }
-    if (!await isQMorAdmin(me.id, me.role, ccId)) return reply.status(403).send({ error: 'QM or admin required' })
+    if (!await isQM(me.id, ccId)) return reply.status(403).send({ error: 'QM or admin required' })
 
     const session = await getOrCreateSession(ccId)
     if (session.status !== 'CORRECTING') return reply.status(400).send({ error: 'Not in correction mode' })
@@ -472,7 +472,7 @@ export async function quizRoutes(app: FastifyInstance) {
   app.post('/:ccId/session/next-correction', { preHandler: requireAuth }, async (request, reply) => {
     const { ccId } = request.params as { ccId: string }
     const me = request.user as { id: string; role: string }
-    if (!await isQMorAdmin(me.id, me.role, ccId)) return reply.status(403).send({ error: 'QM or admin required' })
+    if (!await isQM(me.id, ccId)) return reply.status(403).send({ error: 'QM or admin required' })
 
     const session = await getOrCreateSession(ccId)
     if (session.status !== 'CORRECTING') return reply.status(400).send({ error: 'Not in correction mode' })
@@ -495,7 +495,7 @@ export async function quizRoutes(app: FastifyInstance) {
   app.post('/:ccId/session/complete', { preHandler: requireAuth }, async (request, reply) => {
     const { ccId } = request.params as { ccId: string }
     const me = request.user as { id: string; role: string }
-    if (!await isQMorAdmin(me.id, me.role, ccId)) return reply.status(403).send({ error: 'QM or admin required' })
+    if (!await isQM(me.id, ccId)) return reply.status(403).send({ error: 'QM or admin required' })
 
     const session = await getOrCreateSession(ccId)
     await prisma.quizSession.update({ where: { id: session.id }, data: { status: 'COMPLETED' } })
