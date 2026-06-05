@@ -239,6 +239,9 @@ export async function quizRoutes(app: FastifyInstance) {
             teams: isTeamComp && (isBeingCorrected || isPastCorrection || isCompleted_)
               ? q.answers.filter(a => a.optionId === o.id && a.teamId).map(a => a.teamId)
               : [],
+            users: !isTeamComp && isCompleted_
+              ? q.answers.filter(a => a.optionId === o.id && a.userId).map(a => a.userId)
+              : [],
           }))
         : []
 

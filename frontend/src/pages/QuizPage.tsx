@@ -500,13 +500,80 @@ export function QuizPage() {
       )}
 
       {/* ── COMPLETED ────────────────────────────────────────────────────── */}
-      {session.status === 'COMPLETED' && (
+      {session.status === 'COMPLETED' && (() => {
+        // Compute quiz scores from answer data
+        const scoreMap: Record<string, number> = {}
+        for (const q of questions) {
+          const correctOpt = q.options?.find((o: any) => o.isCorrect)
+          if (!correctOpt) continue
+          const entry = q.answerCounts?.find((ac: any) => ac.optionId === correctOpt.id)
+          if (!entry) continue
+          if (isTeamComp) {
+            for (const teamId of entry.teams ?? []) {
+              scoreMap[teamId] = (scoreMap[teamId] ?? 0) + q.points
+            }
+          } else {
+            for (const uid of entry.users ?? []) {
+              scoreMap[uid] = (scoreMap[uid] ?? 0) + q.points
+            }
+          }
+        }
+
+        const podium = isTeamComp
+          ? competition.teams
+              .map((t: any) => ({ id: t.id, name: t.name, imageUrl: t.imageUrl, score: scoreMap[t.id] ?? 0 }))
+              .sort((a: any, b: any) => b.score - a.score)
+              .slice(0, 3)
+          : competition.players
+              .filter((p: any) => !p.user?.isDummy)
+              .map((p: any) => ({ id: p.userId, name: p.user?.displayName ?? p.user?.username, imageUrl: p.user?.profileImageUrl, score: scoreMap[p.userId] ?? 0 }))
+              .sort((a: any, b: any) => b.score - a.score)
+              .slice(0, 3)
+
+        const podiumOrder = [podium[1], podium[0], podium[2]].filter(Boolean) // 2nd, 1st, 3rd visual order
+        const podiumRankLabel = (rank: number) => rank === 0 ? '🥇' : rank === 1 ? '🥈' : '🥉'
+        const podiumHeight = [80, 100, 60] // visual heights for 2nd, 1st, 3rd columns
+
+        return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <Card style={{ textAlign: 'center', padding: '24px 16px', background: 'var(--text-primary)' }}>
-            <p style={{ fontSize: '36px', marginBottom: '8px' }}>🏁</p>
+          <Card style={{ textAlign: 'center', padding: '20px 16px', background: 'var(--text-primary)' }}>
+            <p style={{ fontSize: '32px', marginBottom: '6px' }}>🏁</p>
             <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '20px', color: '#fff', marginBottom: '4px' }}>Quiz Complete!</p>
-            <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.7)' }}>Scores have been submitted to the competition leaderboard.</p>
+            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>Scores submitted to competition leaderboard.</p>
           </Card>
+
+          {/* Top 3 podium */}
+          {podium.length > 0 && (
+            <Card padding="16px">
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '16px', textAlign: 'center' }}>
+                {isTeamComp ? 'Team Scores' : 'Player Scores'}
+              </p>
+              <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: '8px' }}>
+                {podiumOrder.map((entry: any, visualIdx: number) => {
+                  const rank = podium.indexOf(entry)
+                  const h = podiumHeight[visualIdx]
+                  const isFirst = rank === 0
+                  return (
+                    <div key={entry.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', flex: 1 }}>
+                      <span style={{ fontSize: '22px', lineHeight: 1 }}>{podiumRankLabel(rank)}</span>
+                      <Avatar src={entry.imageUrl} name={entry.name} size={isFirst ? 44 : 36} style={isTeamComp ? { borderRadius: '50%' } : undefined} />
+                      <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px', textAlign: 'center', lineHeight: 1.2 }}>{entry.name}</p>
+                      <div style={{
+                        width: '100%', height: h, borderRadius: 'var(--radius-sm) var(--radius-sm) 0 0',
+                        background: isFirst ? 'var(--text-primary)' : 'var(--surface)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        border: isFirst ? '2px solid var(--text-primary)' : '1.5px solid var(--border-light)',
+                      }}>
+                        <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: isFirst ? '20px' : '16px', color: isFirst ? '#fff' : 'var(--text-primary)' }}>
+                          {entry.score}
+                        </p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </Card>
+          )}
 
           {/* Full answer matrix */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -559,7 +626,8 @@ export function QuizPage() {
             ))}
           </div>
         </div>
-      )}
+        )
+      })()}
     </Layout>
   )
 }
