@@ -29,19 +29,24 @@ export async function userRoutes(app: FastifyInstance) {
     const { id } = request.params as { id: string }
     const me = request.user as { id: string; role: GlobalRole }
 
-    // For other users' profiles, only show trophies from groups the caller is in
-    let trophyWhere: any = {}
-    if (me.id !== id && me.role !== GlobalRole.ADMIN) {
+    // For other users' profiles, restrict to data from groups the caller shares
+    let callerGroupIds: string[] = []
+    const isOtherUser = me.id !== id && me.role !== GlobalRole.ADMIN
+    if (isOtherUser) {
       const callerGroups = await prisma.userGroup.findMany({ where: { userId: me.id }, select: { groupId: true } })
-      const callerGroupIds = callerGroups.map(g => g.groupId)
-      trophyWhere = { groupId: callerGroupIds.length > 0 ? { in: callerGroupIds } : undefined }
+      callerGroupIds = callerGroups.map(g => g.groupId)
     }
+
+    const groupCompFilter = isOtherUser && callerGroupIds.length > 0
+      ? { groupId: { in: callerGroupIds } }
+      : undefined
 
     const user = await prisma.user.findUnique({
       where: { id },
       select: {
         ...userSelect,
         competitionPlayers: {
+          where: groupCompFilter ? { competition: groupCompFilter } : undefined,
           include: {
             competition: true,
             team: true,
@@ -49,13 +54,16 @@ export async function userRoutes(app: FastifyInstance) {
           orderBy: { joinedAt: 'desc' },
         },
         scores: {
+          where: groupCompFilter ? { competition: groupCompFilter } : undefined,
           include: {
             competitionChallenge: { include: { challenge: true, competition: true } },
           },
           orderBy: { createdAt: 'desc' },
         },
         trophies: {
-          where: Object.keys(trophyWhere).length > 0 ? trophyWhere : undefined,
+          where: isOtherUser && callerGroupIds.length > 0
+            ? { groupId: { in: callerGroupIds } }
+            : undefined,
           orderBy: { sentAt: 'desc' },
         },
       },
