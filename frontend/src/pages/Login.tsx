@@ -81,19 +81,36 @@ export function Login() {
           </Link>
         </p>
 
-        <div style={{ marginTop: '16px', textAlign: 'center' }}>
-          <Link
-            to="/competitions"
-            style={{
-              fontSize: '13px', color: 'var(--text-muted)',
-              fontFamily: 'var(--font-ui)', textDecoration: 'none',
-              borderBottom: '1px solid var(--border-light)',
-              paddingBottom: '1px',
-            }}
-          >
-            Browse as Guest
-          </Link>
+        {/* Divider */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '24px 0' }}>
+          <div style={{ flex: 1, height: 1, background: 'var(--border-light)' }} />
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-ui)', fontWeight: 700, letterSpacing: '0.06em' }}>OR</span>
+          <div style={{ flex: 1, height: 1, background: 'var(--border-light)' }} />
         </div>
+
+        {/* Guest CTA */}
+        <Link to="/competitions" style={{ textDecoration: 'none', display: 'block' }}>
+          <div style={{
+            borderRadius: 'var(--radius-lg)',
+            border: '2px solid var(--border-light)',
+            padding: '18px 20px',
+            textAlign: 'center',
+            background: 'var(--surface)',
+            cursor: 'pointer',
+            transition: 'border-color 150ms, background 150ms',
+          }}
+            onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--accent)'; (e.currentTarget as HTMLDivElement).style.background = 'color-mix(in srgb, var(--accent) 5%, transparent)' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border-light)'; (e.currentTarget as HTMLDivElement).style.background = 'var(--surface)' }}
+          >
+            <p style={{ fontSize: '28px', lineHeight: 1, marginBottom: '8px' }}>📊</p>
+            <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '16px', marginBottom: '4px', color: 'var(--text-primary)' }}>
+              Watch Live Competitions
+            </p>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+              No account needed — view live leaderboards and scores
+            </p>
+          </div>
+        </Link>
       </div>
     </div>
   )
