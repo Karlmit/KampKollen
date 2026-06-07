@@ -116,6 +116,31 @@ export function GuestCompetitionView({ id }: { id: string }) {
         </div>
       </div>
 
+      {/* ── Live quiz banner ─────────────────────────── */}
+      {comp.challenges?.filter((cc: any) =>
+        cc.challenge?.isQuiz && cc.quizSession && ['LOBBY','ACTIVE','CORRECTING'].includes(cc.quizSession.status)
+      ).map((cc: any) => (
+        <Link key={cc.id} to={`/competitions/${id}/quiz/${cc.id}`} style={{ textDecoration: 'none', display: 'block', marginBottom: '16px' }}>
+          <div style={{
+            borderRadius: 'var(--radius-lg)', padding: '16px 18px',
+            background: 'linear-gradient(135deg, #f97316 0%, #ef4444 100%)',
+            display: 'flex', alignItems: 'center', gap: '14px',
+            boxShadow: '0 4px 16px rgba(249,115,22,0.35)',
+          }}>
+            <span style={{ fontSize: '28px', lineHeight: 1, flexShrink: 0 }}>🎯</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '16px', color: '#fff', marginBottom: '2px' }}>
+                {cc.quizSession.status === 'LOBBY' ? 'Quiz starting soon…' : cc.quizSession.status === 'ACTIVE' ? '🔴 Quiz LIVE!' : '🟡 Quiz — correction in progress'}
+              </p>
+              <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)' }}>
+                {cc.challenge.name} — tap to watch
+              </p>
+            </div>
+            <span style={{ fontSize: '20px', color: 'rgba(255,255,255,0.8)', flexShrink: 0 }}>›</span>
+          </div>
+        </Link>
+      ))}
+
       {/* ── Standings ────────────────────────────────── */}
       {lb?.teamLeaderboard && lb.teamLeaderboard.length > 0 && (
         <section style={{ marginBottom: '32px' }}>

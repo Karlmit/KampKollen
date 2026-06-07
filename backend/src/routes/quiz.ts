@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { z } from 'zod'
 import { GlobalRole, TeamScoreMode } from '@prisma/client'
 import { prisma } from '../db.js'
-import { requireAuth, requireAdmin } from '../middleware/auth.js'
+import { requireAuth, requireAdmin, optionalAuth } from '../middleware/auth.js'
 import path from 'path'
 import fs from 'fs'
 import { config } from '../config.js'
@@ -150,7 +150,7 @@ export async function quizRoutes(app: FastifyInstance) {
   })
 
   // ── SSE stream ──────────────────────────────────────────────────────────────
-  app.get('/:ccId/stream', { preHandler: requireAuth }, async (request, reply) => {
+  app.get('/:ccId/stream', { preHandler: optionalAuth }, async (request, reply) => {
     const { ccId } = request.params as { ccId: string }
     reply.raw.setHeader('Content-Type', 'text/event-stream')
     reply.raw.setHeader('Cache-Control', 'no-cache')
@@ -178,9 +178,10 @@ export async function quizRoutes(app: FastifyInstance) {
   })
 
   // ── Get full quiz state ─────────────────────────────────────────────────────
-  app.get('/:ccId/state', { preHandler: requireAuth }, async (request, reply) => {
+  app.get('/:ccId/state', { preHandler: optionalAuth }, async (request, reply) => {
     const { ccId } = request.params as { ccId: string }
-    const me = request.user as { id: string; role: string }
+    // Guests have no user — they see read-only state (isQM=false, canAct=false)
+    const me = (request.user as { id: string; role: string } | null) ?? null
 
     const cc = await prisma.competitionChallenge.findUnique({
       where: { id: ccId },
@@ -202,7 +203,7 @@ export async function quizRoutes(app: FastifyInstance) {
     })
     if (!cc) return reply.status(404).send({ error: 'Not found' })
 
-    const myPlayer = cc.competition.players.find(p => p.userId === me.id)
+    const myPlayer = me ? cc.competition.players.find(p => p.userId === me.id) : null
     const isQM = myPlayer?.isQuizMaster ?? false
     const rawSession = cc.quizSession ?? await getOrCreateSession(ccId)
     const sessionWithReady = await prisma.quizSession.findUnique({ where: { id: rawSession.id }, include: { readyEntries: true } })

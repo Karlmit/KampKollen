@@ -77,7 +77,7 @@ function AppRoutes() {
       <Route path="/admin/backup" element={<RequireAuth><AdminBackup /></RequireAuth>} />
       <Route path="/admin/groups" element={<RequireAuth><AdminGroups /></RequireAuth>} />
       <Route path="/admin/quiz/:challengeId" element={<RequireAuth><AdminQuizEditor /></RequireAuth>} />
-      <Route path="/competitions/:competitionId/quiz/:ccId" element={<RequireAuth><QuizPage /></RequireAuth>} />
+      <Route path="/competitions/:competitionId/quiz/:ccId" element={<QuizPage />} />
       <Route path="/competitions/:competitionId/quiz/:ccId/edit" element={<RequireAuth><QuizEditorPage /></RequireAuth>} />
 
       <Route path="*" element={<Navigate to={user ? '/' : '/competitions'} replace />} />
