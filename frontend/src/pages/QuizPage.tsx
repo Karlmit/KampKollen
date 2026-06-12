@@ -91,6 +91,7 @@ export function QuizPage() {
   const [submitted, setSubmitted] = useState(false)
   const [confirmStart, setConfirmStart] = useState(false)
   const [countdownSecs, setCountdownSecs] = useState<number | null>(null)
+  const [showFullResults, setShowFullResults] = useState(false)
 
   const { data, isLoading } = useQuery({
     queryKey: ['quiz', ccId],
@@ -622,9 +623,10 @@ export function QuizPage() {
           if (!rankGroups[e.rank]) rankGroups[e.rank] = []
           rankGroups[e.rank].push(e)
         }
-        const rankMedal = (rank: number) => rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'
-        const rankBg = (rank: number) => rank === 1 ? 'var(--text-primary)' : 'var(--surface)'
-        const rankColor = (rank: number) => rank === 1 ? '#fff' : 'var(--text-primary)'
+        const podiumMedal = (rank: number) => rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'
+        const podiumPlatformHeight = (rank: number) => rank === 1 ? 100 : rank === 2 ? 80 : 60
+        // Visual order: 2nd left, 1st centre, 3rd right — only include ranks that have entries
+        const podiumVisualOrder = ([2, 1, 3] as const).filter(r => rankGroups[r])
 
         return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -634,42 +636,96 @@ export function QuizPage() {
             <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>Scores submitted to competition leaderboard.</p>
           </Card>
 
-          {/* Results — supports tied ranks */}
-          {Object.keys(rankGroups).length > 0 && (
+          {/* Podium — visual columns, tied ranks show overlapping avatars */}
+          {podiumVisualOrder.length > 0 && (
             <Card padding="16px">
-              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '12px', textAlign: 'center' }}>
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '16px', textAlign: 'center' }}>
                 {isTeamComp ? 'Team Scores' : 'Player Scores'}
               </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {[1, 2, 3].filter(r => rankGroups[r]).map(rank => (
-                  <div key={rank} style={{
-                    borderRadius: 'var(--radius)',
-                    background: rankBg(rank),
-                    border: rank === 1 ? 'none' : '1.5px solid var(--border-light)',
-                    padding: '12px 14px',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: rankGroups[rank].length > 1 ? '10px' : 0 }}>
-                      <span style={{ fontSize: '24px', lineHeight: 1, flexShrink: 0 }}>{rankMedal(rank)}</span>
-                      <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '20px', color: rankColor(rank), lineHeight: 1 }}>
-                        {rankGroups[rank][0].score} <span style={{ fontWeight: 400, fontSize: '13px', opacity: 0.7 }}>pts</span>
-                      </p>
-                      {rankGroups[rank].length > 1 && (
-                        <span style={{ fontSize: '11px', fontFamily: 'var(--font-ui)', fontWeight: 700, color: rank === 1 ? 'rgba(255,255,255,0.6)' : 'var(--text-muted)', marginLeft: 'auto' }}>
-                          {rankGroups[rank].length}-way tie
-                        </span>
-                      )}
+              <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: '8px' }}>
+                {podiumVisualOrder.map(rank => {
+                  const entries = rankGroups[rank]
+                  const h = podiumPlatformHeight(rank)
+                  const gold = rank === 1
+                  return (
+                    <div key={rank} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', flex: 1, minWidth: 0 }}>
+                      <span style={{ fontSize: '22px', lineHeight: 1 }}>{podiumMedal(rank)}</span>
+                      {/* Overlapping avatars when multiple entries share a rank */}
+                      <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        {entries.map((e: any, i: number) => (
+                          <div key={e.id} style={{ marginLeft: i > 0 ? '-10px' : 0, zIndex: entries.length - i }}>
+                            <Avatar
+                              src={e.imageUrl} name={e.name}
+                              size={gold ? 40 : 32}
+                              style={{ border: '2px solid var(--background)', ...(isTeamComp ? { borderRadius: '50%' } : {}) }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      {/* Name(s) — truncated if too long */}
+                      <div style={{ width: '100%', textAlign: 'center' }}>
+                        {entries.map((e: any) => (
+                          <p key={e.id} style={{
+                            fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '11px',
+                            lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                          }}>{e.name}</p>
+                        ))}
+                      </div>
+                      {/* Platform block */}
+                      <div style={{
+                        width: '100%', height: h,
+                        borderRadius: 'var(--radius-sm) var(--radius-sm) 0 0',
+                        background: gold ? 'var(--text-primary)' : 'var(--surface)',
+                        border: gold ? '2px solid var(--text-primary)' : '1.5px solid var(--border-light)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: gold ? '20px' : '16px', color: gold ? '#fff' : 'var(--text-primary)' }}>
+                          {entries[0].score}
+                        </p>
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                      {rankGroups[rank].map((entry: any) => (
-                        <div key={entry.id} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <Avatar src={entry.imageUrl} name={entry.name} size={32} style={isTeamComp ? { borderRadius: '50%' } : undefined} />
-                          <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', color: rankColor(rank) }}>{entry.name}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
+
+              {/* Full results toggle — only shown when more than 3 participants */}
+              {ranked.length > 3 && (
+                <button
+                  type="button"
+                  onClick={() => setShowFullResults(v => !v)}
+                  style={{
+                    display: 'block', width: '100%', marginTop: '16px', padding: '8px 0',
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px',
+                    color: 'var(--accent)', textAlign: 'center',
+                  }}
+                >
+                  {showFullResults ? 'Hide full results ▲' : `See all ${ranked.length} results ↓`}
+                </button>
+              )}
+
+              {/* Expanded full leaderboard */}
+              {showFullResults && (
+                <div style={{ marginTop: '4px' }}>
+                  {ranked.map((e: any, i: number) => (
+                    <div key={e.id} style={{
+                      display: 'flex', alignItems: 'center', gap: '10px',
+                      padding: '8px 0', borderTop: '1px solid var(--border-light)',
+                    }}>
+                      <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', minWidth: '30px', textAlign: 'center', flexShrink: 0 }}>
+                        {e.rank <= 3 ? podiumMedal(e.rank) : `#${e.rank}`}
+                      </span>
+                      <Avatar src={e.imageUrl} name={e.name} size={28} style={{ flexShrink: 0, ...(isTeamComp ? { borderRadius: '50%' } : {}) }} />
+                      <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: '14px', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {e.name}
+                      </span>
+                      <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', flexShrink: 0 }}>
+                        {e.score} pts
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </Card>
           )}
 
