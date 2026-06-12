@@ -226,8 +226,8 @@ export async function quizRoutes(app: FastifyInstance) {
       const showAnswers = isCompleted_ || isPastCorrection || (isBeingCorrected && session.correctAnswerVisible)
       const showOptions = isCurrentQuestion || isPastQuestion || isCompleted_ || isCorrecting
 
-      // My answer for this question
-      const myAnswer = isTeamComp
+      // My answer for this question (me is null for guests)
+      const myAnswer = !me ? undefined : isTeamComp
         ? q.answers.find(a => a.teamId === myTeamId)
         : q.answers.find(a => a.userId === me.id)
 

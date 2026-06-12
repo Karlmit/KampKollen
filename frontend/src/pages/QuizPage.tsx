@@ -147,8 +147,9 @@ export function QuizPage() {
   if (!data) return <Layout title="Quiz" back={`/competitions/${competitionId}`}><p>Not found</p></Layout>
 
   const { session, isQM, isTeamComp, myTeamId, myIsTeamLeader, myIsScorekeeper, competition, questions, challengeId } = data
-  // In team mode: leaders, scorekeepers, and non-QM admins can act; individual mode: everyone
-  const canAct = !isTeamComp || myIsTeamLeader || myIsScorekeeper || (isAdmin && !isQM)
+  const isGuest = !user
+  // In team mode: leaders, scorekeepers, and non-QM admins can act; individual mode: everyone (guests never act)
+  const canAct = !isGuest && (!isTeamComp || myIsTeamLeader || myIsScorekeeper || (isAdmin && !isQM))
   const myTeam = competition.teams.find((t: any) => t.id === myTeamId)
   const currentQ = questions[session.currentQuestionIndex]
   const correctionQ = questions[session.correctionIndex]
@@ -182,8 +183,8 @@ export function QuizPage() {
             </p>
           </Card>
 
-          {/* Ready button — team mode: leaders/SK only; individual mode: everyone */}
-          {!isQM && canAct && !amReady && (
+          {/* Ready button — team mode: leaders/SK only; individual mode: everyone (guests never) */}
+          {!isGuest && !isQM && canAct && !amReady && (
             <Button
               fullWidth
               size="lg"
@@ -193,10 +194,17 @@ export function QuizPage() {
               ✅ Mark {isTeamComp ? (myTeam?.name ?? 'team') : 'me'} as Ready
             </Button>
           )}
-          {!isQM && !canAct && !amReady && (
+          {!isGuest && !isQM && !canAct && !amReady && (
             <Card padding="12px" style={{ textAlign: 'center' }}>
               <p style={{ fontFamily: 'var(--font-ui)', fontSize: '14px', color: 'var(--text-muted)' }}>
                 Waiting for your team leader or scorekeeper to mark the team ready.
+              </p>
+            </Card>
+          )}
+          {isGuest && (
+            <Card padding="12px" style={{ textAlign: 'center', background: 'var(--surface)' }}>
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '14px', color: 'var(--text-muted)' }}>
+                👀 Watching — <Link to="/login" style={{ color: 'var(--accent)' }}>sign in</Link> to participate
               </p>
             </Card>
           )}
@@ -319,7 +327,7 @@ export function QuizPage() {
             )}
           </Card>
 
-          {/* Options — QM sees live distribution, players see answer buttons */}
+          {/* Options — QM sees live distribution, guests see read-only, players see answer buttons */}
           {isQM ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {currentQ.options.map((opt: any) => {
@@ -362,6 +370,12 @@ export function QuizPage() {
                 )
               })}
             </div>
+          ) : isGuest ? (
+            <Card padding="14px" style={{ textAlign: 'center', background: 'var(--surface)' }}>
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '14px', color: 'var(--text-muted)' }}>
+                👀 Watching — <Link to="/login" style={{ color: 'var(--accent)' }}>sign in</Link> to participate
+              </p>
+            </Card>
           ) : currentQ.locked ? (
             <Card padding="14px" style={{ textAlign: 'center' }}>
               <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--text-muted)' }}>
