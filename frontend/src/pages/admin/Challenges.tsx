@@ -73,13 +73,13 @@ export function AdminChallenges() {
   return (
     <AdminLayout title={t('admin.challenges.title')}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>{t('admin.challenges.count', { count: data?.challenges?.length ?? 0 })}</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>{t('admin.challenges.count', { count: data?.challenges?.filter((c: any) => !c.isQuiz).length ?? 0 })}</p>
         <Button size="sm" onClick={openCreate}>{t('admin.challenges.newChallenge')}</Button>
       </div>
 
       {isLoading ? <LoadingSpinner /> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {data?.challenges?.map((c: any) => (
+          {data?.challenges?.filter((c: any) => !c.isQuiz).map((c: any) => (
             <Card key={c.id}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
                 <div>
