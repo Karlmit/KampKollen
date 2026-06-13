@@ -106,32 +106,38 @@ export async function leaderboardRoutes(app: FastifyInstance) {
         )
       }
 
+      // In team competitions, quiz results count only toward team scores —
+      // never toward individual totals (quizzes still appear under the team view).
+      const countForIndividual = !(cc.challenge.isQuiz && competition.isTeamCompetition !== false)
+
       // Accumulate individual totals
-      if (competition.scoringMode === 'placement_points') {
-        const tbm = competition.tieBreakingMode
-        const sortedPlayers = Object.entries(playerChallengePoints)
-          .sort(([, a], [, b]) => lowerBetter ? a - b : b - a)
-          .map(([userId, score]) => ({ userId, score }))
-        if (tbm) {
-          const withRanks = tiedRanks(sortedPlayers, e => e.score)
-          const rankSizes: Record<number, number> = {}
-          for (const item of withRanks) rankSizes[item.rank] = (rankSizes[item.rank] ?? 0) + 1
-          for (const item of withRanks) {
-            if (item.score === 0) continue
-            if (playerPoints[item.userId] !== undefined)
-              playerPoints[item.userId] += calcPlacementPts(item.rank, playerMaxPts, rankSizes[item.rank], tbm)
+      if (countForIndividual) {
+        if (competition.scoringMode === 'placement_points') {
+          const tbm = competition.tieBreakingMode
+          const sortedPlayers = Object.entries(playerChallengePoints)
+            .sort(([, a], [, b]) => lowerBetter ? a - b : b - a)
+            .map(([userId, score]) => ({ userId, score }))
+          if (tbm) {
+            const withRanks = tiedRanks(sortedPlayers, e => e.score)
+            const rankSizes: Record<number, number> = {}
+            for (const item of withRanks) rankSizes[item.rank] = (rankSizes[item.rank] ?? 0) + 1
+            for (const item of withRanks) {
+              if (item.score === 0) continue
+              if (playerPoints[item.userId] !== undefined)
+                playerPoints[item.userId] += calcPlacementPts(item.rank, playerMaxPts, rankSizes[item.rank], tbm)
+            }
+          } else {
+            sortedPlayers.forEach(({ userId, score }, i) => {
+              if (score === 0) return
+              if (playerPoints[userId] !== undefined)
+                playerPoints[userId] += (numPlayers - i) * 10
+            })
           }
         } else {
-          sortedPlayers.forEach(({ userId, score }, i) => {
-            if (score === 0) return
-            if (playerPoints[userId] !== undefined)
-              playerPoints[userId] += (numPlayers - i) * 10
-          })
-        }
-      } else {
-        for (const [userId, pts] of Object.entries(playerChallengePoints)) {
-          if (playerPoints[userId] !== undefined) {
-            playerPoints[userId] += pts
+          for (const [userId, pts] of Object.entries(playerChallengePoints)) {
+            if (playerPoints[userId] !== undefined) {
+              playerPoints[userId] += pts
+            }
           }
         }
       }
@@ -233,6 +239,7 @@ export async function leaderboardRoutes(app: FastifyInstance) {
         competitionChallengeId: cc.id,
         challengeName: cc.challenge.name,
         challengeLogoUrl: cc.challenge.logoUrl,
+        isQuiz: cc.challenge.isQuiz,
         order: cc.order,
         scoreType,
         teamScoreMode,

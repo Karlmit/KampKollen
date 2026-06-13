@@ -175,13 +175,19 @@ export function CompetitionLeaderboardContent({
       )}
 
       {/* Challenge breakdown */}
-      {lb.challengeLeaderboards.length > 0 && (
+      {(() => {
+        // Quizzes don't count toward individual scores in team competitions, so
+        // hide them from the per-challenge breakdown while in the individual view.
+        const breakdown = lb.challengeLeaderboards.filter(
+          (cl: any) => !(view === 'individual' && isTeamComp && cl.isQuiz)
+        )
+        return breakdown.length > 0 && (
         <section style={{ marginTop: '28px' }}>
           <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '12px', color: 'var(--text-muted)' }}>
             {t('leaderboard.challengeBreakdown')}
           </h2>
           <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {lb.challengeLeaderboards.map((cl: any) => {
+            {breakdown.map((cl: any) => {
               const isExpanded = expandedChallenge === cl.competitionChallengeId
               const items: any[] = view === 'individual' ? (cl.players ?? []) : (cl.teams ?? [])
               const visibleItems = isExpanded ? items : items.slice(0, 3)
@@ -230,7 +236,8 @@ export function CompetitionLeaderboardContent({
             })}
           </div>
         </section>
-      )}
+        )
+      })()}
     </div>
   )
 }
