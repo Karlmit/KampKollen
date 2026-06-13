@@ -9,6 +9,7 @@ import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { api } from '../api/client'
+import { useTranslation } from 'react-i18next'
 
 function SortableOptionRow({ option, onUpdate, onDelete, onImageUpload }: {
   option: any
@@ -59,6 +60,7 @@ function SortableOptionRow({ option, onUpdate, onDelete, onImageUpload }: {
 
 export function QuizEditorPage() {
   const { competitionId, ccId } = useParams<{ competitionId: string; ccId: string }>()
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const [newQText, setNewQText] = useState('')
   const [newOptText, setNewOptText] = useState<Record<string, string>>({})
@@ -174,7 +176,7 @@ export function QuizEditorPage() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '12px', marginBottom: '10px', fontSize: '13px', color: 'var(--text-muted)' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginBottom: '10px', fontSize: '13px', color: 'var(--text-muted)' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 Points:
                 <input type="number" min={1} defaultValue={q.points}
@@ -188,57 +190,74 @@ export function QuizEditorPage() {
                   style={{ width: 56, padding: '2px 6px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)', fontSize: '13px' }} />
                 <span style={{ fontSize: '11px' }}>(0 = no limit)</span>
               </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={!!q.isFreeText}
+                  onChange={e => updateQ.mutate({ id: q.id, isFreeText: e.target.checked })}
+                  style={{ width: 16, height: 16, cursor: 'pointer' }}
+                />
+                <span>{t('quiz.freeTextQuestion')}</span>
+              </label>
             </div>
 
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={({ active, over }) => {
-                if (!over || active.id === over.id) return
-                const opts = q.options ?? []
-                const oldIdx = opts.findIndex((o: any) => o.id === active.id)
-                const newIdx = opts.findIndex((o: any) => o.id === over.id)
-                const reordered = arrayMove(opts, oldIdx, newIdx)
-                reorderOpts.mutate(reordered.map((o: any) => o.id))
-              }}
-            >
-              <SortableContext items={(q.options ?? []).map((o: any) => o.id)} strategy={verticalListSortingStrategy}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '8px' }}>
-                  {(q.options ?? []).map((opt: any) => (
-                    <SortableOptionRow
-                      key={opt.id}
-                      option={opt}
-                      onUpdate={d => updateOpt.mutate({ id: opt.id, ...d })}
-                      onDelete={() => deleteOpt.mutate(opt.id)}
-                      onImageUpload={file => uploadOptImg.mutate({ id: opt.id, file })}
-                    />
-                  ))}
+            {q.isFreeText ? (
+              <div style={{ padding: '10px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', fontSize: '13px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                {t('quiz.freeTextQuestion')} — {t('quiz.freeTextPlaceholder')}
+              </div>
+            ) : (
+              <>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={({ active, over }) => {
+                    if (!over || active.id === over.id) return
+                    const opts = q.options ?? []
+                    const oldIdx = opts.findIndex((o: any) => o.id === active.id)
+                    const newIdx = opts.findIndex((o: any) => o.id === over.id)
+                    const reordered = arrayMove(opts, oldIdx, newIdx)
+                    reorderOpts.mutate(reordered.map((o: any) => o.id))
+                  }}
+                >
+                  <SortableContext items={(q.options ?? []).map((o: any) => o.id)} strategy={verticalListSortingStrategy}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '8px' }}>
+                      {(q.options ?? []).map((opt: any) => (
+                        <SortableOptionRow
+                          key={opt.id}
+                          option={opt}
+                          onUpdate={d => updateOpt.mutate({ id: opt.id, ...d })}
+                          onDelete={() => deleteOpt.mutate(opt.id)}
+                          onImageUpload={file => uploadOptImg.mutate({ id: opt.id, file })}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <input
+                    value={newOptText[q.id] ?? ''}
+                    onChange={e => setNewOptText(prev => ({ ...prev, [q.id]: e.target.value }))}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && (newOptText[q.id] ?? '').trim()) {
+                        addOpt.mutate({ questionId: q.id, text: (newOptText[q.id] ?? '').trim(), questions })
+                        setNewOptText(prev => ({ ...prev, [q.id]: '' }))
+                      }
+                    }}
+                    placeholder="Add answer option… (Enter to add)"
+                    style={{ flex: 1, padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)', fontSize: '13px' }}
+                  />
+                  <Button size="sm" variant="ghost"
+                    disabled={!(newOptText[q.id] ?? '').trim()}
+                    onClick={() => {
+                      const text = (newOptText[q.id] ?? '').trim()
+                      if (text) { addOpt.mutate({ questionId: q.id, text, questions }); setNewOptText(x => ({ ...x, [q.id]: '' })) }
+                    }}>
+                    + Option
+                  </Button>
                 </div>
-              </SortableContext>
-            </DndContext>
-
-            <div style={{ display: 'flex', gap: '6px' }}>
-              <input
-                value={newOptText[q.id] ?? ''}
-                onChange={e => setNewOptText(t => ({ ...t, [q.id]: e.target.value }))}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && (newOptText[q.id] ?? '').trim()) {
-                    addOpt.mutate({ questionId: q.id, text: (newOptText[q.id] ?? '').trim(), questions })
-                    setNewOptText(t => ({ ...t, [q.id]: '' }))
-                  }
-                }}
-                placeholder="Add answer option… (Enter to add)"
-                style={{ flex: 1, padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)', fontSize: '13px' }}
-              />
-              <Button size="sm" variant="ghost"
-                disabled={!(newOptText[q.id] ?? '').trim()}
-                onClick={() => {
-                  const t = (newOptText[q.id] ?? '').trim()
-                  if (t) { addOpt.mutate({ questionId: q.id, text: t, questions }); setNewOptText(x => ({ ...x, [q.id]: '' })) }
-                }}>
-                + Option
-              </Button>
-            </div>
+              </>
+            )}
           </Card>
         ))}
 

@@ -253,7 +253,7 @@ export function MyTeamPage() {
                         {p.isTeamLeader ? t('team.starLeader') : t('team.leader')}
                       </Button>
                     )}
-                    {isAdmin && (
+                    {(isAdmin || myPlayer?.isTeamLeader) && (
                       <Button
                         size="sm"
                         variant={p.isScorekeeper ? 'success' : 'ghost'}

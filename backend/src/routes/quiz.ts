@@ -88,13 +88,26 @@ async function computeAndSaveScores(ccId: string, actorId: string) {
   const playerPoints: Record<string, number> = {}
 
   for (const question of cc.challenge.quizQuestions) {
-    const correctOptionIds = new Set(question.options.filter(o => o.isCorrect).map(o => o.id))
-    for (const answer of question.answers) {
-      if (!correctOptionIds.has(answer.optionId)) continue
-      if (isTeamComp && answer.teamId) {
-        teamPoints[answer.teamId] = (teamPoints[answer.teamId] ?? 0) + question.points
-      } else if (!isTeamComp && answer.userId) {
-        playerPoints[answer.userId] = (playerPoints[answer.userId] ?? 0) + question.points
+    if (question.isFreeText) {
+      // Free text: use QM-awarded freeTextPoints
+      for (const answer of question.answers) {
+        const pts = answer.freeTextPoints ?? 0
+        if (pts <= 0) continue
+        if (isTeamComp && answer.teamId) {
+          teamPoints[answer.teamId] = (teamPoints[answer.teamId] ?? 0) + pts
+        } else if (!isTeamComp && answer.userId) {
+          playerPoints[answer.userId] = (playerPoints[answer.userId] ?? 0) + pts
+        }
+      }
+    } else {
+      const correctOptionIds = new Set(question.options.filter(o => o.isCorrect).map(o => o.id))
+      for (const answer of question.answers) {
+        if (!answer.optionId || !correctOptionIds.has(answer.optionId)) continue
+        if (isTeamComp && answer.teamId) {
+          teamPoints[answer.teamId] = (teamPoints[answer.teamId] ?? 0) + question.points
+        } else if (!isTeamComp && answer.userId) {
+          playerPoints[answer.userId] = (playerPoints[answer.userId] ?? 0) + question.points
+        }
       }
     }
   }
@@ -256,6 +269,17 @@ export async function quizRoutes(app: FastifyInstance) {
         ? q.answers.map(a => a.userId).filter(Boolean)
         : []
 
+      // Free text: include submitted answers (for QM and correction/completed states) with their text and points
+      const freeTextAnswers = q.isFreeText && (isQM || isBeingCorrected || isPastCorrection || isCompleted_)
+        ? q.answers.map(a => ({
+            id: a.id,
+            freeTextAnswer: a.freeTextAnswer,
+            freeTextPoints: a.freeTextPoints,
+            userId: a.userId,
+            teamId: a.teamId,
+          }))
+        : []
+
       return {
         id: q.id,
         text: showOptions ? q.text : null,
@@ -263,7 +287,8 @@ export async function quizRoutes(app: FastifyInstance) {
         points: q.points,
         timerSeconds: q.timerSeconds,
         order: q.order,
-        options: showOptions ? q.options.map(o => ({
+        isFreeText: q.isFreeText,
+        options: (!q.isFreeText && showOptions) ? q.options.map(o => ({
           id: o.id,
           text: o.text,
           imageUrl: o.imageUrl,
@@ -271,9 +296,12 @@ export async function quizRoutes(app: FastifyInstance) {
           isCorrect: showAnswers ? o.isCorrect : undefined,
         })) : [],
         myOptionId: myAnswer?.optionId ?? null,
+        myFreeTextAnswer: q.isFreeText ? (myAnswer?.freeTextAnswer ?? null) : null,
+        myFreeTextPoints: q.isFreeText ? (myAnswer?.freeTextPoints ?? null) : null,
         answeredTeams,
         answeredUserIds,
         answerCounts,
+        freeTextAnswers,
         locked: session.status === 'ACTIVE' && (idx < session.currentQuestionIndex || session.questionLocked),
       }
     })
@@ -312,6 +340,7 @@ export async function quizRoutes(app: FastifyInstance) {
       text: z.string().min(1),
       points: z.number().int().min(1).default(1),
       timerSeconds: z.number().int().min(0).default(0),
+      isFreeText: z.boolean().default(false),
     }).safeParse(request.body)
     if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
     if (!await canEditQuiz(me.id, me.role, body.data.challengeId)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
@@ -333,6 +362,7 @@ export async function quizRoutes(app: FastifyInstance) {
       text: z.string().min(1).optional(),
       points: z.number().int().min(1).optional(),
       timerSeconds: z.number().int().min(0).optional(),
+      isFreeText: z.boolean().optional(),
     }).safeParse(request.body)
     if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
     const question = await prisma.quizQuestion.update({ where: { id }, data: body.data, include: { options: true } })
@@ -586,7 +616,8 @@ export async function quizRoutes(app: FastifyInstance) {
     const me = request.user as { id: string }
     const body = z.object({
       questionId: z.string(),
-      optionId: z.string(),
+      optionId: z.string().optional(),
+      freeTextAnswer: z.string().optional(),
       teamId: z.string().optional(),
     }).safeParse(request.body)
     if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
@@ -604,20 +635,61 @@ export async function quizRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: 'Can only answer the current question' })
     }
 
-    const { teamId } = body.data
-    if (teamId) {
-      await prisma.quizAnswer.upsert({
-        where: { questionId_teamId: { questionId: body.data.questionId, teamId } },
-        create: { questionId: body.data.questionId, optionId: body.data.optionId, teamId, submittedAt: new Date() },
-        update: { optionId: body.data.optionId, submittedAt: new Date() },
-      })
+    if (currentQ.isFreeText) {
+      const freeText = body.data.freeTextAnswer?.trim() ?? ''
+      const { teamId } = body.data
+      if (teamId) {
+        await prisma.quizAnswer.upsert({
+          where: { questionId_teamId: { questionId: body.data.questionId, teamId } },
+          create: { questionId: body.data.questionId, freeTextAnswer: freeText, teamId, submittedAt: new Date() },
+          update: { freeTextAnswer: freeText, submittedAt: new Date() },
+        })
+      } else {
+        await prisma.quizAnswer.upsert({
+          where: { questionId_userId: { questionId: body.data.questionId, userId: me.id } },
+          create: { questionId: body.data.questionId, freeTextAnswer: freeText, userId: me.id, submittedAt: new Date() },
+          update: { freeTextAnswer: freeText, submittedAt: new Date() },
+        })
+      }
     } else {
-      await prisma.quizAnswer.upsert({
-        where: { questionId_userId: { questionId: body.data.questionId, userId: me.id } },
-        create: { questionId: body.data.questionId, optionId: body.data.optionId, userId: me.id, submittedAt: new Date() },
-        update: { optionId: body.data.optionId, submittedAt: new Date() },
-      })
+      if (!body.data.optionId) return reply.status(400).send({ error: 'optionId required for multiple choice question' })
+      const { teamId } = body.data
+      if (teamId) {
+        await prisma.quizAnswer.upsert({
+          where: { questionId_teamId: { questionId: body.data.questionId, teamId } },
+          create: { questionId: body.data.questionId, optionId: body.data.optionId, teamId, submittedAt: new Date() },
+          update: { optionId: body.data.optionId, submittedAt: new Date() },
+        })
+      } else {
+        await prisma.quizAnswer.upsert({
+          where: { questionId_userId: { questionId: body.data.questionId, userId: me.id } },
+          create: { questionId: body.data.questionId, optionId: body.data.optionId, userId: me.id, submittedAt: new Date() },
+          update: { optionId: body.data.optionId, submittedAt: new Date() },
+        })
+      }
     }
+    broadcast(ccId)
+    return { success: true }
+  })
+
+  // ── Set points for a free text answer (QM only) ─────────────────────────────
+  app.put('/:ccId/answers/:answerId/points', { preHandler: requireAuth }, async (request, reply) => {
+    const { ccId, answerId } = request.params as { ccId: string; answerId: string }
+    const me = request.user as { id: string; role: string }
+    if (!await isQM(me.id, ccId)) return reply.status(403).send({ error: 'QM or admin required' })
+
+    const answer = await prisma.quizAnswer.findUnique({
+      where: { id: answerId },
+      include: { question: true },
+    })
+    if (!answer) return reply.status(404).send({ error: 'Answer not found' })
+
+    const body = z.object({ points: z.number().int().min(0) }).safeParse(request.body)
+    if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
+
+    const maxPoints = answer.question.points
+    const pts = Math.min(body.data.points, maxPoints)
+    await prisma.quizAnswer.update({ where: { id: answerId }, data: { freeTextPoints: pts } })
     broadcast(ccId)
     return { success: true }
   })

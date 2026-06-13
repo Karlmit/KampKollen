@@ -134,9 +134,9 @@ export const api = {
   // Quiz
   quiz: {
     getState: (ccId: string) => request<any>(`/quiz/${ccId}/state`),
-    createQuestion: (data: { challengeId: string; text: string; points?: number; timerSeconds?: number }) =>
+    createQuestion: (data: { challengeId: string; text: string; points?: number; timerSeconds?: number; isFreeText?: boolean }) =>
       request<{ question: any }>('/quiz/questions', { method: 'POST', body: JSON.stringify(data) }),
-    updateQuestion: (id: string, data: { text?: string; points?: number; timerSeconds?: number }) =>
+    updateQuestion: (id: string, data: { text?: string; points?: number; timerSeconds?: number; isFreeText?: boolean }) =>
       request<{ question: any }>(`/quiz/questions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteQuestion: (id: string) => request(`/quiz/questions/${id}`, { method: 'DELETE' }),
     reorderQuestions: (order: string[]) => request('/quiz/questions/reorder', { method: 'PUT', body: JSON.stringify({ order }) }),
@@ -164,8 +164,10 @@ export const api = {
     showAnswer: (ccId: string) => request(`/quiz/${ccId}/session/show-answer`, { method: 'POST', body: '{}' }),
     nextCorrection: (ccId: string) => request(`/quiz/${ccId}/session/next-correction`, { method: 'POST', body: '{}' }),
     complete: (ccId: string) => request(`/quiz/${ccId}/session/complete`, { method: 'POST', body: '{}' }),
-    submitAnswer: (ccId: string, data: { questionId: string; optionId: string; teamId?: string }) =>
+    submitAnswer: (ccId: string, data: { questionId: string; optionId?: string; freeTextAnswer?: string; teamId?: string }) =>
       request(`/quiz/${ccId}/answers`, { method: 'POST', body: JSON.stringify(data) }),
+    setFreeTextPoints: (ccId: string, answerId: string, points: number) =>
+      request(`/quiz/${ccId}/answers/${answerId}/points`, { method: 'PUT', body: JSON.stringify({ points }) }),
     setQuizMaster: (compId: string, userId: string, isQuizMaster: boolean) =>
       request(`/quiz/competition/${compId}/players/${userId}/quiz-master`, { method: 'PUT', body: JSON.stringify({ isQuizMaster }) }),
   },

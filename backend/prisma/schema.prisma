@@ -240,6 +240,7 @@ model QuizQuestion {
   points       Int       @default(1)
   order        Int       @default(0)
   timerSeconds Int       @default(0)
+  isFreeText   Boolean   @default(false)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -286,14 +287,16 @@ model QuizReady {
 }
 
 model QuizAnswer {
-  id          String       @id @default(cuid())
-  questionId  String
-  question    QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  optionId    String
-  option      QuizOption   @relation(fields: [optionId], references: [id], onDelete: Cascade)
-  userId      String?
-  teamId      String?
-  submittedAt DateTime     @default(now())
+  id             String       @id @default(cuid())
+  questionId     String
+  question       QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  optionId       String?
+  option         QuizOption?  @relation(fields: [optionId], references: [id], onDelete: SetNull)
+  freeTextAnswer String?
+  freeTextPoints Int?
+  userId         String?
+  teamId         String?
+  submittedAt    DateTime     @default(now())
 
   @@unique([questionId, userId])
   @@unique([questionId, teamId])

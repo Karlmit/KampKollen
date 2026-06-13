@@ -572,6 +572,16 @@ const en = {
     cancel: 'Cancel',
     you: 'you',
     countdown5s: '⏳ {{count}}s…',
+    freeText: 'Free text',
+    freeTextQuestion: 'Free text question',
+    freeTextPlaceholder: 'Type your answer…',
+    freeTextSubmit: 'Submit answer',
+    freeTextAnswerSubmitted: '✓ Answer submitted',
+    freeTextAwardPoints: 'Award points',
+    freeTextAnswers: 'Submitted answers',
+    freeTextNoAnswers: 'No answers submitted',
+    freeTextPointsAwarded: '{{points}} / {{max}} pts',
+    freeTextDone: 'Done — proceed to next',
   },
 
   profileImage: {

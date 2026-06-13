@@ -570,6 +570,16 @@ const sv = {
     cancel: 'Avbryt',
     you: 'du',
     countdown5s: '⏳ {{count}}s...',
+    freeText: 'Fritext',
+    freeTextQuestion: 'Fritextfråga',
+    freeTextPlaceholder: 'Skriv ditt svar...',
+    freeTextSubmit: 'Skicka svar',
+    freeTextAnswerSubmitted: '✓ Svar skickat',
+    freeTextAwardPoints: 'Ge poäng',
+    freeTextAnswers: 'Inkomna svar',
+    freeTextNoAnswers: 'Inga svar inkomna',
+    freeTextPointsAwarded: '{{points}} / {{max}} p',
+    freeTextDone: 'Klart — gå vidare till nästa',
   },
 
   profileImage: {
