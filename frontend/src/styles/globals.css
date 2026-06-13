@@ -468,17 +468,22 @@ img {
 }
 .qz-gold-pulse { animation: qzGoldPulse 1.9s var(--ease-in-out) infinite; }
 
-/* Winner platform gold shimmer */
+/* Winner platform gold shimmer — a highlight that sweeps across, then waits
+   off-screen before repeating. Both keyframe ends sit fully outside the box,
+   so the loop wraps invisibly (no skipped frame / freeze at the end). */
 .qz-gold-shimmer { position: relative; overflow: hidden; }
 .qz-gold-shimmer::after {
-  content: ''; position: absolute; inset: 0;
-  background: linear-gradient(115deg, transparent 32%, rgba(255,215,0,0.5) 50%, transparent 68%);
-  background-size: 250% 100%;
-  animation: qzGoldSweep 2.4s var(--ease-in-out) infinite;
+  content: ''; position: absolute; top: 0; bottom: 0; left: 0;
+  width: 55%;
+  background: linear-gradient(100deg, transparent, rgba(255,215,0,0.55), transparent);
+  transform: translateX(-180%) skewX(-16deg);
+  animation: qzGoldSweep 2.8s linear infinite;
+  will-change: transform;
 }
 @keyframes qzGoldSweep {
-  0%   { background-position: 210% 0; }
-  100% { background-position: -110% 0; }
+  0%   { transform: translateX(-180%) skewX(-16deg); }
+  45%  { transform: translateX(320%)  skewX(-16deg); }
+  100% { transform: translateX(320%)  skewX(-16deg); }
 }
 
 /* Podium platform rise */
@@ -505,6 +510,25 @@ img {
   100% { opacity: 1; transform: scale(1); }
 }
 .qz-banner-in { animation: qzBannerIn 540ms var(--ease-out) both; }
+
+/* Wrong-answer red flash — a quick vignette wash across the screen */
+@keyframes qzRedFlash {
+  0%   { opacity: 0; }
+  18%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+.qz-red-flash {
+  position: fixed; inset: 0; z-index: 48; pointer-events: none;
+  background: radial-gradient(circle at center, rgba(215,40,61,0) 35%, rgba(215,40,61,0.55) 100%);
+  animation: qzRedFlash 720ms var(--ease-out) both;
+}
+
+/* Countdown card — gentle breathing so it draws the eye between questions */
+@keyframes qzCountdownBreathe {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(215,40,61,0); }
+  50%      { box-shadow: 0 0 22px 1px rgba(215,40,61,0.28); }
+}
+.qz-countdown-card { animation: qzCountdownBreathe 1.6s var(--ease-in-out) infinite; }
 
 /* Confetti / coin rain */
 @keyframes qzConfetti {
@@ -552,11 +576,13 @@ img {
   .qz-float, .qz-pop-in, .qz-chips > *, .qz-question-in, .qz-deal > *,
   .qz-selected, .qz-count-num, .qz-timer-urgent, .qz-bar-urgent,
   .qz-correct-burst, .qz-wrong-shake, .qz-cta, .qz-gold-pulse,
-  .qz-platform, .qz-medal, .qz-banner-in, .qz-confetti-piece {
+  .qz-platform, .qz-medal, .qz-banner-in, .qz-confetti-piece,
+  .qz-countdown-card {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
   }
+  .qz-red-flash { display: none !important; }
   .qz-points::after,
   .qz-gold-shimmer::after { display: none !important; }
   .qz-selected { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 32%, transparent) !important; }

@@ -328,27 +328,43 @@ export function QuizPage() {
             <TimerBar key={session.currentQuestionIndex} seconds={currentQ.timerSeconds} onExpire={() => {}} />
           )}
 
-          {/* Next-question countdown — shown to everyone */}
-          {countdownSecs !== null && (
-            <div style={{ marginBottom: 4 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', color: 'var(--accent-warm)' }}>
-                  {session.currentQuestionIndex >= questions.length - 1 ? t('quiz.quizCompletesIn') : t('quiz.nextQuestionIn')}
+          {/* Next-question countdown — shown to EVERY role (players, team leaders, scorekeepers, QM, guests) */}
+          {countdownSecs !== null && (() => {
+            const ringSize = 96
+            const ringR = 42
+            const circ = 2 * Math.PI * ringR
+            const progress = Math.max(0, Math.min(1, countdownSecs / 5))
+            const isLast = session.currentQuestionIndex >= questions.length - 1
+            return (
+              <div className="qz-countdown-card qz-pop-in" style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px',
+                padding: '18px 16px', marginBottom: 4,
+                borderRadius: 'var(--radius-lg)',
+                background: 'color-mix(in srgb, var(--accent-warm) 7%, var(--surface))',
+                border: '1.5px solid color-mix(in srgb, var(--accent-warm) 28%, transparent)',
+              }}>
+                <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent-warm)' }}>
+                  {isLast ? t('quiz.quizCompletesIn') : t('quiz.nextQuestionIn')}
                 </span>
-                <span key={countdownSecs} className="qz-count-num" style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '26px', color: 'var(--accent-warm)', lineHeight: 1 }}>
-                  {countdownSecs}
-                </span>
+                <div style={{ position: 'relative', width: ringSize, height: ringSize }}>
+                  <svg width={ringSize} height={ringSize} style={{ transform: 'rotate(-90deg)', display: 'block' }}>
+                    <circle cx={ringSize / 2} cy={ringSize / 2} r={ringR} fill="none" strokeWidth={7}
+                      stroke="color-mix(in srgb, var(--accent-warm) 16%, transparent)" />
+                    <circle cx={ringSize / 2} cy={ringSize / 2} r={ringR} fill="none" strokeWidth={7}
+                      stroke="var(--accent-warm)" strokeLinecap="round"
+                      strokeDasharray={circ} strokeDashoffset={circ * (1 - progress)}
+                      style={{ transition: 'stroke-dashoffset 220ms linear' }} />
+                  </svg>
+                  <span key={countdownSecs} className="qz-count-num" style={{
+                    position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '38px', color: 'var(--accent-warm)', lineHeight: 1,
+                  }}>
+                    {countdownSecs}
+                  </span>
+                </div>
               </div>
-              <div style={{ height: 8, background: 'var(--surface)', borderRadius: 99, overflow: 'hidden' }}>
-                <div style={{
-                  height: '100%', borderRadius: 99,
-                  background: 'var(--accent-warm)',
-                  width: `${(countdownSecs / 5) * 100}%`,
-                  transition: 'width 200ms linear',
-                }} />
-              </div>
-            </div>
-          )}
+            )
+          })()}
 
           {/* Question card */}
           <Card key={session.currentQuestionIndex} className="qz-question-in">
@@ -522,25 +538,29 @@ export function QuizPage() {
             <div className="qz-deal" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {currentQ.options.map((opt: any) => {
                 const picked = (selectedOption ?? mySubmittedOption) === opt.id
+                // Wrapper owns the one-shot deal-in; the button owns selection state.
+                // Keeping them on separate elements stops a de-selected option from
+                // replaying the (opacity:0) entrance and flashing away.
                 return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => handleSelectOption(opt.id)}
-                    className={`card-interactive${picked ? ' qz-selected' : ''}`}
-                    style={{
-                      padding: opt.imageUrl ? '12px' : '14px 16px',
-                      borderRadius: 'var(--radius)', cursor: 'pointer', textAlign: 'left', width: '100%',
-                      border: `2px solid ${picked ? 'var(--accent)' : 'var(--border-light)'}`,
-                      background: picked ? 'color-mix(in srgb, var(--accent) 10%, transparent)' : 'var(--background)',
-                      transition: 'border-color 120ms var(--ease-out), background 120ms var(--ease-out)',
-                    }}
-                  >
-                    {opt.imageUrl && (
-                      <img src={opt.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginBottom: 8, display: 'block' }} />
-                    )}
-                    <p style={{ fontFamily: 'var(--font-ui)', fontWeight: picked ? 700 : 500, fontSize: '15px' }}>{opt.text}</p>
-                  </button>
+                  <div key={opt.id}>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectOption(opt.id)}
+                      className={`card-interactive${picked ? ' qz-selected' : ''}`}
+                      style={{
+                        padding: opt.imageUrl ? '12px' : '14px 16px',
+                        borderRadius: 'var(--radius)', cursor: 'pointer', textAlign: 'left', width: '100%',
+                        border: `2px solid ${picked ? 'var(--accent)' : 'var(--border-light)'}`,
+                        background: picked ? 'color-mix(in srgb, var(--accent) 10%, transparent)' : 'var(--background)',
+                        transition: 'border-color 120ms var(--ease-out), background 120ms var(--ease-out)',
+                      }}
+                    >
+                      {opt.imageUrl && (
+                        <img src={opt.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginBottom: 8, display: 'block' }} />
+                      )}
+                      <p style={{ fontFamily: 'var(--font-ui)', fontWeight: picked ? 700 : 500, fontSize: '15px' }}>{opt.text}</p>
+                    </button>
+                  </div>
                 )
               })}
             </div>
@@ -593,11 +613,34 @@ export function QuizPage() {
       )}
 
       {/* ── CORRECTING ───────────────────────────────────────────────────── */}
-      {session.status === 'CORRECTING' && correctionQ && (
+      {session.status === 'CORRECTING' && correctionQ && (() => {
+        // Did *I* / my team get this one right? Drives a happy vs. sad reveal.
+        const myOpt = correctionQ.options?.find((o: any) => o.id === correctionQ.myOptionId)
+        const iAnswered = !correctionQ.isFreeText && !!correctionQ.myOptionId
+        const iGotItRight = iAnswered && !!myOpt?.isCorrect
+        const iGotItWrong = iAnswered && !!myOpt && !myOpt.isCorrect
+        const isObserver = isQM || isGuest
+        const revealed = session.correctAnswerVisible && !correctionQ.isFreeText
+        const showHappy = revealed && (iGotItRight || (isObserver && !iGotItWrong))
+        const showSad = revealed && iGotItWrong
+        return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', position: 'relative' }}>
-          {/* Celebration rain the moment the correct answer is revealed */}
-          {session.correctAnswerVisible && !correctionQ.isFreeText && (
-            <Confetti key={`reveal-${session.correctionIndex}`} count={46} emojis={['🎉', '⭐', '🪙']} />
+          {/* Win → confetti + coins. Loss → red flash + sad-smiley rain. */}
+          {showHappy && (
+            <Confetti key={`win-${session.correctionIndex}`} count={46} emojis={['🎉', '⭐', '🪙']} />
+          )}
+          {showSad && (
+            <>
+              <div className="qz-red-flash" key={`flash-${session.correctionIndex}`} aria-hidden />
+              <Confetti
+                key={`lose-${session.correctionIndex}`}
+                count={30}
+                durationBase={2000}
+                emojiChance={0.85}
+                colors={['#d7283d', '#9aa3ab', '#6b7480']}
+                emojis={['😢', '😭', '💧', '💔']}
+              />
+            </>
           )}
           {/* Scoreboard strip — includes current question once answer is revealed */}
           <MiniScoreboard
@@ -813,7 +856,8 @@ export function QuizPage() {
             </div>
           )}
         </div>
-      )}
+        )
+      })()}
 
       {/* ── COMPLETED ────────────────────────────────────────────────────── */}
       {session.status === 'COMPLETED' && (() => {

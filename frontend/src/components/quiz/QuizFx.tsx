@@ -69,18 +69,22 @@ const CONFETTI_COLORS = ['#ffd700', '#d7283d', '#00752f', '#fd9c54', '#280c61', 
 export function Confetti({
   count = 42,
   emojis,
+  emojiChance = 0.26,
+  colors = CONFETTI_COLORS,
   durationBase = 1500,
   style,
 }: {
   count?: number
   emojis?: string[]
+  emojiChance?: number
+  colors?: string[]
   durationBase?: number
   style?: CSSProperties
 }) {
   const pieces = useMemo(() => {
     if (prefersReduced()) return []
     return Array.from({ length: count }, (_, i) => {
-      const useEmoji = emojis && emojis.length > 0 && Math.random() < 0.26
+      const useEmoji = emojis && emojis.length > 0 && Math.random() < emojiChance
       return {
         i,
         left: Math.random() * 100,
@@ -89,12 +93,12 @@ export function Confetti({
         rot: (Math.random() - 0.5) * 1080,
         delay: Math.random() * 380,
         dur: durationBase + Math.random() * 900,
-        color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+        color: colors[i % colors.length],
         size: 7 + Math.random() * 7,
         emoji: useEmoji ? emojis![Math.floor(Math.random() * emojis!.length)] : null,
       }
     })
-  }, [count, durationBase, emojis])
+  }, [count, durationBase, emojis, emojiChance, colors])
 
   if (pieces.length === 0) return null
 
