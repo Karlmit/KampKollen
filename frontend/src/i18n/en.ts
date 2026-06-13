@@ -33,7 +33,7 @@ const en = {
   nav: {
     home: 'Home',
     compete: 'Compete',
-    scores: 'Scores',
+    scores: 'Score History',
     profile: 'Profile',
     admin: 'Admin',
     signIn: 'Sign In',

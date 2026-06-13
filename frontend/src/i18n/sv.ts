@@ -33,7 +33,7 @@ const sv = {
   nav: {
     home: 'Hem',
     compete: 'Tävla',
-    scores: 'Poäng',
+    scores: 'Poänghistorik',
     profile: 'Profil',
     admin: 'Admin',
     signIn: 'Logga in',

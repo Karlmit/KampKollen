@@ -19,13 +19,13 @@ export function BottomNav() {
   const NAV_ITEMS = [
     { to: '/',             icon: '🏠', label: t('nav.home'),    onClick: undefined as ((e: { preventDefault(): void }) => void) | undefined },
     { to: '/competitions', icon: '🏆', label: t('nav.compete'), onClick: handleCompeteNav },
-    { to: '/leaderboard',  icon: '📊', label: t('nav.scores'),  onClick: handleScoresNav },
+    { to: '/leaderboard',  icon: '📊', label: t('nav.scores'),  onClick: undefined as ((e: { preventDefault(): void }) => void) | undefined },
     { to: '/profile',      icon: '👤', label: t('nav.profile'), onClick: undefined as ((e: { preventDefault(): void }) => void) | undefined },
   ]
   const ADMIN_ITEM = { to: '/admin', icon: '⚙️', label: t('nav.admin'), onClick: undefined as ((e: { preventDefault(): void }) => void) | undefined }
   const GUEST_NAV_ITEMS = [
     { to: '/competitions', icon: '🏆', label: t('nav.compete'), onClick: handleCompeteNav },
-    { to: '/leaderboard',  icon: '📊', label: t('nav.scores'),  onClick: handleScoresNav },
+    { to: '/leaderboard',  icon: '📊', label: t('nav.scores'),  onClick: undefined as ((e: { preventDefault(): void }) => void) | undefined },
     { to: '/login',        icon: '👤', label: t('nav.signIn'),  onClick: undefined as ((e: { preventDefault(): void }) => void) | undefined },
   ]
 
@@ -49,17 +49,6 @@ export function BottomNav() {
       navigate(`/competitions/${active[0].id}`)
     } else {
       navigate('/competitions')
-    }
-  }
-
-  function handleScoresNav(e: { preventDefault(): void }) {
-    e.preventDefault()
-    const cached = qc.getQueryData<{ competitions: any[] }>(['competitions'])
-    const active = (cached?.competitions ?? []).filter((c: any) => c.status === 'ACTIVE')
-    if (active.length === 1) {
-      navigate(`/competitions/${active[0].id}/leaderboard`)
-    } else {
-      navigate('/leaderboard')
     }
   }
 
