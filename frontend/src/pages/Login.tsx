@@ -1,9 +1,11 @@
 import { useState, FormEvent } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../contexts/AuthContext'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
-import { ApiError } from '../api/client'
+import { ApiError, api } from '../api/client'
+import { Competition } from '../types'
 import { useTranslation } from 'react-i18next'
 
 export function Login() {
@@ -14,6 +16,15 @@ export function Login() {
   const { login } = useAuth()
   const navigate = useNavigate()
   const { t } = useTranslation()
+
+  // Guests only see ACTIVE competitions. If there's exactly one, the guest CTA
+  // jumps straight to its leaderboard instead of the competition list.
+  const { data: compData } = useQuery({
+    queryKey: ['competitions'],
+    queryFn: () => api.competitions.list(),
+  })
+  const activeComps = (compData?.competitions ?? []).filter((c: Competition) => c.status === 'ACTIVE')
+  const guestTarget = activeComps.length === 1 ? `/competitions/${activeComps[0].id}` : '/competitions'
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -91,7 +102,7 @@ export function Login() {
         </div>
 
         {/* Guest CTA */}
-        <Link to="/competitions" style={{ textDecoration: 'none', display: 'block' }}>
+        <Link to={guestTarget} style={{ textDecoration: 'none', display: 'block' }}>
           <div style={{
             borderRadius: 'var(--radius-lg)',
             border: '2px solid var(--border-light)',
