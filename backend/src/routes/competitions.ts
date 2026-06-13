@@ -236,6 +236,101 @@ export async function competitionRoutes(app: FastifyInstance) {
     return reply.status(201).send({ competitionChallenge: cc })
   })
 
+  // Add a quiz to a competition by cloning a template or creating a fresh one.
+  // The clone is competition-specific (isGlobalTemplate: false) so the template
+  // has no direct FK link to the competition and can be safely deleted later.
+  app.post('/:id/challenges/quiz', { preHandler: requireAdmin }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const body = z.object({
+      templateId: z.string().optional(),
+      name: z.string().min(1).max(128).optional(),
+    }).refine(d => d.templateId || d.name, { message: 'templateId or name is required' })
+      .safeParse(request.body)
+    if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
+
+    const comp = await prisma.competition.findUnique({
+      where: { id },
+      include: { challenges: { select: { order: true } } },
+    })
+    if (!comp) return reply.status(404).send({ error: 'Competition not found' })
+
+    const maxOrder = comp.challenges.length > 0
+      ? Math.max(...comp.challenges.map((c: any) => c.order))
+      : -1
+
+    let newTemplate: any = null
+    let cloneData: any
+
+    if (body.data.templateId) {
+      const template = await prisma.challenge.findUnique({
+        where: { id: body.data.templateId },
+        include: {
+          quizQuestions: {
+            include: { options: { orderBy: { order: 'asc' } } },
+            orderBy: { order: 'asc' },
+          },
+        },
+      })
+      if (!template) return reply.status(404).send({ error: 'Template not found' })
+
+      cloneData = {
+        name: template.name,
+        description: template.description ?? undefined,
+        scoreType: template.scoreType,
+        defaultTeamScoreMode: template.defaultTeamScoreMode,
+        bestNPlayers: template.bestNPlayers ?? undefined,
+        isGlobalTemplate: false,
+        isQuiz: true,
+        quizQuestions: {
+          create: template.quizQuestions.map((q: any) => ({
+            text: q.text,
+            points: q.points,
+            timerSeconds: q.timerSeconds,
+            isFreeText: q.isFreeText,
+            order: q.order,
+            imageUrl: q.imageUrl ?? undefined,
+            options: {
+              create: q.options.map((o: any) => ({
+                text: o.text,
+                isCorrect: o.isCorrect,
+                order: o.order,
+                imageUrl: o.imageUrl ?? undefined,
+              })),
+            },
+          })),
+        },
+      }
+    } else {
+      // Create a new persistent template (so admin can reuse it later)
+      newTemplate = await prisma.challenge.create({
+        data: {
+          name: body.data.name!,
+          isGlobalTemplate: true,
+          isQuiz: true,
+          scoreType: 'manual_points',
+          defaultTeamScoreMode: 'sum_all_players',
+        },
+      })
+      // Clone is initially empty (admin edits questions via quiz editor)
+      cloneData = {
+        name: body.data.name!,
+        isGlobalTemplate: false,
+        isQuiz: true,
+        scoreType: 'manual_points',
+        defaultTeamScoreMode: 'sum_all_players',
+      }
+    }
+
+    const clone = await prisma.challenge.create({ data: cloneData })
+
+    const cc = await prisma.competitionChallenge.create({
+      data: { competitionId: id, challengeId: clone.id, order: maxOrder + 1 },
+      include: { challenge: true },
+    })
+
+    return reply.status(201).send({ competitionChallenge: cc, template: newTemplate })
+  })
+
   app.delete('/:id/challenges/:challengeId', { preHandler: requireAdmin }, async (request) => {
     const { id, challengeId } = request.params as { id: string; challengeId: string }
     await prisma.competitionChallenge.deleteMany({

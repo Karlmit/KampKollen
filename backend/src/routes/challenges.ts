@@ -56,8 +56,31 @@ export async function challengeRoutes(app: FastifyInstance) {
     return { challenge }
   })
 
-  app.delete('/:id', { preHandler: requireAdmin }, async (request) => {
+  app.delete('/:id', { preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
+
+    // Check for competition links that have a started or completed quiz session.
+    // Those must not be silently deleted — they hold live or historical data.
+    const linked = await prisma.competitionChallenge.findMany({
+      where: { challengeId: id },
+      include: { quizSession: { select: { id: true, status: true } } },
+    })
+
+    const blockedBySession = linked.filter(
+      cc => cc.quizSession && cc.quizSession.status !== 'LOBBY'
+    )
+    if (blockedBySession.length > 0) {
+      return reply.status(409).send({
+        error: 'This quiz has been started or completed in a competition and cannot be deleted.',
+      })
+    }
+
+    // Remove any unstarted (LOBBY or no session) competition links first so the
+    // FK constraint does not block the challenge delete.
+    if (linked.length > 0) {
+      await prisma.competitionChallenge.deleteMany({ where: { challengeId: id } })
+    }
+
     await prisma.challenge.delete({ where: { id } })
     return { success: true }
   })

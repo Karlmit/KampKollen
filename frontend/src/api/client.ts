@@ -54,6 +54,8 @@ export const api = {
       request<{ competition: any; imageUrl: string }>(`/competitions/${id}/generate-image`, { method: 'POST', body: JSON.stringify({ prompt }) }),
     join: (id: string) => request<{ player: any }>(`/competitions/${id}/join`, { method: 'POST' }),
     addChallenge: (id: string, data: any) => request(`/competitions/${id}/challenges`, { method: 'POST', body: JSON.stringify(data) }),
+    addQuiz: (id: string, data: { templateId?: string; name?: string }) =>
+      request<{ competitionChallenge: any; template: any | null }>(`/competitions/${id}/challenges/quiz`, { method: 'POST', body: JSON.stringify(data) }),
     removeChallenge: (id: string, challengeId: string) => request(`/competitions/${id}/challenges/${challengeId}`, { method: 'DELETE' }),
     reorderChallenges: (id: string, order: string[]) => request(`/competitions/${id}/challenges/reorder`, { method: 'PUT', body: JSON.stringify({ order }) }),
     addPlayer: (id: string, data: any) => request(`/competitions/${id}/players`, { method: 'POST', body: JSON.stringify(data) }),

@@ -503,7 +503,7 @@ const sv = {
       questions: 'frågor',
       deleteQuizTemplate: 'Ta bort quizmall',
       deleteQuizTemplateConfirm: 'Ta bort "{{name}}"?',
-      deleteQuizTemplateDesc: 'Detta tar bort quizmallen och alla dess frågor. Tävlingar som använder denna quiz påverkas.',
+      deleteQuizTemplateDesc: 'Detta tar bort quizmallen och dess frågor. Quizar som redan körts i tävlingar påverkas inte.',
     },
 
     quizEditor: {

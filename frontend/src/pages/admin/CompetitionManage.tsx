@@ -132,17 +132,22 @@ export function AdminCompetitionManage() {
   })
 
   const addQuizMutation = useMutation({
-    mutationFn: (challengeId: string) => api.competitions.addChallenge(id!, { challengeId }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['competition', id] }); setAddQuizOpen(false); setSelectedQuizId('') },
+    mutationFn: (templateId: string) => api.competitions.addQuiz(id!, { templateId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['competition', id] })
+      setAddQuizOpen(false)
+      setSelectedQuizId('')
+    },
   })
 
   const createQuizMutation = useMutation({
-    mutationFn: async (name: string) => {
-      const { challenge } = await api.challenges.create({ name, isQuiz: true, scoreType: 'manual_points', defaultTeamScoreMode: 'sum_all_players' })
-      await api.competitions.addChallenge(id!, { challengeId: challenge.id })
-      return challenge
+    mutationFn: (name: string) => api.competitions.addQuiz(id!, { name }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['challenges'] })
+      qc.invalidateQueries({ queryKey: ['competition', id] })
+      setAddQuizOpen(false)
+      setNewQuizName('')
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['challenges'] }); qc.invalidateQueries({ queryKey: ['competition', id] }); setAddQuizOpen(false); setNewQuizName('') },
   })
 
   const deleteQuizTemplateMutation = useMutation({
@@ -233,8 +238,7 @@ export function AdminCompetitionManage() {
     !c.isQuiz && !comp.challenges?.some((cc: any) => cc.challengeId === c.id)
   ) ?? []
 
-  const allQuizTemplates = challengesData?.challenges?.filter((c: any) => c.isQuiz) ?? []
-  const addedQuizIds = new Set(comp.challenges?.filter((cc: any) => cc.challenge?.isQuiz).map((cc: any) => cc.challengeId) ?? [])
+  const allQuizTemplates = challengesData?.challenges?.filter((c: any) => c.isQuiz && c.isGlobalTemplate) ?? []
 
   const autoMaxPts = comp.isTeamCompetition !== false
     ? (comp.teams?.length ?? 0) * 10
@@ -625,35 +629,30 @@ export function AdminCompetitionManage() {
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {allQuizTemplates.map((c: any) => {
-                  const alreadyAdded = addedQuizIds.has(c.id)
                   const isSelected = selectedQuizId === c.id
                   return (
                     <div key={c.id} style={{
                       display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px',
                       borderRadius: 'var(--radius)',
                       border: isSelected ? '2px solid var(--accent)' : '1.5px solid var(--border-light)',
-                      background: isSelected ? 'var(--surface)' : alreadyAdded ? 'var(--surface)' : 'var(--background)',
-                      opacity: alreadyAdded ? 0.6 : 1,
+                      background: isSelected ? 'var(--surface)' : 'var(--background)',
                     }}>
                       <span style={{ fontSize: '18px', flexShrink: 0 }}>🎯</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</p>
                         <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                           {c._count?.quizQuestions ?? 0} {t('admin.manage.questions')}
-                          {alreadyAdded && ` · ${t('admin.manage.alreadyInCompetition')}`}
                         </p>
                       </div>
                       <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-                        {!alreadyAdded && (
-                          <Button
-                            size="sm"
-                            variant={isSelected ? 'primary' : 'ghost'}
-                            style={{ fontSize: '11px', padding: '4px 10px' }}
-                            onClick={() => setSelectedQuizId(isSelected ? '' : c.id)}
-                          >
-                            {isSelected ? '✓ ' + t('admin.manage.selected') : t('admin.manage.select')}
-                          </Button>
-                        )}
+                        <Button
+                          size="sm"
+                          variant={isSelected ? 'primary' : 'ghost'}
+                          style={{ fontSize: '11px', padding: '4px 10px' }}
+                          onClick={() => setSelectedQuizId(isSelected ? '' : c.id)}
+                        >
+                          {isSelected ? '✓ ' + t('admin.manage.selected') : t('admin.manage.select')}
+                        </Button>
                         <Button
                           size="sm"
                           variant="danger"

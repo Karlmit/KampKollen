@@ -505,7 +505,7 @@ const en = {
       questions: 'questions',
       deleteQuizTemplate: 'Delete Quiz Template',
       deleteQuizTemplateConfirm: 'Delete "{{name}}"?',
-      deleteQuizTemplateDesc: 'This will remove the quiz template and all its questions. Competitions using this quiz will be affected.',
+      deleteQuizTemplateDesc: 'This will delete the quiz template and its questions. Quizzes already run in competitions will not be affected.',
     },
 
     quizEditor: {
