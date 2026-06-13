@@ -28,6 +28,7 @@ import { AdminGroups } from './pages/admin/Groups'
 import { AdminQuizEditor } from './pages/admin/QuizEditor'
 import { QuizPage } from './pages/QuizPage'
 import { QuizEditorPage } from './pages/QuizEditorPage'
+import { QuizLobbyBanner } from './components/quiz/QuizLobbyBanner'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -47,7 +48,9 @@ function AppRoutes() {
   if (loading) return <PageLoader />
 
   return (
-    <Routes>
+    <>
+      <QuizLobbyBanner />
+      <Routes>
       {/* Public */}
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
       <Route path="/register" element={user ? <Navigate to="/" replace /> : <Register />} />
@@ -81,7 +84,8 @@ function AppRoutes() {
       <Route path="/competitions/:competitionId/quiz/:ccId/edit" element={<RequireAuth><QuizEditorPage /></RequireAuth>} />
 
       <Route path="*" element={<Navigate to={user ? '/' : '/competitions'} replace />} />
-    </Routes>
+      </Routes>
+    </>
   )
 }
 

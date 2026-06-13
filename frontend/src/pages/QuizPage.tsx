@@ -163,6 +163,11 @@ export function QuizPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz', ccId] }),
   })
 
+  const announceMutation = useMutation({
+    mutationFn: (announced: boolean) => api.quiz.announce(ccId!, announced),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz', ccId] }),
+  })
+
   const qmMutate = useCallback((action: () => Promise<any>) => {
     action().then(() => qc.invalidateQueries({ queryKey: ['quiz', ccId] }))
   }, [ccId, qc])
@@ -274,6 +279,20 @@ export function QuizPage() {
           {/* QM controls */}
           {isQM && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <Button
+                fullWidth
+                variant={session.lobbyAnnounced ? 'primary' : 'ghost'}
+                size="lg"
+                loading={announceMutation.isPending}
+                onClick={() => announceMutation.mutate(!session.lobbyAnnounced)}
+              >
+                {session.lobbyAnnounced ? t('quiz.callPlayersStop') : t('quiz.callPlayers')}
+              </Button>
+              {session.lobbyAnnounced && (
+                <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', marginTop: '-2px' }}>
+                  {t('quiz.callPlayersHint')}
+                </p>
+              )}
               <Link to={`/competitions/${competitionId}/quiz/${ccId}/edit`} style={{ textDecoration: 'none' }}>
                 <Button fullWidth variant="ghost" size="lg">{t('quiz.editQuestions')}</Button>
               </Link>

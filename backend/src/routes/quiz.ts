@@ -316,6 +316,7 @@ export async function quizRoutes(app: FastifyInstance) {
         questionLocked: session.questionLocked,
         correctionIndex: session.correctionIndex,
         correctAnswerVisible: session.correctAnswerVisible,
+        lobbyAnnounced: session.lobbyAnnounced,
         readyEntries: session.readyEntries,
         countdownEndsAt: countdownMap.get(ccId) ?? null,
       },
@@ -524,8 +525,25 @@ export async function quizRoutes(app: FastifyInstance) {
     await prisma.quizSession.upsert({
       where: { competitionChallengeId: ccId },
       create: { competitionChallengeId: ccId, status: 'ACTIVE', currentQuestionIndex: 0, questionLocked: false },
-      update: { status: 'ACTIVE', currentQuestionIndex: 0, questionLocked: false },
+      update: { status: 'ACTIVE', currentQuestionIndex: 0, questionLocked: false, lobbyAnnounced: false },
     })
+    broadcast(ccId)
+    return { success: true }
+  })
+
+  // QM toggles a "come to the lobby" announcement banner shown to all players
+  app.post('/:ccId/session/announce', { preHandler: requireAuth }, async (request, reply) => {
+    const { ccId } = request.params as { ccId: string }
+    const me = request.user as { id: string; role: string }
+    if (!await isQM(me.id, ccId)) return reply.status(403).send({ error: 'QM or admin required' })
+
+    const body = z.object({ announced: z.boolean() }).safeParse(request.body)
+    if (!body.success) return reply.status(400).send({ error: 'announced required' })
+
+    const session = await getOrCreateSession(ccId)
+    if (session.status !== 'LOBBY') return reply.status(400).send({ error: 'Quiz already started' })
+
+    await prisma.quizSession.update({ where: { id: session.id }, data: { lobbyAnnounced: body.data.announced } })
     broadcast(ccId)
     return { success: true }
   })
@@ -706,6 +724,39 @@ export async function quizRoutes(app: FastifyInstance) {
     await prisma.quizAnswer.update({ where: { id: answerId }, data: { freeTextLocked: !answer.freeTextLocked } })
     broadcast(ccId)
     return { success: true }
+  })
+
+  // ── Active lobby announcements for the current user ──────────────────────────
+  // Returns quizzes in LOBBY whose QM has raised the "come to the lobby" banner,
+  // limited to competitions the user actually plays in. Drives the global banner.
+  app.get('/announcements', { preHandler: requireAuth }, async (request) => {
+    const me = request.user as { id: string }
+    const sessions = await prisma.quizSession.findMany({
+      where: {
+        status: 'LOBBY',
+        lobbyAnnounced: true,
+        competitionChallenge: {
+          competition: { players: { some: { userId: me.id } } },
+        },
+      },
+      include: {
+        competitionChallenge: {
+          include: {
+            challenge: { select: { name: true } },
+            competition: { select: { id: true, name: true } },
+          },
+        },
+      },
+    })
+
+    return {
+      announcements: sessions.map(s => ({
+        ccId: s.competitionChallengeId,
+        competitionId: s.competitionChallenge.competition.id,
+        competitionName: s.competitionChallenge.competition.name,
+        quizName: s.competitionChallenge.challenge.name,
+      })),
+    }
   })
 
   // ── Quiz history — completed quiz sessions ───────────────────────────────────

@@ -269,6 +269,7 @@ model QuizSession {
   questionLocked         Boolean              @default(false)
   correctionIndex        Int                  @default(0)
   correctAnswerVisible   Boolean              @default(false)
+  lobbyAnnounced         Boolean              @default(false)
   createdAt              DateTime             @default(now())
   updatedAt              DateTime             @updatedAt
 

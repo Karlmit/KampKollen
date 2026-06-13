@@ -161,6 +161,10 @@ export const api = {
     markReady: (ccId: string, teamId?: string) =>
       request(`/quiz/${ccId}/session/ready`, { method: 'POST', body: JSON.stringify({ teamId }) }),
     start: (ccId: string) => request(`/quiz/${ccId}/session/start`, { method: 'POST', body: '{}' }),
+    announce: (ccId: string, announced: boolean) =>
+      request(`/quiz/${ccId}/session/announce`, { method: 'POST', body: JSON.stringify({ announced }) }),
+    announcements: () =>
+      request<{ announcements: { ccId: string; competitionId: string; competitionName: string; quizName: string }[] }>('/quiz/announcements'),
     nextQuestion: (ccId: string) => request(`/quiz/${ccId}/session/next-question`, { method: 'POST', body: '{}' }),
     lockQuestion: (ccId: string) => request(`/quiz/${ccId}/session/lock-question`, { method: 'POST', body: '{}' }),
     showAnswer: (ccId: string) => request(`/quiz/${ccId}/session/show-answer`, { method: 'POST', body: '{}' }),
