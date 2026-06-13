@@ -72,12 +72,19 @@ export function CompetitionDetail() {
 
   const lbData: CompetitionLeaderboard | undefined = (lbDataRaw as any)
 
+  // The team-competition player pool (unassigned players) is only relevant to the
+  // people who manage assignments. Non-team competitions show the full roster to everyone.
+  const showPool = !isTeamComp || isAdmin || !!myPlayer?.isTeamLeader
+
   const tabs: { key: Tab; label: string; count?: number }[] = [
     { key: 'leaderboard', label: t('competition.leaderboard') },
     ...(isTeamComp ? [{ key: 'teams' as Tab, label: t('competition.teams'), count: comp.teams?.length }] : []),
     { key: 'challenges', label: t('competition.challenges'), count: comp.challenges?.length },
-    { key: 'pool', label: isTeamComp ? t('competition.playerPool') : t('competition.players'), count: comp.players?.length },
+    ...(showPool ? [{ key: 'pool' as Tab, label: isTeamComp ? t('competition.playerPool') : t('competition.players'), count: comp.players?.length }] : []),
   ]
+
+  // Guard against landing on a hidden tab via a stale ?tab=pool URL
+  const activeTab: Tab = (tab === 'pool' && !showPool) ? 'leaderboard' : tab
 
   return (
     <Layout
@@ -137,20 +144,20 @@ export function CompetitionDetail() {
           key: t.key,
           label: t.count !== undefined ? `${t.label} (${t.count})` : t.label,
         }))}
-        active={tab}
+        active={activeTab}
         onChange={key => setTab(key as Tab)}
         style={{ marginBottom: '16px' }}
       />
 
       {/* Leaderboard tab */}
-      {tab === 'leaderboard' && (
+      {activeTab === 'leaderboard' && (
         lbData
           ? <CompetitionLeaderboardContent lb={lbData} id={id!} userId={user?.id} />
           : <LoadingSpinner />
       )}
 
 
-      {tab === 'teams' && (
+      {activeTab === 'teams' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {comp.teams?.map((team: Team) => {
             const isMine = !!myPlayer?.teamId && team.id === myPlayer.teamId
@@ -191,7 +198,7 @@ export function CompetitionDetail() {
         </div>
       )}
 
-      {tab === 'challenges' && (
+      {activeTab === 'challenges' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {comp.challenges?.map((cc: any, i: number) => (
             <Card key={cc.id} padding="0" style={{ overflow: 'hidden' }}>
@@ -255,7 +262,7 @@ export function CompetitionDetail() {
         </div>
       )}
 
-      {tab === 'pool' && (
+      {activeTab === 'pool' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Individual competition: flat player list */}
           {!isTeamComp && (

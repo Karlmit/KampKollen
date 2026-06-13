@@ -236,7 +236,10 @@ img {
   flex: 1 1 calc(50% - 2px);
   min-width: 0;
   min-height: 44px;
-  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 10px;
   border: none;
   border-radius: calc(var(--radius) - 5px);
   background: transparent;
@@ -246,9 +249,7 @@ img {
   font-size: 14px;
   line-height: 1.15;
   text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  text-wrap: balance;
   cursor: pointer;
   transition: background-color 200ms var(--ease-out),
               color 200ms var(--ease-out),
