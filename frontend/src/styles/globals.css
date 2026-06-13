@@ -221,6 +221,67 @@ img {
   }
 }
 
+/* ─── Segmented tab bar ─── */
+/* Mobile-first: wraps to two columns so every tab is visible without
+   horizontal scrolling. The active segment is filled for prominence. */
+.tabbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  background: var(--surface);
+  border-radius: var(--radius);
+}
+.tabbar__item {
+  flex: 1 1 calc(50% - 2px);
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: none;
+  border-radius: calc(var(--radius) - 5px);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.15;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: background-color 200ms var(--ease-out),
+              color 200ms var(--ease-out),
+              transform 120ms var(--ease-out);
+}
+.tabbar__item.is-active {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+}
+.tabbar__item:active {
+  transform: scale(0.96);
+}
+.tabbar__item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .tabbar__item:not(.is-active):hover {
+    color: var(--text-primary);
+    background: rgba(12, 68, 51, 0.06);
+  }
+}
+/* Single row once there's room for full-width labels */
+@media (min-width: 640px) {
+  .tabbar { flex-wrap: nowrap; }
+  .tabbar__item { flex: 1 1 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tabbar__item { transition: color 200ms var(--ease-out); }
+  .tabbar__item:active { transform: none; }
+}
+
 /* ─── Live indicator ─── */
 @keyframes joinPulse {
   0%, 100% { box-shadow: 0 4px 20px rgba(249,115,22,0.45); }
