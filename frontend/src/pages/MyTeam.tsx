@@ -152,9 +152,9 @@ export function MyTeamPage() {
                 return res.imageUrl
               }}
               label={t('team.teamImage')}
-            shape="circle"
+              shape="circle"
+              afterImage={<p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px', textAlign: 'center' }}>{team.name}</p>}
             />
-            <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px', textAlign: 'center' }}>{team.name}</p>
             <Button variant="ghost" size="sm" onClick={() => { setNewName(team.name); setRenameOpen(true) }}>
               {t('team.renameTeam')}
             </Button>

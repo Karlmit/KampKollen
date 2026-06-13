@@ -1,6 +1,5 @@
-import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Link, useSearchParams, useNavigate } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Layout } from '../components/layout/Layout'
 import { Card } from '../components/ui/Card'
 import { Avatar } from '../components/ui/Avatar'
@@ -19,7 +18,6 @@ export function GlobalLeaderboard() {
   const { user } = useAuth()
   const { activeGroupId, setActiveGroupId } = useGroup()
   const { t } = useTranslation()
-  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const view = (searchParams.get('view') as View) ?? 'competitions'
   const setView = (v: View) => setSearchParams({ view: v }, { replace: true })
@@ -50,12 +48,6 @@ export function GlobalLeaderboard() {
   const activeComps = filteredComps.filter((c: any) => c.status === 'ACTIVE')
   const completedComps = filteredComps.filter((c: any) => c.status === 'COMPLETED')
 
-  // Auto-open the single live competition's leaderboard
-  useEffect(() => {
-    if (!compsLoading && view === 'competitions' && activeComps.length === 1) {
-      navigate(`/competitions/${activeComps[0].id}/leaderboard`, { replace: true })
-    }
-  }, [compsLoading, view, activeComps.length])
   const challengeRecords: any[] = challengeData?.challenges ?? []
   const awardPlayers: any[] = awardsData?.players ?? []
 

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Button } from './ui/Button'
 
 interface ImageGeneratorProps {
@@ -7,6 +7,7 @@ interface ImageGeneratorProps {
   currentImageUrl?: string | null
   label?: string
   shape?: 'circle' | 'square'
+  afterImage?: ReactNode
 }
 
 function resolveUrl(src: string): string {
@@ -14,7 +15,7 @@ function resolveUrl(src: string): string {
   return src
 }
 
-export function ImageGenerator({ defaultPrompt, onGenerate, currentImageUrl, label = 'Image', shape = 'square' }: ImageGeneratorProps) {
+export function ImageGenerator({ defaultPrompt, onGenerate, currentImageUrl, label = 'Image', shape = 'square', afterImage }: ImageGeneratorProps) {
   const [prompt, setPrompt] = useState(defaultPrompt)
   const [loading, setLoading] = useState(false)
   const [imageUrl, setImageUrl] = useState<string | null>(currentImageUrl ?? null)
@@ -58,6 +59,7 @@ export function ImageGenerator({ defaultPrompt, onGenerate, currentImageUrl, lab
           }}
         />
       ) : null}
+      {afterImage}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
         <label style={{
           fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)',
