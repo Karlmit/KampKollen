@@ -10,6 +10,7 @@ import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../api/client'
 import { useTranslation } from 'react-i18next'
+import { CountUp, Confetti } from '../components/quiz/QuizFx'
 
 // ── Timer bar ─────────────────────────────────────────────────────────────────
 function TimerBar({ seconds, onExpire }: { seconds: number; onExpire: () => void }) {
@@ -28,15 +29,20 @@ function TimerBar({ seconds, onExpire }: { seconds: number; onExpire: () => void
   }, [seconds, onExpire])
   if (seconds <= 0) return null
   const pct = (remaining / seconds) * 100
+  const urgent = remaining <= 5
   return (
     <div style={{ marginBottom: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontFamily: 'var(--font-ui)', fontWeight: 700, marginBottom: 4 }}>
-        <span>{t('quiz.timeLeft')}</span><span style={{ color: remaining <= 5 ? 'var(--accent-warm)' : undefined }}>{remaining}s</span>
+        <span>{t('quiz.timeLeft')}</span>
+        <span
+          className={urgent ? 'qz-timer-urgent' : undefined}
+          style={{ color: urgent ? 'var(--accent-warm)' : undefined, fontWeight: 800 }}
+        >{remaining}s</span>
       </div>
-      <div style={{ height: 6, background: 'var(--surface)', borderRadius: 99, overflow: 'hidden' }}>
+      <div className={urgent ? 'qz-bar-urgent' : undefined} style={{ height: 6, background: 'var(--surface)', borderRadius: 99, overflow: 'hidden' }}>
         <div style={{
           height: '100%', width: `${pct}%`, borderRadius: 99,
-          background: remaining <= 5 ? 'var(--accent-warm)' : 'var(--accent)',
+          background: urgent ? 'var(--accent-warm)' : 'var(--accent)',
           transition: 'width 1s linear, background 0.3s',
         }} />
       </div>
@@ -68,15 +74,17 @@ function MiniScoreboard({ questions, teams, players, isTeamComp }: any) {
   return (
     <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', overflowX: 'auto' }}>
       {sorted.map((t: any, i: number) => (
-        <div key={t.id} style={{
+        <div key={t.id} className={i === 0 ? 'qz-gold-pulse' : undefined} style={{
           display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 10px',
           borderRadius: 'var(--radius)', background: i === 0 ? 'var(--text-primary)' : 'var(--surface)',
-          minWidth: 100, flexShrink: 0,
+          minWidth: 100, flexShrink: 0, transition: 'background 300ms var(--ease-out)',
         }}>
           <span style={{ fontSize: '14px' }}>{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'}</span>
           <div>
             <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px', color: i === 0 ? '#fff' : undefined }}>{t.name}</p>
-            <p style={{ fontSize: '11px', color: i === 0 ? 'rgba(255,255,255,0.7)' : 'var(--text-muted)' }}>{scores[t.id] ?? 0} pts</p>
+            <p style={{ fontSize: '11px', color: i === 0 ? 'rgba(255,255,255,0.7)' : 'var(--text-muted)' }}>
+              <CountUp value={scores[t.id] ?? 0} duration={700} /> pts
+            </p>
           </div>
         </div>
       ))}
@@ -198,8 +206,8 @@ export function QuizPage() {
       {/* ── LOBBY ────────────────────────────────────────────────────────── */}
       {session.status === 'LOBBY' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <Card style={{ textAlign: 'center', padding: '32px 16px' }}>
-            <p style={{ fontSize: '40px', marginBottom: '8px' }}>🎯</p>
+          <Card className="qz-pop-in" style={{ textAlign: 'center', padding: '32px 16px' }}>
+            <p className="qz-float" style={{ fontSize: '40px', marginBottom: '8px' }}>🎯</p>
             <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '20px', marginBottom: '4px' }}>{t('quiz.lobbyTitle')}</p>
             <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
               {t('quiz.lobbyDesc', { count: questions.length })}
@@ -232,7 +240,7 @@ export function QuizPage() {
             </Card>
           )}
           {amReady && (
-            <Card padding="12px" style={{ textAlign: 'center', background: 'color-mix(in srgb, var(--accent-green) 10%, transparent)', border: '1px solid var(--accent-green)' }}>
+            <Card className="qz-pop-in" padding="12px" style={{ textAlign: 'center', background: 'color-mix(in srgb, var(--accent-green) 10%, transparent)', border: '1px solid var(--accent-green)' }}>
               <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--accent-green)' }}>{t('quiz.ready')}</p>
             </Card>
           )}
@@ -240,9 +248,9 @@ export function QuizPage() {
           {/* Ready list */}
           <Card>
             <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-muted)' }}>
-              {isTeamComp ? t('quiz.teamsReady') : t('quiz.playersReady')} ({readyIds.size}/{isTeamComp ? competition.teams.length : competition.players.length})
+              {isTeamComp ? t('quiz.teamsReady') : t('quiz.playersReady')} (<CountUp value={readyIds.size} duration={500} />/{isTeamComp ? competition.teams.length : competition.players.length})
             </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            <div className="qz-chips" style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {(isTeamComp ? competition.teams : competition.players).map((item: any) => {
                 const id = isTeamComp ? item.id : item.userId
                 const name = isTeamComp ? item.name : (item.user?.displayName ?? item.user?.username)
@@ -269,9 +277,11 @@ export function QuizPage() {
               <Link to={`/competitions/${competitionId}/quiz/${ccId}/edit`} style={{ textDecoration: 'none' }}>
                 <Button fullWidth variant="ghost" size="lg">{t('quiz.editQuestions')}</Button>
               </Link>
-              <Button fullWidth size="lg" onClick={() => setConfirmStart(true)}>
-                {t('quiz.startQuiz')}
-              </Button>
+              <div className="qz-cta">
+                <Button fullWidth size="lg" onClick={() => setConfirmStart(true)}>
+                  {t('quiz.startQuiz')}
+                </Button>
+              </div>
             </div>
           )}
         </div>
@@ -304,7 +314,7 @@ export function QuizPage() {
             <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
               {t('quiz.question', { current: session.currentQuestionIndex + 1, total: questions.length })}
             </p>
-            <span style={{
+            <span className="qz-points" style={{
               padding: '3px 10px', borderRadius: '99px',
               background: 'var(--accent)', color: '#fff',
               fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '13px',
@@ -325,7 +335,7 @@ export function QuizPage() {
                 <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', color: 'var(--accent-warm)' }}>
                   {session.currentQuestionIndex >= questions.length - 1 ? t('quiz.quizCompletesIn') : t('quiz.nextQuestionIn')}
                 </span>
-                <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '22px', color: 'var(--accent-warm)', lineHeight: 1 }}>
+                <span key={countdownSecs} className="qz-count-num" style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '26px', color: 'var(--accent-warm)', lineHeight: 1 }}>
                   {countdownSecs}
                 </span>
               </div>
@@ -341,7 +351,7 @@ export function QuizPage() {
           )}
 
           {/* Question card */}
-          <Card>
+          <Card key={session.currentQuestionIndex} className="qz-question-in">
             <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px', lineHeight: 1.4 }}>
               {currentQ.text}
             </p>
@@ -372,22 +382,29 @@ export function QuizPage() {
                 })}
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {currentQ.options.map((opt: any) => {
+              <div className="qz-deal" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {(() => {
+                  const counts = currentQ.options.map((o: any) => {
+                    const c = currentQ.answerCounts?.find((ac: any) => ac.optionId === o.id)
+                    return isTeamComp ? (c?.teams?.length ?? 0) : (c?.count ?? 0)
+                  })
+                  const maxAnswered = Math.max(0, ...counts)
+                  return currentQ.options.map((opt: any) => {
                   const count = currentQ.answerCounts?.find((ac: any) => ac.optionId === opt.id)
                   const teams: string[] = count?.teams ?? []
                   const answered = isTeamComp ? teams.length : (count?.count ?? 0)
                   const total = isTeamComp ? competition.teams.length : competition.players.length
                   const pct = total > 0 ? Math.round((answered / total) * 100) : 0
                   const hasPicks = answered > 0
+                  const isLead = hasPicks && answered === maxAnswered
                   return (
-                    <div key={opt.id} style={{
+                    <div key={opt.id} className={isLead ? 'qz-bar-lead' : undefined} style={{
                       borderRadius: 'var(--radius)', border: `2px solid ${hasPicks ? 'var(--accent)' : 'var(--border-light)'}`,
                       overflow: 'hidden', background: 'var(--background)', position: 'relative',
-                      transition: 'border-color 200ms',
+                      transition: 'border-color 200ms var(--ease-out), box-shadow 250ms var(--ease-out)',
                     }}>
                       {hasPicks && (
-                        <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: `${pct}%`, background: 'color-mix(in srgb, var(--accent) 12%, transparent)', transition: 'width 300ms' }} />
+                        <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: `${pct}%`, background: 'color-mix(in srgb, var(--accent) 12%, transparent)', transition: 'width 500ms var(--ease-out)' }} />
                       )}
                       <div style={{ position: 'relative', padding: '12px 14px' }}>
                         {opt.imageUrl && (
@@ -396,11 +413,11 @@ export function QuizPage() {
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
                           <p style={{ fontFamily: 'var(--font-ui)', fontWeight: hasPicks ? 700 : 500, fontSize: '15px' }}>{opt.text}</p>
                           {hasPicks && !isTeamComp && (
-                            <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', color: 'var(--accent)', flexShrink: 0 }}>{answered}</span>
+                            <CountUp value={answered} duration={500} style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', color: 'var(--accent)', flexShrink: 0 }} />
                           )}
                         </div>
                         {isTeamComp && teams.length > 0 && (
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '6px' }}>
+                          <div className="qz-chips" style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '6px' }}>
                             {teams.map((teamId: string) => {
                               const teamObj = competition.teams.find((x: any) => x.id === teamId)
                               return <span key={teamId} style={{ padding: '2px 8px', borderRadius: '99px', fontSize: '11px', fontFamily: 'var(--font-ui)', fontWeight: 700, background: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--accent)' }}>{teamObj?.name ?? teamId}</span>
@@ -410,7 +427,8 @@ export function QuizPage() {
                       </div>
                     </div>
                   )
-                })}
+                })
+                })()}
               </div>
             )
           ) : isGuest ? (
@@ -431,7 +449,7 @@ export function QuizPage() {
               )}
             </Card>
           ) : !canAct ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div className="qz-deal" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {currentQ.isFreeText ? (
                 currentQ.myFreeTextAnswer ? (
                   <Card padding="14px" style={{ background: 'color-mix(in srgb, var(--accent-green) 8%, transparent)', border: '1px solid var(--accent-green)' }}>
@@ -501,7 +519,7 @@ export function QuizPage() {
               </div>
             )
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div className="qz-deal" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {currentQ.options.map((opt: any) => {
                 const picked = (selectedOption ?? mySubmittedOption) === opt.id
                 return (
@@ -509,12 +527,13 @@ export function QuizPage() {
                     key={opt.id}
                     type="button"
                     onClick={() => handleSelectOption(opt.id)}
+                    className={`card-interactive${picked ? ' qz-selected' : ''}`}
                     style={{
                       padding: opt.imageUrl ? '12px' : '14px 16px',
                       borderRadius: 'var(--radius)', cursor: 'pointer', textAlign: 'left', width: '100%',
                       border: `2px solid ${picked ? 'var(--accent)' : 'var(--border-light)'}`,
                       background: picked ? 'color-mix(in srgb, var(--accent) 10%, transparent)' : 'var(--background)',
-                      transition: 'border-color 120ms, background 120ms',
+                      transition: 'border-color 120ms var(--ease-out), background 120ms var(--ease-out)',
                     }}
                   >
                     {opt.imageUrl && (
@@ -533,7 +552,7 @@ export function QuizPage() {
               <p style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '4px' }}>{t('quiz.quizMaster')}</p>
 
               {/* Answer status per team/player */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '8px' }}>
+              <div className="qz-chips" style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '8px' }}>
                 {isTeamComp && competition.teams.map((t: any) => {
                   const answered = currentQ.answeredTeams?.includes(t.id)
                   return (
@@ -575,7 +594,11 @@ export function QuizPage() {
 
       {/* ── CORRECTING ───────────────────────────────────────────────────── */}
       {session.status === 'CORRECTING' && correctionQ && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', position: 'relative' }}>
+          {/* Celebration rain the moment the correct answer is revealed */}
+          {session.correctAnswerVisible && !correctionQ.isFreeText && (
+            <Confetti key={`reveal-${session.correctionIndex}`} count={46} emojis={['🎉', '⭐', '🪙']} />
+          )}
           {/* Scoreboard strip — includes current question once answer is revealed */}
           <MiniScoreboard
             questions={questions.slice(0, session.correctionIndex + (session.correctAnswerVisible ? 1 : 0))}
@@ -588,7 +611,7 @@ export function QuizPage() {
             <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
               {t('quiz.correcting', { current: session.correctionIndex + 1, total: questions.length })}
             </p>
-            <span style={{
+            <span className="qz-points" style={{
               padding: '3px 10px', borderRadius: '99px',
               background: 'var(--accent)', color: '#fff',
               fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '13px',
@@ -597,7 +620,7 @@ export function QuizPage() {
             </span>
           </div>
 
-          <Card>
+          <Card key={session.correctionIndex} className="qz-question-in">
             <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px', lineHeight: 1.4 }}>{correctionQ.text}</p>
             {correctionQ.imageUrl && <img src={correctionQ.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginTop: 8, display: 'block' }} />}
           </Card>
@@ -688,7 +711,7 @@ export function QuizPage() {
               )}
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div className="qz-deal" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {correctionQ.options.map((opt: any) => {
                 const isMine = correctionQ.myOptionId === opt.id
                 const isCorrect = session.correctAnswerVisible && opt.isCorrect
@@ -702,16 +725,17 @@ export function QuizPage() {
                 return (
                   <div
                     key={opt.id}
+                    className={isCorrect ? 'qz-correct-burst' : isWrong ? 'qz-wrong-shake' : undefined}
                     style={{
                       padding: '12px 14px', borderRadius: 'var(--radius)', position: 'relative', overflow: 'hidden',
                       border: `2px solid ${isCorrect ? 'var(--accent-green)' : isMine ? 'var(--accent)' : 'var(--border-light)'}`,
                       background: isCorrect ? 'color-mix(in srgb, var(--accent-green) 8%, transparent)' : 'var(--background)',
                       boxShadow: isCorrect ? '0 0 0 3px color-mix(in srgb, var(--accent-green) 25%, transparent)' : 'none',
-                      transition: 'border-color 300ms, box-shadow 300ms',
+                      transition: 'border-color 300ms var(--ease-out), box-shadow 300ms var(--ease-out)',
                     }}
                   >
                     {session.correctAnswerVisible && (
-                      <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: `${pct}%`, background: isCorrect ? 'color-mix(in srgb, var(--accent-green) 12%, transparent)' : 'color-mix(in srgb, var(--text-muted) 8%, transparent)', transition: 'width 400ms' }} />
+                      <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: `${pct}%`, background: isCorrect ? 'color-mix(in srgb, var(--accent-green) 12%, transparent)' : 'color-mix(in srgb, var(--text-muted) 8%, transparent)', transition: 'width 650ms var(--ease-out)' }} />
                     )}
 
                     <div style={{ position: 'relative' }}>
@@ -726,13 +750,13 @@ export function QuizPage() {
                           {isWrong && <span style={{ marginLeft: 8 }}>❌</span>}
                         </p>
                         {session.correctAnswerVisible && (
-                          <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', color: 'var(--text-muted)', flexShrink: 0 }}>{pct}%</span>
+                          <CountUp value={pct} suffix="%" duration={650} style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', color: isCorrect ? 'var(--accent-green)' : 'var(--text-muted)', flexShrink: 0 }} />
                         )}
                       </div>
                     </div>
 
                     {session.correctAnswerVisible && isTeamComp && teams.length > 0 && (
-                      <div style={{ position: 'relative', display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '6px' }}>
+                      <div className="qz-chips" style={{ position: 'relative', display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '6px' }}>
                         {teams.map((teamId: string) => {
                           const teamObj = competition.teams.find((x: any) => x.id === teamId)
                           return (
@@ -853,9 +877,11 @@ export function QuizPage() {
         const podiumVisualOrder = ([2, 1, 3] as const).filter(r => rankGroups[r])
 
         return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <Card style={{ textAlign: 'center', padding: '20px 16px', background: 'var(--text-primary)' }}>
-            <p style={{ fontSize: '32px', marginBottom: '6px' }}>🏁</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative' }}>
+          {/* Grand-finale celebration */}
+          <Confetti count={70} durationBase={2200} emojis={['🎉', '🎊', '⭐', '🏆', '🪙']} style={{ position: 'fixed', zIndex: 50 }} />
+          <Card className="qz-banner-in" style={{ textAlign: 'center', padding: '20px 16px', background: 'var(--text-primary)' }}>
+            <p className="qz-float" style={{ fontSize: '32px', marginBottom: '6px' }}>🏁</p>
             <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '20px', color: '#fff', marginBottom: '4px' }}>{t('quiz.quizComplete')}</p>
             <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>{t('quiz.scoresSubmitted')}</p>
           </Card>
@@ -871,13 +897,15 @@ export function QuizPage() {
                   const entries = rankGroups[rank]
                   const h = podiumPlatformHeight(rank)
                   const gold = rank === 1
+                  // Stagger the reveal so the winner lands last for maximum drama
+                  const riseDelay = rank === 1 ? 320 : rank === 2 ? 150 : 0
                   return (
                     <div key={rank} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', flex: 1, minWidth: 0 }}>
-                      <span style={{ fontSize: '22px', lineHeight: 1 }}>{podiumMedal(rank)}</span>
+                      <span className="qz-medal" style={{ fontSize: gold ? '26px' : '22px', lineHeight: 1, animationDelay: `${riseDelay + 280}ms` }}>{podiumMedal(rank)}</span>
                       {/* Overlapping avatars when multiple entries share a rank */}
                       <div style={{ display: 'flex', justifyContent: 'center' }}>
                         {entries.map((e: any, i: number) => (
-                          <div key={e.id} style={{ marginLeft: i > 0 ? '-10px' : 0, zIndex: entries.length - i }}>
+                          <div key={e.id} className={gold && i === 0 ? 'qz-gold-pulse' : undefined} style={{ marginLeft: i > 0 ? '-10px' : 0, zIndex: entries.length - i, borderRadius: '50%' }}>
                             <Avatar
                               src={e.imageUrl} name={e.name}
                               size={gold ? 40 : 32}
@@ -896,15 +924,16 @@ export function QuizPage() {
                         ))}
                       </div>
                       {/* Platform block */}
-                      <div style={{
+                      <div className={`qz-platform${gold ? ' qz-gold-shimmer' : ''}`} style={{
                         width: '100%', height: h,
                         borderRadius: 'var(--radius-sm) var(--radius-sm) 0 0',
                         background: gold ? 'var(--text-primary)' : 'var(--surface)',
                         border: gold ? '2px solid var(--text-primary)' : '1.5px solid var(--border-light)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        animationDelay: `${riseDelay}ms`,
                       }}>
-                        <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: gold ? '20px' : '16px', color: gold ? '#fff' : 'var(--text-primary)' }}>
-                          {entries[0].score}
+                        <p style={{ position: 'relative', fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: gold ? '20px' : '16px', color: gold ? '#fff' : 'var(--text-primary)' }}>
+                          <CountUp value={entries[0].score} duration={1100} />
                         </p>
                       </div>
                     </div>
@@ -930,7 +959,7 @@ export function QuizPage() {
 
               {/* Expanded full leaderboard */}
               {showFullResults && (
-                <div style={{ marginTop: '4px' }}>
+                <div className="stagger" style={{ marginTop: '4px' }}>
                   {ranked.map((e: any, i: number) => (
                     <div key={e.id} style={{
                       display: 'flex', alignItems: 'center', gap: '10px',

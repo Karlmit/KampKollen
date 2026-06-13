@@ -325,6 +325,203 @@ img {
   100% { color: var(--text-primary); transform: scale(1); }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   QUIZ — casino / game-show FX
+   Playful, high-energy motion for every quiz mode (player, team leader,
+   scorekeeper, QuizMaster, guest spectator). transform/opacity only.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Idle bob — lobby target, trophy, anything that should feel alive */
+@keyframes qzFloat {
+  0%, 100% { transform: translateY(0)    rotate(0deg); }
+  50%      { transform: translateY(-7px) rotate(3deg); }
+}
+.qz-float { display: inline-block; animation: qzFloat 2.8s var(--ease-in-out) infinite; }
+
+/* Spring pop-in */
+@keyframes qzPopIn {
+  0%   { opacity: 0; transform: scale(0.6); }
+  60%  { opacity: 1; transform: scale(1.08); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.qz-pop-in { animation: qzPopIn 440ms var(--ease-out) both; }
+
+/* Chip pop — ready chips, team chips, answered chips (staggered) */
+@keyframes qzChipPop {
+  0%   { opacity: 0; transform: scale(0.5) translateY(6px); }
+  70%  { opacity: 1; transform: scale(1.12); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.qz-chips > * { animation: qzChipPop 340ms var(--ease-out) both; }
+.qz-chips > *:nth-child(1)  { animation-delay:  20ms; }
+.qz-chips > *:nth-child(2)  { animation-delay:  60ms; }
+.qz-chips > *:nth-child(3)  { animation-delay: 100ms; }
+.qz-chips > *:nth-child(4)  { animation-delay: 140ms; }
+.qz-chips > *:nth-child(5)  { animation-delay: 180ms; }
+.qz-chips > *:nth-child(6)  { animation-delay: 220ms; }
+.qz-chips > *:nth-child(7)  { animation-delay: 260ms; }
+.qz-chips > *:nth-child(8)  { animation-delay: 300ms; }
+.qz-chips > *:nth-child(n+9){ animation-delay: 340ms; }
+
+/* Question entrance */
+@keyframes qzQuestionIn {
+  0%   { opacity: 0; transform: translateY(14px) scale(0.97); }
+  100% { opacity: 1; transform: none; }
+}
+.qz-question-in { animation: qzQuestionIn 380ms var(--ease-out) both; }
+
+/* Deal options in like dealing cards */
+@keyframes qzDeal {
+  0%   { opacity: 0; transform: translateY(20px) scale(0.95) rotate(-1.5deg); }
+  100% { opacity: 1; transform: none; }
+}
+.qz-deal > * { animation: qzDeal 400ms var(--ease-out) both; }
+.qz-deal > *:nth-child(1)  { animation-delay:  60ms; }
+.qz-deal > *:nth-child(2)  { animation-delay: 130ms; }
+.qz-deal > *:nth-child(3)  { animation-delay: 200ms; }
+.qz-deal > *:nth-child(4)  { animation-delay: 270ms; }
+.qz-deal > *:nth-child(5)  { animation-delay: 340ms; }
+.qz-deal > *:nth-child(6)  { animation-delay: 410ms; }
+.qz-deal > *:nth-child(n+7){ animation-delay: 470ms; }
+
+/* "Locked in" — selected answer pop + glow */
+@keyframes qzSelectPop {
+  0%   { transform: scale(1); }
+  45%  { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+.qz-selected {
+  animation: qzSelectPop 340ms var(--ease-out);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 32%, transparent),
+    0 8px 22px color-mix(in srgb, var(--accent) 28%, transparent) !important;
+}
+
+/* Points badge shine sweep */
+.qz-points { position: relative; overflow: hidden; }
+.qz-points::after {
+  content: ''; position: absolute; top: 0; left: -150%;
+  width: 55%; height: 100%;
+  background: linear-gradient(115deg, transparent, rgba(255,255,255,0.6), transparent);
+  transform: skewX(-20deg);
+  animation: qzShine 2.6s var(--ease-in-out) infinite;
+}
+@keyframes qzShine {
+  0%   { left: -150%; }
+  55%  { left: 160%; }
+  100% { left: 160%; }
+}
+
+/* Big countdown number bounce (re-keyed each second) */
+@keyframes qzCountNum {
+  0%   { opacity: 0; transform: scale(1.7); }
+  45%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.qz-count-num { display: inline-block; animation: qzCountNum 380ms var(--ease-out); }
+
+/* Timer tension — heartbeat when seconds run low */
+@keyframes qzHeartbeat {
+  0%, 100% { transform: scale(1); }
+  28%      { transform: scale(1.22); }
+  44%      { transform: scale(1); }
+}
+.qz-timer-urgent { display: inline-block; animation: qzHeartbeat 720ms var(--ease-out) infinite; }
+@keyframes qzBarPulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+.qz-bar-urgent { animation: qzBarPulse 720ms var(--ease-in-out) infinite; }
+
+/* Live-distribution bar leading glow (QuizMaster board) */
+.qz-bar-lead { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+
+/* Reveal — correct answer burst */
+@keyframes qzCorrectBurst {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-green) 60%, transparent); transform: scale(1); }
+  25%  { transform: scale(1.035); }
+  100% { box-shadow: 0 0 0 18px color-mix(in srgb, var(--accent-green) 0%, transparent); transform: scale(1); }
+}
+.qz-correct-burst { animation: qzCorrectBurst 850ms var(--ease-out); }
+
+/* Reveal — wrong answer shake */
+@keyframes qzWrongShake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-8px); }
+  40%      { transform: translateX(7px); }
+  60%      { transform: translateX(-5px); }
+  80%      { transform: translateX(3px); }
+}
+.qz-wrong-shake { animation: qzWrongShake 520ms var(--ease-out); }
+
+/* Attention pulse — start CTA */
+@keyframes qzCta {
+  0%, 100% { transform: scale(1);     box-shadow: 0 6px 18px rgba(12,68,51,0.25); }
+  50%      { transform: scale(1.018); box-shadow: 0 10px 30px rgba(12,68,51,0.4); }
+}
+.qz-cta { animation: qzCta 1.9s var(--ease-in-out) infinite; border-radius: var(--radius); }
+
+/* Leaderboard / winner gold pulse */
+@keyframes qzGoldPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,215,0,0); }
+  50%      { box-shadow: 0 0 22px 2px rgba(255,215,0,0.55); }
+}
+.qz-gold-pulse { animation: qzGoldPulse 1.9s var(--ease-in-out) infinite; }
+
+/* Winner platform gold shimmer */
+.qz-gold-shimmer { position: relative; overflow: hidden; }
+.qz-gold-shimmer::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(115deg, transparent 32%, rgba(255,215,0,0.5) 50%, transparent 68%);
+  background-size: 250% 100%;
+  animation: qzGoldSweep 2.4s var(--ease-in-out) infinite;
+}
+@keyframes qzGoldSweep {
+  0%   { background-position: 210% 0; }
+  100% { background-position: -110% 0; }
+}
+
+/* Podium platform rise */
+@keyframes qzPlatformRise {
+  0%   { transform: scaleY(0); }
+  72%  { transform: scaleY(1.05); }
+  100% { transform: scaleY(1); }
+}
+.qz-platform { transform-origin: bottom; animation: qzPlatformRise 640ms var(--ease-out) both; }
+
+/* Podium medal drop & bounce */
+@keyframes qzMedalDrop {
+  0%   { opacity: 0; transform: translateY(-26px) scale(0.5); }
+  60%  { opacity: 1; transform: translateY(4px)   scale(1.18); }
+  80%  {            transform: translateY(-2px)  scale(0.97); }
+  100% { opacity: 1; transform: translateY(0)     scale(1); }
+}
+.qz-medal { display: inline-block; animation: qzMedalDrop 620ms var(--ease-out) both; }
+
+/* Finish banner zoom-in */
+@keyframes qzBannerIn {
+  0%   { opacity: 0; transform: scale(0.85); }
+  60%  { opacity: 1; transform: scale(1.03); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.qz-banner-in { animation: qzBannerIn 540ms var(--ease-out) both; }
+
+/* Confetti / coin rain */
+@keyframes qzConfetti {
+  0%   { opacity: 0; transform: translate(0, 0) rotate(0deg); }
+  8%   { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx, 0), var(--dy, 420px)) rotate(var(--rot, 540deg)); }
+}
+.qz-confetti-layer {
+  position: absolute; inset: 0; overflow: hidden;
+  pointer-events: none; z-index: 6;
+}
+.qz-confetti-piece {
+  position: absolute; top: -16px;
+  border-radius: 2px; will-change: transform, opacity;
+  animation: qzConfetti var(--dur, 1600ms) var(--ease-out) var(--delay, 0ms) both;
+}
+
 /* ─── Reduced motion ─── */
 @media (prefers-reduced-motion: reduce) {
   .page-enter,
@@ -351,4 +548,16 @@ img {
     animation: none !important;
     transform: none !important;
   }
+  /* Quiz FX — keep things visible, drop the motion */
+  .qz-float, .qz-pop-in, .qz-chips > *, .qz-question-in, .qz-deal > *,
+  .qz-selected, .qz-count-num, .qz-timer-urgent, .qz-bar-urgent,
+  .qz-correct-burst, .qz-wrong-shake, .qz-cta, .qz-gold-pulse,
+  .qz-platform, .qz-medal, .qz-banner-in, .qz-confetti-piece {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .qz-points::after,
+  .qz-gold-shimmer::after { display: none !important; }
+  .qz-selected { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 32%, transparent) !important; }
 }
