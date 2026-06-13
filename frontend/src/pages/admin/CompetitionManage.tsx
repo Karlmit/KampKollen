@@ -152,7 +152,11 @@ export function AdminCompetitionManage() {
 
   const deleteQuizTemplateMutation = useMutation({
     mutationFn: (challengeId: string) => api.challenges.delete(challengeId),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['challenges'] }); setDeletingQuizTemplate(null) },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['challenges'] })
+      setDeletingQuizTemplate(null)
+      setAddQuizOpen(true)
+    },
   })
 
   const reorderMutation = useMutation({
@@ -657,7 +661,7 @@ export function AdminCompetitionManage() {
                           size="sm"
                           variant="danger"
                           style={{ fontSize: '11px', padding: '4px 8px' }}
-                          onClick={() => setDeletingQuizTemplate(c)}
+                          onClick={() => { setAddQuizOpen(false); setDeletingQuizTemplate(c) }}
                         >
                           ×
                         </Button>
@@ -714,11 +718,11 @@ export function AdminCompetitionManage() {
       {/* Delete quiz template confirm modal */}
       <Modal
         open={!!deletingQuizTemplate}
-        onClose={() => setDeletingQuizTemplate(null)}
+        onClose={() => { setDeletingQuizTemplate(null); setAddQuizOpen(true) }}
         title={t('admin.manage.deleteQuizTemplate')}
         footer={
           <>
-            <Button variant="ghost" onClick={() => setDeletingQuizTemplate(null)}>{t('common.cancel')}</Button>
+            <Button variant="ghost" onClick={() => { setDeletingQuizTemplate(null); setAddQuizOpen(true) }}>{t('common.cancel')}</Button>
             <Button
               variant="danger"
               onClick={() => deleteQuizTemplateMutation.mutate(deletingQuizTemplate.id)}
