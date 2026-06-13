@@ -78,9 +78,9 @@ export function CompetitionDetail() {
 
   const lbData: CompetitionLeaderboard | undefined = (lbDataRaw as any)
 
-  // The team-competition player pool (unassigned players) is only relevant to the
-  // people who manage assignments. Non-team competitions show the full roster to everyone.
-  const showPool = !isTeamComp || isAdmin || !!myPlayer?.isTeamLeader
+  // The team-competition player pool (unassigned players) is admin-only.
+  // Non-team competitions show the full roster to everyone.
+  const showPool = !isTeamComp || isAdmin
 
   const tabs: { key: Tab; label: string; count?: number }[] = [
     { key: 'leaderboard', label: t('competition.leaderboard') },
