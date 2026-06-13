@@ -10,12 +10,14 @@ import { useGroup } from '../contexts/GroupContext'
 import { BoldText } from '../components/ui/BoldText'
 import { api } from '../api/client'
 import { formatDate, formatScore } from '../utils'
+import { useTranslation } from 'react-i18next'
 
 type View = 'competitions' | 'challenges' | 'awards'
 
 export function GlobalLeaderboard() {
   const { user } = useAuth()
   const { activeGroupId, setActiveGroupId } = useGroup()
+  const { t } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
   const view = (searchParams.get('view') as View) ?? 'competitions'
   const setView = (v: View) => setSearchParams({ view: v }, { replace: true })
@@ -48,26 +50,26 @@ export function GlobalLeaderboard() {
   const challengeRecords: any[] = challengeData?.challenges ?? []
   const awardPlayers: any[] = awardsData?.players ?? []
 
-  const viewButtons: { key: View; icon: string; label: string }[] = [
-    { key: 'competitions', icon: '🏆', label: 'Competition History' },
-    { key: 'challenges',   icon: '⚔️',  label: 'Challenge History' },
-    { key: 'awards',       icon: '🎁',  label: 'Award History' },
+  const viewButtons: { key: View; icon: string; labelKey: string }[] = [
+    { key: 'competitions', icon: '🏆', labelKey: 'globalLeaderboard.competitionsLabel' },
+    { key: 'challenges',   icon: '⚔️',  labelKey: 'globalLeaderboard.challengesLabel' },
+    { key: 'awards',       icon: '🎁',  labelKey: 'globalLeaderboard.awardsLabel' },
   ]
 
   return (
-    <Layout title="Scores">
+    <Layout title={t('globalLeaderboard.title')}>
       {/* Group filter */}
       {showGroupFilter && (
         <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, color: 'var(--text-muted)', flexShrink: 0 }}>
-            Group:
+            {t('globalLeaderboard.group')}:
           </label>
           <select
             value={activeGroupId ?? ''}
             onChange={e => setActiveGroupId(e.target.value || null)}
             style={{ flex: 1, padding: '8px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', fontSize: '14px', fontFamily: 'var(--font-ui)' }}
           >
-            <option value="">All groups</option>
+            <option value="">{t('globalLeaderboard.allGroups')}</option>
             {myGroups.map((ug: any) => (
               <option key={ug.groupId} value={ug.groupId}>{ug.group.name}</option>
             ))}
@@ -91,7 +93,7 @@ export function GlobalLeaderboard() {
             }}
           >
             <span style={{ fontSize: '22px', lineHeight: 1 }}>{btn.icon}</span>
-            <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px' }}>{btn.label}</span>
+            <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px' }}>{t(btn.labelKey as any)}</span>
             <span style={{ marginLeft: 'auto', fontSize: '18px', opacity: 0.5 }}>›</span>
           </button>
         ))}
@@ -104,7 +106,7 @@ export function GlobalLeaderboard() {
             {activeComps.length > 0 && (
               <section>
                 <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '10px', color: 'var(--text-muted)' }}>
-                  Live Competitions
+                  {t('globalLeaderboard.liveCompetitions')}
                 </h2>
                 <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {activeComps.map((c: any) => (
@@ -132,7 +134,7 @@ export function GlobalLeaderboard() {
             {completedComps.length > 0 && (
               <section>
                 <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '10px', color: 'var(--text-muted)' }}>
-                  Past Competitions
+                  {t('globalLeaderboard.pastCompetitions')}
                 </h2>
                 <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {completedComps.map((c: any) => (
@@ -155,7 +157,7 @@ export function GlobalLeaderboard() {
               </section>
             )}
             {activeComps.length === 0 && completedComps.length === 0 && (
-              <Card><p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 0' }}>No competitions available yet</p></Card>
+              <Card><p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 0' }}>{t('globalLeaderboard.noCompetitionsYet')}</p></Card>
             )}
           </div>
         )
@@ -165,7 +167,7 @@ export function GlobalLeaderboard() {
       {view === 'challenges' && (
         challengesLoading ? <LoadingSpinner /> : (
           challengeRecords.length === 0 ? (
-            <Card><p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 0' }}>No challenge records yet</p></Card>
+            <Card><p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 0' }}>{t('globalLeaderboard.noChallengesYet')}</p></Card>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {challengeRecords.map((ch: any) => (
@@ -178,7 +180,7 @@ export function GlobalLeaderboard() {
                     )}
                     <p style={{ flex: 1, fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>{ch.challengeName}</p>
                     <Link to={`/leaderboard/challenge/${ch.challengeId}`} style={{ textDecoration: 'none', flexShrink: 0 }}>
-                      <span style={{ fontSize: '12px', fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--accent)' }}>View all ›</span>
+                      <span style={{ fontSize: '12px', fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--accent)' }}>{t('globalLeaderboard.viewAll')}</span>
                     </Link>
                   </div>
                   <div>
@@ -213,7 +215,7 @@ export function GlobalLeaderboard() {
       {view === 'awards' && (
         awardsLoading ? <LoadingSpinner /> : (
           awardPlayers.length === 0 ? (
-            <Card><p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 0' }}>No awards given out yet</p></Card>
+            <Card><p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 0' }}>{t('globalLeaderboard.noAwardsYet')}</p></Card>
           ) : (
             <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {awardPlayers.map((p: any) => (
@@ -235,9 +237,9 @@ export function GlobalLeaderboard() {
                   </div>
                   {/* Trophy list */}
                   <div>
-                    {p.trophies.map((t: any, i: number) => (
+                    {p.trophies.map((trophy: any, i: number) => (
                       <div
-                        key={t.id}
+                        key={trophy.id}
                         style={{
                           display: 'flex', alignItems: 'center', gap: '12px',
                           padding: '10px 16px',
@@ -245,14 +247,14 @@ export function GlobalLeaderboard() {
                         }}
                       >
                         <img
-                          src={t.imageUrl}
-                          alt={t.title}
+                          src={trophy.imageUrl}
+                          alt={trophy.title}
                           style={{ width: 40, height: 40, objectFit: 'contain', borderRadius: 'var(--radius-sm)', flexShrink: 0 }}
                         />
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>{t.title}</p>
-                          {t.subtitle && (
-                            <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px', lineHeight: 1.4 }}><BoldText text={t.subtitle} /></p>
+                          <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>{trophy.title}</p>
+                          {trophy.subtitle && (
+                            <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px', lineHeight: 1.4 }}><BoldText text={trophy.subtitle} /></p>
                           )}
                         </div>
                       </div>

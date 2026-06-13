@@ -8,8 +8,10 @@ import { Avatar } from '../../components/ui/Avatar'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { useAuth } from '../../contexts/AuthContext'
 import { api } from '../../api/client'
+import { useTranslation } from 'react-i18next'
 
 export function AdminGroups() {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const { user } = useAuth()
   const [newGroupName, setNewGroupName] = useState('')
@@ -72,23 +74,23 @@ export function AdminGroups() {
   const nonMembers = allUsers.filter((u: any) => !memberIds.has(u.id))
 
   return (
-    <AdminLayout title="Groups">
+    <AdminLayout title={t('admin.groups.title')}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
         {/* Create group */}
         <Card>
-          <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', marginBottom: '10px' }}>Create Group</p>
+          <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', marginBottom: '10px' }}>{t('admin.groups.createGroup')}</p>
           <div style={{ display: 'flex', gap: '8px' }}>
             <div style={{ flex: 1 }}>
               <Input
                 value={newGroupName}
                 onChange={e => setNewGroupName(e.target.value)}
-                placeholder="Group name"
+                placeholder={t('admin.groups.groupNamePlaceholder')}
                 onKeyDown={e => e.key === 'Enter' && newGroupName.trim() && createMutation.mutate()}
               />
             </div>
             <Button onClick={() => createMutation.mutate()} loading={createMutation.isPending} disabled={!newGroupName.trim()}>
-              Create
+              {t('admin.groups.create')}
             </Button>
           </div>
           {createError && <p style={{ fontSize: '13px', color: 'var(--accent-warm)', marginTop: '6px', fontFamily: 'var(--font-ui)' }}>{createError}</p>}
@@ -97,9 +99,6 @@ export function AdminGroups() {
         {/* Group list */}
         {isLoading ? <LoadingSpinner /> : groups.map((g: any) => {
           const isExpanded = expandedGroupId === g.id
-          const amMember = members.some((m: any) => m.id === user?.id) || (isExpanded && memberIds.has(user?.id ?? ''))
-          // Check membership from group list (before expanding)
-          const isMemberFromList = allUsers.some(u => u.id === user?.id) // we check via groups query separately
 
           return (
             <Card key={g.id} padding="0">
@@ -113,7 +112,7 @@ export function AdminGroups() {
                 <div style={{ flex: 1 }}>
                   <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px' }}>{g.name}</p>
                   <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                    {g._count?.members ?? 0} members · {g._count?.competitions ?? 0} competitions
+                    {t('admin.groups.membersCount', { members: g._count?.members ?? 0, competitions: g._count?.competitions ?? 0 })}
                   </p>
                 </div>
                 <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{isExpanded ? '▲' : '▼'}</span>
@@ -128,13 +127,13 @@ export function AdminGroups() {
                     onClick={() => addMeMutation.mutate(g.id)}
                     loading={addMeMutation.isPending}
                   >
-                    + Add me to this group
+                    {t('admin.groups.addMeToGroup')}
                   </Button>
 
                   {/* Add other user */}
                   {nonMembers.length > 0 && (
                     <div>
-                      <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '6px' }}>ADD MEMBER</p>
+                      <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '6px' }}>{t('admin.groups.addMember')}</p>
                       <select
                         defaultValue=""
                         onChange={e => {
@@ -145,7 +144,7 @@ export function AdminGroups() {
                         }}
                         style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', fontSize: '14px' }}
                       >
-                        <option value="">Select user to add…</option>
+                        <option value="">{t('admin.groups.selectUser')}</option>
                         {nonMembers.map((u: any) => (
                           <option key={u.id} value={u.id}>{u.displayName ?? u.username}</option>
                         ))}
@@ -156,7 +155,7 @@ export function AdminGroups() {
                   {/* Member list */}
                   {members.length > 0 && (
                     <div>
-                      <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '6px' }}>MEMBERS</p>
+                      <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '6px' }}>{t('admin.groups.members')}</p>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {members.map((m: any) => (
                           <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -171,7 +170,7 @@ export function AdminGroups() {
                               onClick={() => removeMemberMutation.mutate({ groupId: g.id, userId: m.id })}
                               loading={removeMemberMutation.isPending}
                             >
-                              Remove
+                              {t('admin.groups.remove')}
                             </Button>
                           </div>
                         ))}

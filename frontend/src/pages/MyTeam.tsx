@@ -13,11 +13,13 @@ import { ImageGenerator } from '../components/ImageGenerator'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../api/client'
 import { Team, CompetitionPlayer } from '../types'
+import { useTranslation } from 'react-i18next'
 
 export function MyTeamPage() {
   const { competitionId, teamId } = useParams<{ competitionId: string; teamId: string }>()
   const { user, isAdmin } = useAuth()
   const qc = useQueryClient()
+  const { t } = useTranslation()
   const [renameOpen, setRenameOpen] = useState(false)
   const [newName, setNewName] = useState('')
 
@@ -100,11 +102,11 @@ export function MyTeamPage() {
     },
   })
 
-  if (isLoading) return <Layout title="Team"><LoadingSpinner /></Layout>
+  if (isLoading) return <Layout title=""><LoadingSpinner /></Layout>
 
   const comp = compData?.competition
   const team: Team = teamData?.team
-  if (!comp || !team) return <Layout title="Team"><p>Not found</p></Layout>
+  if (!comp || !team) return <Layout title=""><p>{t('team.notFound')}</p></Layout>
 
   const teamPlayers = (comp.players?.filter((p: CompetitionPlayer) => p.teamId === team.id) ?? [])
     .sort((a: CompetitionPlayer, b: CompetitionPlayer) => (b.isTeamLeader ? 1 : 0) - (a.isTeamLeader ? 1 : 0))
@@ -146,11 +148,11 @@ export function MyTeamPage() {
                 qc.invalidateQueries({ queryKey: ['team', teamId] })
                 return res.imageUrl
               }}
-              label="Team Image"
+              label={t('team.teamImage')}
             shape="circle"
             />
             <Button variant="ghost" size="sm" onClick={() => { setNewName(team.name); setRenameOpen(true) }}>
-              Rename Team
+              {t('team.renameTeam')}
             </Button>
           </div>
         )}
@@ -160,11 +162,11 @@ export function MyTeamPage() {
       <section style={{ marginBottom: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
           <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '15px' }}>
-            Players ({teamPlayers.length})
+            {t('team.playersCount', { count: teamPlayers.length })}
           </h2>
           {canManage && (
             <Button size="sm" variant="ghost" onClick={() => { setGuestName(''); setAddGuestOpen(true) }} style={{ fontSize: '12px', padding: '4px 10px' }}>
-              + Guest
+              {t('team.addGuest')}
             </Button>
           )}
         </div>
@@ -187,10 +189,10 @@ export function MyTeamPage() {
                     )}
                   </p>
                   <div style={{ display: 'flex', gap: '4px', marginTop: '2px' }}>
-                    {p.user?.isDummy && <Badge style={{ fontSize: '11px', background: 'var(--border-light)', color: 'var(--text-muted)' }}>Guest</Badge>}
-                    {p.isTeamLeader && <Badge variant="info" style={{ fontSize: '11px' }}>Leader</Badge>}
-                    {p.isScorekeeper && <Badge variant="success" style={{ fontSize: '11px' }}>Scorekeeper</Badge>}
-                    {p.isQuizMaster && <Badge style={{ fontSize: '11px', background: 'var(--accent-orange)', color: '#fff' }}>🎯 QM</Badge>}
+                    {p.user?.isDummy && <Badge style={{ fontSize: '11px', background: 'var(--border-light)', color: 'var(--text-muted)' }}>{t('team.guest')}</Badge>}
+                    {p.isTeamLeader && <Badge variant="info" style={{ fontSize: '11px' }}>{t('team.leader')}</Badge>}
+                    {p.isScorekeeper && <Badge variant="success" style={{ fontSize: '11px' }}>{t('team.scorekeeper')}</Badge>}
+                    {p.isQuizMaster && <Badge style={{ fontSize: '11px', background: 'var(--accent-orange)', color: '#fff' }}>{t('team.qmActive')}</Badge>}
                   </div>
                 </div>
                 {canManage && p.user?.isDummy && (
@@ -201,7 +203,7 @@ export function MyTeamPage() {
                       onClick={() => openConvert(p)}
                       style={{ fontSize: '12px', padding: '4px 10px' }}
                     >
-                      Convert
+                      {t('team.convert')}
                     </Button>
                     <Button
                       size="sm"
@@ -209,7 +211,7 @@ export function MyTeamPage() {
                       onClick={() => setRemoveConfirmUserId(p.userId)}
                       style={{ fontSize: '12px', padding: '4px 10px' }}
                     >
-                      Remove
+                      {t('team.remove')}
                     </Button>
                   </div>
                 )}
@@ -223,7 +225,7 @@ export function MyTeamPage() {
                         loading={toggleQuizMasterMutation.isPending}
                         style={{ fontSize: '11px', padding: '4px 10px' }}
                       >
-                        {p.isQuizMaster ? '🎯 QM' : 'QM'}
+                        {p.isQuizMaster ? t('team.qmActive') : t('team.qm')}
                       </Button>
                     )}
                     {(isAdmin || !myPlayer?.isTeamLeader) && (
@@ -233,7 +235,7 @@ export function MyTeamPage() {
                         onClick={() => setRemoveConfirmUserId(p.userId)}
                         style={{ fontSize: '12px', padding: '4px 10px' }}
                       >
-                        Leave
+                        {t('team.leave')}
                       </Button>
                     )}
                   </div>
@@ -248,7 +250,7 @@ export function MyTeamPage() {
                         loading={toggleLeaderMutation.isPending}
                         style={{ fontSize: '11px', padding: '4px 10px' }}
                       >
-                        {p.isTeamLeader ? '⭐ Leader' : 'Leader'}
+                        {p.isTeamLeader ? t('team.starLeader') : t('team.leader')}
                       </Button>
                     )}
                     {isAdmin && (
@@ -259,7 +261,7 @@ export function MyTeamPage() {
                         loading={toggleScorekeeperMutation.isPending}
                         style={{ fontSize: '11px', padding: '4px 10px' }}
                       >
-                        Scorekeeper
+                        {t('team.scorekeeper')}
                       </Button>
                     )}
                     {isAdmin && (
@@ -270,7 +272,7 @@ export function MyTeamPage() {
                         loading={toggleQuizMasterMutation.isPending}
                         style={{ fontSize: '11px', padding: '4px 10px' }}
                       >
-                        {p.isQuizMaster ? '🎯 QM' : 'QM'}
+                        {p.isQuizMaster ? t('team.qmActive') : t('team.qm')}
                       </Button>
                     )}
                     <Button
@@ -279,7 +281,7 @@ export function MyTeamPage() {
                       onClick={() => setRemoveConfirmUserId(p.userId)}
                       style={{ fontSize: '12px', padding: '4px 10px' }}
                     >
-                      Remove
+                      {t('team.remove')}
                     </Button>
                   </div>
                 )}
@@ -293,7 +295,7 @@ export function MyTeamPage() {
       {canManage && poolPlayers.length > 0 && (
         <section>
           <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '15px', marginBottom: '12px', color: 'var(--text-muted)' }}>
-            Player Pool ({poolPlayers.length})
+            {t('team.playerPoolCount', { count: poolPlayers.length })}
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {poolPlayers.map((p: CompetitionPlayer) => (
@@ -305,7 +307,7 @@ export function MyTeamPage() {
                       {p.user.displayName ?? p.user.username}
                     </p>
                     {p.user?.isDummy && (
-                      <Badge style={{ fontSize: '11px', background: 'var(--border-light)', color: 'var(--text-muted)' }}>Guest</Badge>
+                      <Badge style={{ fontSize: '11px', background: 'var(--border-light)', color: 'var(--text-muted)' }}>{t('team.guest')}</Badge>
                     )}
                   </div>
                   <Button
@@ -315,7 +317,7 @@ export function MyTeamPage() {
                     loading={addPlayerMutation.isPending}
                     style={{ fontSize: '12px', padding: '4px 10px' }}
                   >
-                    Add to team
+                    {t('team.addToTeam')}
                   </Button>
                 </div>
               </Card>
@@ -328,16 +330,16 @@ export function MyTeamPage() {
       <Modal
         open={renameOpen}
         onClose={() => setRenameOpen(false)}
-        title="Rename Team"
+        title={t('team.renameTeam')}
         footer={
           <>
-            <Button variant="ghost" onClick={() => setRenameOpen(false)}>Cancel</Button>
-            <Button onClick={() => renameMutation.mutate()} loading={renameMutation.isPending}>Save</Button>
+            <Button variant="ghost" onClick={() => setRenameOpen(false)}>{t('common.cancel')}</Button>
+            <Button onClick={() => renameMutation.mutate()} loading={renameMutation.isPending}>{t('common.save')}</Button>
           </>
         }
       >
         <Input
-          label="Team name"
+          label={t('team.teamName')}
           value={newName}
           onChange={e => setNewName(e.target.value)}
           autoFocus
@@ -348,29 +350,29 @@ export function MyTeamPage() {
       <Modal
         open={addGuestOpen}
         onClose={() => setAddGuestOpen(false)}
-        title="Add Guest Player"
+        title={t('team.addGuestPlayer')}
         footer={
           <>
-            <Button variant="ghost" onClick={() => setAddGuestOpen(false)}>Cancel</Button>
+            <Button variant="ghost" onClick={() => setAddGuestOpen(false)}>{t('common.cancel')}</Button>
             <Button
               onClick={() => addGuestMutation.mutate()}
               loading={addGuestMutation.isPending}
               disabled={!guestName.trim()}
             >
-              Add
+              {t('common.add')}
             </Button>
           </>
         }
       >
         <Input
-          label="Player name"
+          label={t('team.playerName')}
           value={guestName}
           onChange={e => setGuestName(e.target.value)}
           autoFocus
-          placeholder="Enter name..."
+          placeholder={t('team.enterName')}
         />
         <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px', fontFamily: 'var(--font-ui)' }}>
-          Guest players don't need an account. You can convert them to a registered user later.
+          {t('team.guestDescription')}
         </p>
       </Modal>
 
@@ -378,26 +380,26 @@ export function MyTeamPage() {
       <Modal
         open={convertOpen}
         onClose={() => { setConvertOpen(false); setConvertingDummy(null) }}
-        title={`Convert "${convertingDummy?.user?.displayName ?? 'Guest'}"`}
+        title={t('team.convertTitle', { name: convertingDummy?.user?.displayName ?? 'Guest' })}
         footer={
           <>
-            <Button variant="ghost" onClick={() => { setConvertOpen(false); setConvertingDummy(null) }}>Cancel</Button>
+            <Button variant="ghost" onClick={() => { setConvertOpen(false); setConvertingDummy(null) }}>{t('common.cancel')}</Button>
             <Button
               onClick={() => convertMutation.mutate()}
               loading={convertMutation.isPending}
               disabled={!selectedRealUserId}
             >
-              Convert
+              {t('team.convert')}
             </Button>
           </>
         }
       >
         <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px', fontFamily: 'var(--font-ui)' }}>
-          Select the registered player to replace this guest. The guest's scores will transfer to the selected player. Any existing scores the selected player already has in this competition will be overwritten.
+          {t('team.convertDescription')}
         </p>
         {realCandidates.length === 0 ? (
           <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontFamily: 'var(--font-ui)', textAlign: 'center', padding: '16px 0' }}>
-            No registered players to convert to.
+            {t('team.noRegisteredPlayers')}
           </p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -424,7 +426,7 @@ export function MyTeamPage() {
         )}
         {convertMutation.isError && (
           <p style={{ fontSize: '13px', color: 'var(--accent-warm)', marginTop: '8px', fontFamily: 'var(--font-ui)' }}>
-            {(convertMutation.error as any)?.message ?? 'Conversion failed'}
+            {(convertMutation.error as any)?.message ?? t('team.conversionFailed')}
           </p>
         )}
       </Modal>
@@ -438,23 +440,23 @@ export function MyTeamPage() {
           <Modal
             open={!!removeConfirmUserId}
             onClose={() => setRemoveConfirmUserId(null)}
-            title={isSelf ? 'Leave team?' : `Remove ${name}?`}
+            title={isSelf ? t('team.leaveTeamTitle') : t('team.removePlayerTitle', { name })}
             footer={
               <>
-                <Button variant="ghost" onClick={() => setRemoveConfirmUserId(null)}>Cancel</Button>
+                <Button variant="ghost" onClick={() => setRemoveConfirmUserId(null)}>{t('common.cancel')}</Button>
                 <Button
                   onClick={() => { removePlayerMutation.mutate(removeConfirmUserId!); setRemoveConfirmUserId(null) }}
                   loading={removePlayerMutation.isPending}
                 >
-                  {isSelf ? 'Leave' : 'Remove'}
+                  {isSelf ? t('team.leave') : t('team.remove')}
                 </Button>
               </>
             }
           >
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontFamily: 'var(--font-ui)' }}>
               {isSelf
-                ? 'Are you sure you want to leave this team?'
-                : `Are you sure you want to remove ${name} from the team?`}
+                ? t('team.areYouSureLeave')
+                : t('team.areYouSureRemove', { name })}
             </p>
           </Modal>
         )

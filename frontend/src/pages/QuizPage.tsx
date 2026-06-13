@@ -9,9 +9,11 @@ import { Avatar } from '../components/ui/Avatar'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../api/client'
+import { useTranslation } from 'react-i18next'
 
 // ── Timer bar ─────────────────────────────────────────────────────────────────
 function TimerBar({ seconds, onExpire }: { seconds: number; onExpire: () => void }) {
+  const { t } = useTranslation()
   const [remaining, setRemaining] = useState(seconds)
   useEffect(() => {
     if (seconds <= 0) return
@@ -29,7 +31,7 @@ function TimerBar({ seconds, onExpire }: { seconds: number; onExpire: () => void
   return (
     <div style={{ marginBottom: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontFamily: 'var(--font-ui)', fontWeight: 700, marginBottom: 4 }}>
-        <span>Time left</span><span style={{ color: remaining <= 5 ? 'var(--accent-warm)' : undefined }}>{remaining}s</span>
+        <span>{t('quiz.timeLeft')}</span><span style={{ color: remaining <= 5 ? 'var(--accent-warm)' : undefined }}>{remaining}s</span>
       </div>
       <div style={{ height: 6, background: 'var(--surface)', borderRadius: 99, overflow: 'hidden' }}>
         <div style={{
@@ -86,6 +88,7 @@ function MiniScoreboard({ questions, teams, players, isTeamComp }: any) {
 export function QuizPage() {
   const { competitionId, ccId } = useParams<{ competitionId: string; ccId: string }>()
   const { user, isAdmin } = useAuth()
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
@@ -144,8 +147,8 @@ export function QuizPage() {
     action().then(() => qc.invalidateQueries({ queryKey: ['quiz', ccId] }))
   }, [ccId, qc])
 
-  if (isLoading) return <Layout title="Quiz" back={`/competitions/${competitionId}`}><LoadingSpinner /></Layout>
-  if (!data) return <Layout title="Quiz" back={`/competitions/${competitionId}`}><p>Not found</p></Layout>
+  if (isLoading) return <Layout title={t('quiz.title')} back={`/competitions/${competitionId}`}><LoadingSpinner /></Layout>
+  if (!data) return <Layout title={t('quiz.title')} back={`/competitions/${competitionId}`}><p>{t('quiz.notFound')}</p></Layout>
 
   const { session, isQM, isTeamComp, myTeamId, myIsTeamLeader, myIsScorekeeper, competition, questions, challengeId } = data
   const isGuest = !user
@@ -170,7 +173,7 @@ export function QuizPage() {
 
   return (
     <Layout
-      title="Quiz"
+      title={t('quiz.title')}
       back={`/competitions/${competitionId}`}
     >
       {/* ── LOBBY ────────────────────────────────────────────────────────── */}
@@ -178,9 +181,9 @@ export function QuizPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <Card style={{ textAlign: 'center', padding: '32px 16px' }}>
             <p style={{ fontSize: '40px', marginBottom: '8px' }}>🎯</p>
-            <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '20px', marginBottom: '4px' }}>Quiz Lobby</p>
+            <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '20px', marginBottom: '4px' }}>{t('quiz.lobbyTitle')}</p>
             <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
-              {questions.length} question{questions.length !== 1 ? 's' : ''} — waiting for the Quiz Master to start.
+              {t('quiz.lobbyDesc', { count: questions.length })}
             </p>
           </Card>
 
@@ -192,33 +195,33 @@ export function QuizPage() {
               onClick={() => readyMutation.mutate(isTeamComp ? myTeamId ?? undefined : undefined)}
               loading={readyMutation.isPending}
             >
-              ✅ Mark {isTeamComp ? (myTeam?.name ?? 'team') : 'me'} as Ready
+              {isTeamComp ? t('quiz.markReady', { name: myTeam?.name ?? 'team' }) : t('quiz.markMeReady')}
             </Button>
           )}
           {!isGuest && !isQM && !canAct && !amReady && (
             <Card padding="12px" style={{ textAlign: 'center' }}>
               <p style={{ fontFamily: 'var(--font-ui)', fontSize: '14px', color: 'var(--text-muted)' }}>
-                Waiting for your team leader or scorekeeper to mark the team ready.
+                {t('quiz.waitingForLeader')}
               </p>
             </Card>
           )}
           {isGuest && (
             <Card padding="12px" style={{ textAlign: 'center', background: 'var(--surface)' }}>
               <p style={{ fontFamily: 'var(--font-ui)', fontSize: '14px', color: 'var(--text-muted)' }}>
-                👀 Watching — <Link to="/login" style={{ color: 'var(--accent)' }}>sign in</Link> to participate
+                {t('quiz.watchingSign')}
               </p>
             </Card>
           )}
           {amReady && (
             <Card padding="12px" style={{ textAlign: 'center', background: 'color-mix(in srgb, var(--accent-green) 10%, transparent)', border: '1px solid var(--accent-green)' }}>
-              <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--accent-green)' }}>✓ Ready!</p>
+              <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--accent-green)' }}>{t('quiz.ready')}</p>
             </Card>
           )}
 
           {/* Ready list */}
           <Card>
             <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-muted)' }}>
-              {isTeamComp ? 'TEAMS READY' : 'PLAYERS READY'} ({readyIds.size}/{isTeamComp ? competition.teams.length : competition.players.length})
+              {isTeamComp ? t('quiz.teamsReady') : t('quiz.playersReady')} ({readyIds.size}/{isTeamComp ? competition.teams.length : competition.players.length})
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {(isTeamComp ? competition.teams : competition.players).map((item: any) => {
@@ -234,7 +237,7 @@ export function QuizPage() {
                     color: isReady ? 'var(--accent-green)' : (isMyTeam || isMe) ? 'var(--accent)' : 'var(--text-muted)',
                     border: `1.5px solid ${isReady ? 'var(--accent-green)' : (isMyTeam || isMe) ? 'var(--accent)' : 'var(--border-light)'}`
                   }}>
-                    {isReady ? '✓ ' : ''}{name}{(isMyTeam || isMe) ? ' (you)' : ''}
+                    {isReady ? '✓ ' : ''}{name}{(isMyTeam || isMe) ? ` (${t('quiz.you')})` : ''}
                   </span>
                 )
               })}
@@ -245,10 +248,10 @@ export function QuizPage() {
           {isQM && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <Link to={`/competitions/${competitionId}/quiz/${ccId}/edit`} style={{ textDecoration: 'none' }}>
-                <Button fullWidth variant="ghost" size="lg">✏️ Edit Quiz Questions</Button>
+                <Button fullWidth variant="ghost" size="lg">{t('quiz.editQuestions')}</Button>
               </Link>
               <Button fullWidth size="lg" onClick={() => setConfirmStart(true)}>
-                🚀 Start Quiz
+                {t('quiz.startQuiz')}
               </Button>
             </div>
           )}
@@ -259,18 +262,18 @@ export function QuizPage() {
       <Modal
         open={confirmStart}
         onClose={() => setConfirmStart(false)}
-        title="Start Quiz?"
+        title={t('quiz.startQuizTitle')}
         footer={
           <>
-            <Button variant="ghost" onClick={() => setConfirmStart(false)}>Cancel</Button>
+            <Button variant="ghost" onClick={() => setConfirmStart(false)}>{t('common.cancel')}</Button>
             <Button onClick={() => { setConfirmStart(false); qmMutate(() => api.quiz.start(ccId!)) }}>
-              Start Quiz
+              {t('quiz.start')}
             </Button>
           </>
         }
       >
         <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-          Once the quiz starts, <strong>questions can no longer be edited</strong>. Make sure all questions and answer options are correct before continuing.
+          {t('quiz.startQuizDesc')}
         </p>
       </Modal>
 
@@ -280,14 +283,14 @@ export function QuizPage() {
           {/* Progress */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
-              QUESTION {session.currentQuestionIndex + 1} / {questions.length}
+              {t('quiz.question', { current: session.currentQuestionIndex + 1, total: questions.length })}
             </p>
             <span style={{
               padding: '3px 10px', borderRadius: '99px',
               background: 'var(--accent)', color: '#fff',
               fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '13px',
             }}>
-              {currentQ.points} {currentQ.points === 1 ? 'point' : 'points'}
+              {t('quiz.points', { count: currentQ.points })}
             </span>
           </div>
 
@@ -301,7 +304,7 @@ export function QuizPage() {
             <div style={{ marginBottom: 4 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                 <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', color: 'var(--accent-warm)' }}>
-                  {session.currentQuestionIndex >= questions.length - 1 ? 'Quiz completes in…' : 'Next question in…'}
+                  {session.currentQuestionIndex >= questions.length - 1 ? t('quiz.quizCompletesIn') : t('quiz.nextQuestionIn')}
                 </span>
                 <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '22px', color: 'var(--accent-warm)', lineHeight: 1 }}>
                   {countdownSecs}
@@ -374,19 +377,19 @@ export function QuizPage() {
           ) : isGuest ? (
             <Card padding="14px" style={{ textAlign: 'center', background: 'var(--surface)' }}>
               <p style={{ fontFamily: 'var(--font-ui)', fontSize: '14px', color: 'var(--text-muted)' }}>
-                👀 Watching — <Link to="/login" style={{ color: 'var(--accent)' }}>sign in</Link> to participate
+                {t('quiz.watchingSign')}
               </p>
             </Card>
           ) : currentQ.locked ? (
             <Card padding="14px" style={{ textAlign: 'center' }}>
               <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--text-muted)' }}>
-                {mySubmittedOption ? '✓ Answer submitted — waiting for next question' : '⏸ Question locked'}
+                {mySubmittedOption ? t('quiz.answerSubmitted') : t('quiz.questionLocked')}
               </p>
             </Card>
           ) : !canAct ? (
             <Card padding="14px" style={{ textAlign: 'center', background: 'var(--surface)' }}>
               <p style={{ fontFamily: 'var(--font-ui)', fontSize: '14px', color: 'var(--text-muted)' }}>
-                {mySubmittedOption ? '✓ Your team has answered' : 'Waiting for your team leader or scorekeeper to answer…'}
+                {mySubmittedOption ? t('quiz.teamAnswered') : t('quiz.waitingForTeam')}
               </p>
             </Card>
           ) : (
@@ -419,7 +422,7 @@ export function QuizPage() {
           {/* QM controls */}
           {isQM && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: 'var(--surface)', borderRadius: 'var(--radius)', marginTop: '4px' }}>
-              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '4px' }}>QUIZ MASTER</p>
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '4px' }}>{t('quiz.quizMaster')}</p>
 
               {/* Answer status per team/player */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '8px' }}>
@@ -438,9 +441,9 @@ export function QuizPage() {
                 })}
                 {!isTeamComp && (
                   <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                    {currentQ.answeredUserIds?.length ?? 0} / {competition.players.length} answered
+                    {t('quiz.answered', { count: currentQ.answeredUserIds?.length ?? 0, total: competition.players.length })}
                     {currentQ.answeredUserIds?.length === competition.players.length && (
-                      <span style={{ color: 'var(--accent-green)', fontWeight: 700 }}> — All answered! ✓</span>
+                      <span style={{ color: 'var(--accent-green)', fontWeight: 700 }}>{t('quiz.allAnswered')}</span>
                     )}
                   </p>
                 )}
@@ -453,8 +456,8 @@ export function QuizPage() {
                   onClick={() => qmMutate(() => api.quiz.nextQuestion(ccId!))}
                 >
                   {countdownSecs !== null
-                    ? `⏳ ${countdownSecs}s…`
-                    : session.currentQuestionIndex >= questions.length - 1 ? '✅ Start Correction' : '→ Next Question'}
+                    ? t('quiz.countdown5s', { count: countdownSecs })
+                    : session.currentQuestionIndex >= questions.length - 1 ? t('quiz.startCorrection') : t('quiz.nextQuestion')}
                 </Button>
               </div>
             </div>
@@ -475,14 +478,14 @@ export function QuizPage() {
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
-              CORRECTING {session.correctionIndex + 1} / {questions.length}
+              {t('quiz.correcting', { current: session.correctionIndex + 1, total: questions.length })}
             </p>
             <span style={{
               padding: '3px 10px', borderRadius: '99px',
               background: 'var(--accent)', color: '#fff',
               fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '13px',
             }}>
-              {correctionQ.points} {correctionQ.points === 1 ? 'point' : 'points'}
+              {t('quiz.points', { count: correctionQ.points })}
             </span>
           </div>
 
@@ -526,7 +529,7 @@ export function QuizPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <p style={{ flex: 1, fontFamily: 'var(--font-ui)', fontWeight: isMine ? 700 : 500, fontSize: '15px' }}>
                         {opt.text}
-                        {isMine && <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: 6 }}>(your answer)</span>}
+                        {isMine && <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: 6 }}>{t('quiz.yourAnswer')}</span>}
                         {isCorrect && <span style={{ marginLeft: 8 }}>✅</span>}
                         {isWrong && <span style={{ marginLeft: 8 }}>❌</span>}
                       </p>
@@ -561,16 +564,16 @@ export function QuizPage() {
           {/* QM controls */}
           {isQM && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: 'var(--surface)', borderRadius: 'var(--radius)' }}>
-              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '4px' }}>QUIZ MASTER</p>
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '4px' }}>{t('quiz.quizMaster')}</p>
               <div style={{ display: 'flex', gap: '8px' }}>
                 {!session.correctAnswerVisible && (
                   <Button size="sm" onClick={() => qmMutate(() => api.quiz.showAnswer(ccId!))}>
-                    🟢 Show Correct Answer
+                    {t('quiz.showAnswer')}
                   </Button>
                 )}
                 {session.correctAnswerVisible && (
                   <Button size="sm" onClick={() => qmMutate(() => api.quiz.nextCorrection(ccId!))}>
-                    {session.correctionIndex >= questions.length - 1 ? '🏁 Complete Quiz' : '→ Next Correction'}
+                    {session.correctionIndex >= questions.length - 1 ? t('quiz.completeQuiz') : t('quiz.nextCorrection')}
                   </Button>
                 )}
               </div>
@@ -632,15 +635,15 @@ export function QuizPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <Card style={{ textAlign: 'center', padding: '20px 16px', background: 'var(--text-primary)' }}>
             <p style={{ fontSize: '32px', marginBottom: '6px' }}>🏁</p>
-            <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '20px', color: '#fff', marginBottom: '4px' }}>Quiz Complete!</p>
-            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>Scores submitted to competition leaderboard.</p>
+            <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '20px', color: '#fff', marginBottom: '4px' }}>{t('quiz.quizComplete')}</p>
+            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>{t('quiz.scoresSubmitted')}</p>
           </Card>
 
           {/* Podium — visual columns, tied ranks show overlapping avatars */}
           {podiumVisualOrder.length > 0 && (
             <Card padding="16px">
               <p style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '16px', textAlign: 'center' }}>
-                {isTeamComp ? 'Team Scores' : 'Player Scores'}
+                {isTeamComp ? t('quiz.teamScores') : t('quiz.playerScores')}
               </p>
               <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: '8px' }}>
                 {podiumVisualOrder.map(rank => {
@@ -700,7 +703,7 @@ export function QuizPage() {
                     color: 'var(--accent)', textAlign: 'center',
                   }}
                 >
-                  {showFullResults ? 'Hide full results ▲' : `See all ${ranked.length} results ↓`}
+                  {showFullResults ? t('quiz.hideFullResults') : t('quiz.seeAllResults', { count: ranked.length })}
                 </button>
               )}
 
@@ -720,7 +723,7 @@ export function QuizPage() {
                         {e.name}
                       </span>
                       <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', flexShrink: 0 }}>
-                        {e.score} pts
+                        {e.score} {t('leaderboardContent.pts')}
                       </span>
                     </div>
                   ))}
@@ -737,7 +740,7 @@ export function QuizPage() {
                   <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px', flex: 1 }}>
                     <span style={{ color: 'var(--text-muted)', marginRight: 6 }}>Q{qi + 1}.</span>{q.text}
                   </p>
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: 8, flexShrink: 0 }}>{q.points} pt{q.points !== 1 ? 's' : ''}</span>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: 8, flexShrink: 0 }}>{t('quiz.points', { count: q.points })}</span>
                 </div>
                 {q.imageUrl && (
                   <img src={q.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginBottom: 10, display: 'block' }} />
@@ -759,7 +762,7 @@ export function QuizPage() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <span style={{ fontSize: '13px' }}>{opt.isCorrect ? '✅' : isMine ? '❌' : '○'}</span>
                           <p style={{ flex: 1, fontSize: '14px', fontFamily: 'var(--font-ui)', fontWeight: opt.isCorrect ? 700 : 400 }}>{opt.text}</p>
-                          {isMine && <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>your answer</span>}
+                          {isMine && <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{t('quiz.yourAnswer')}</span>}
                           {count?.count > 0 && (
                             <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{count.count}</span>
                           )}

@@ -9,7 +9,8 @@ import { Modal } from '../components/ui/Modal'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../api/client'
-import { ScoreType, SCORE_TYPE_LABELS } from '../types'
+import { ScoreType } from '../types'
+import { useTranslation } from 'react-i18next'
 
 function NumpadModal({ open, onClose, playerName, currentValue, scoreLabel, onSave, onDelete }: {
   open: boolean
@@ -20,6 +21,7 @@ function NumpadModal({ open, onClose, playerName, currentValue, scoreLabel, onSa
   onSave: (val: string) => void
   onDelete?: () => void
 }) {
+  const { t } = useTranslation()
   const [input, setInput] = useState('')
   const [saved, setSaved] = useState(false)
   const [shakeKey, setShakeKey] = useState(0)
@@ -53,14 +55,14 @@ function NumpadModal({ open, onClose, playerName, currentValue, scoreLabel, onSa
       title={playerName}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
           {onDelete && (
             <Button
               variant="ghost"
               onClick={handleClear}
               style={{ color: 'var(--accent-warm)' }}
             >
-              Clear
+              {t('scorekeeper.clear')}
             </Button>
           )}
           <Button
@@ -73,7 +75,7 @@ function NumpadModal({ open, onClose, playerName, currentValue, scoreLabel, onSa
               animation: 'scoreSaved 200ms var(--ease-out) both',
             } : {}}
           >
-            {saved ? '✓' : 'Save'}
+            {saved ? '✓' : t('scorekeeper.save')}
           </Button>
         </>
       }
@@ -146,6 +148,7 @@ export function ScorekeeperPage() {
   const { id: competitionId } = useParams<{ id: string }>()
   const { user, isAdmin } = useAuth()
   const qc = useQueryClient()
+  const { t } = useTranslation()
   const [selectedCcId, setSelectedCcId] = useState<string | null>(null)
   const [editingPlayer, setEditingPlayer] = useState<any>(null)
   const [adminAllTeams, setAdminAllTeams] = useState(false)
@@ -190,19 +193,19 @@ export function ScorekeeperPage() {
     },
   })
 
-  if (isLoading) return <Layout title="Enter Scores" back={`/competitions/${competitionId}`}><LoadingSpinner /></Layout>
+  if (isLoading) return <Layout title={t('scorekeeper.enterScores')} back={`/competitions/${competitionId}`}><LoadingSpinner /></Layout>
 
   const comp = compData?.competition
-  if (!comp) return <Layout title="Enter Scores"><p>Not found</p></Layout>
+  if (!comp) return <Layout title={t('scorekeeper.enterScores')}><p>{t('scorekeeper.notFound')}</p></Layout>
 
   const myPlayer = comp.players?.find((p: any) => p.userId === user?.id)
   const canEnterScores = isAdmin || myPlayer?.isTeamLeader || myPlayer?.isScorekeeper
 
   if (!canEnterScores) {
     return (
-      <Layout title="Enter Scores" back={`/competitions/${competitionId}`}>
+      <Layout title={t('scorekeeper.enterScores')} back={`/competitions/${competitionId}`}>
         <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '48px 0', fontSize: '15px' }}>
-          You don't have permission to enter scores for this competition.
+          {t('scorekeeper.noPermission')}
         </p>
       </Layout>
     )
@@ -223,8 +226,8 @@ export function ScorekeeperPage() {
 
   const scoreLabel = (() => {
     if (!scoreType) return ''
-    if (scoreType === 'time_fastest_wins') return 'Time in seconds'
-    return SCORE_TYPE_LABELS[scoreType] ?? scoreType
+    if (scoreType === 'time_fastest_wins') return t('scorekeeper.timeInSeconds')
+    return t(`scoreTypes.${scoreType}` as any)
   })()
 
   // Determine which players to show and group by team
@@ -247,12 +250,12 @@ export function ScorekeeperPage() {
   }
   const groupedTeams = [
     ...Object.values(teamMap),
-    ...(poolPlayers.length > 0 ? [{ id: null as any, name: 'Player Pool', players: poolPlayers }] : []),
+    ...(poolPlayers.length > 0 ? [{ id: null as any, name: t('scorekeeper.playerPool'), players: poolPlayers }] : []),
   ]
   const showTeamHeaders = showAllTeams || groupedTeams.length > 1
 
   return (
-    <Layout title="Enter Scores" back={`/competitions/${competitionId}`}>
+    <Layout title={t('scorekeeper.enterScores')} back={`/competitions/${competitionId}`}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
         <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>{comp.name}</p>
         {isAdmin && (
@@ -269,7 +272,7 @@ export function ScorekeeperPage() {
               transition: 'background 180ms var(--ease-out), border-color 180ms var(--ease-out), color 180ms var(--ease-out)',
             }}
           >
-            {adminAllTeams ? '🔓 All teams' : '🔒 My team'}
+            {adminAllTeams ? t('scorekeeper.allTeams') : t('scorekeeper.myTeam')}
           </button>
         )}
       </div>
@@ -277,7 +280,7 @@ export function ScorekeeperPage() {
       {/* Challenge selector */}
       <section style={{ marginBottom: '20px' }}>
         <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '10px' }}>
-          SELECT CHALLENGE
+          {t('scorekeeper.selectChallenge')}
         </h2>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {comp.challenges?.map((cc: any) => (
@@ -321,7 +324,10 @@ export function ScorekeeperPage() {
                   {selectedCc.challenge.name}
                 </p>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                  {selectedCc.challenge.isQuiz ? '🎯 Quiz challenge' : <>Score type: <strong>{SCORE_TYPE_LABELS[scoreType]}</strong></>}
+                  {selectedCc.challenge.isQuiz
+                    ? t('scorekeeper.quizChallenge')
+                    : <>{t('scorekeeper.scoreTypeLabel')}<strong>{t(`scoreTypes.${scoreType}` as any)}</strong></>
+                  }
                 </p>
               </div>
             </div>
@@ -331,13 +337,13 @@ export function ScorekeeperPage() {
             <Card padding="16px" style={{ textAlign: 'center', marginBottom: '20px' }}>
               <p style={{ fontSize: '22px', marginBottom: '8px' }}>🎯</p>
               <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px', marginBottom: '6px' }}>
-                Quiz scores are automatic
+                {t('scorekeeper.quizScoresAutomatic')}
               </p>
               <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '14px', lineHeight: 1.5 }}>
-                Scores for this challenge are calculated automatically when the quiz is completed. Use the Quiz page to run the quiz.
+                {t('scorekeeper.quizScoresDesc')}
               </p>
               <Link to={`/competitions/${competitionId}/quiz/${selectedCc.id}`} style={{ textDecoration: 'none' }}>
-                <Button size="sm">Open Quiz →</Button>
+                <Button size="sm">{t('scorekeeper.openQuiz')}</Button>
               </Link>
             </Card>
           )}
@@ -350,7 +356,7 @@ export function ScorekeeperPage() {
                     fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 700,
                     color: 'var(--text-muted)', marginBottom: '8px', letterSpacing: '0.05em',
                   }}>
-                    {team.name?.toUpperCase() ?? 'PLAYER POOL'}
+                    {team.name?.toUpperCase() ?? t('scorekeeper.playerPool')}
                   </h3>
                 )}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -384,7 +390,7 @@ export function ScorekeeperPage() {
                                 {existing}
                               </p>
                             ) : (
-                              <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>tap</p>
+                              <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{t('scorekeeper.tap')}</p>
                             )}
                           </div>
                         </div>

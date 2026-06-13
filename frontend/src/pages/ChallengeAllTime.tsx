@@ -7,10 +7,12 @@ import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { useGroup } from '../contexts/GroupContext'
 import { api } from '../api/client'
 import { formatScore } from '../utils'
+import { useTranslation } from 'react-i18next'
 
 export function ChallengeAllTimePage() {
   const { challengeId } = useParams<{ challengeId: string }>()
   const { activeGroupId } = useGroup()
+  const { t } = useTranslation()
 
   const { data, isLoading } = useQuery({
     queryKey: ['challenge-all-time', challengeId, activeGroupId],
@@ -18,12 +20,12 @@ export function ChallengeAllTimePage() {
     enabled: !!challengeId,
   })
 
-  if (isLoading) return <Layout title="All-time Scores" back="/leaderboard"><LoadingSpinner /></Layout>
+  if (isLoading) return <Layout title={t('leaderboard.allTimeTitle')} back="/leaderboard"><LoadingSpinner /></Layout>
 
   const challenge = data?.challenge
   const scores: any[] = data?.allScores ?? []
 
-  if (!challenge) return <Layout title="All-time Scores" back="/leaderboard"><p>Not found</p></Layout>
+  if (!challenge) return <Layout title={t('leaderboard.allTimeTitle')} back="/leaderboard"><p>{t('leaderboard.notFound')}</p></Layout>
 
   return (
     <Layout title={challenge.name} back="/leaderboard">
@@ -45,8 +47,8 @@ export function ChallengeAllTimePage() {
         <div>
           <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px' }}>{challenge.name}</p>
           <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-            All-time best · {scores.length} {scores.length === 1 ? 'player' : 'players'}
-            {challenge.lowerIsBetter && ' · lower is better'}
+            {t('leaderboard.allTimeBest', { count: scores.length })}
+            {challenge.lowerIsBetter && ` · ${t('leaderboard.lowerIsBetter')}`}
           </p>
         </div>
       </div>
@@ -54,7 +56,7 @@ export function ChallengeAllTimePage() {
       {scores.length === 0 ? (
         <Card>
           <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 0' }}>
-            No scores recorded yet
+            {t('leaderboard.noScoresYet')}
           </p>
         </Card>
       ) : (

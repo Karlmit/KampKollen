@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Button } from './ui/Button'
 import { api } from '../api/client'
+import { useTranslation } from 'react-i18next'
 
 const FALLBACK_SUBJECTS = [
   'Farmyard Animal', 'Forest Animal', 'Fish', 'Fruit',
@@ -65,6 +66,7 @@ const textareaStyle: React.CSSProperties = {
 export function ProfileImageGenerator({ onGenerate }: {
   onGenerate: (prompt: string) => Promise<string>
 }) {
+  const { t } = useTranslation()
   const { data: optData } = useQuery({
     queryKey: ['image-options'],
     queryFn: () => api.imageOptions.get(),
@@ -108,7 +110,7 @@ export function ProfileImageGenerator({ onGenerate }: {
     try {
       await onGenerate(prompt)
     } catch (err: any) {
-      setError(err.message ?? 'Image generation failed')
+      setError(err.message ?? t('profileImage.generationFailed'))
     } finally {
       setLoading(false)
     }
@@ -121,15 +123,15 @@ export function ProfileImageGenerator({ onGenerate }: {
       {/* Mode selector */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
         <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', fontFamily: 'var(--font-ui)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          Image Prompt
+          {t('profileImage.imagePrompt')}
         </label>
         <select
           value={mode}
           onChange={e => setMode(e.target.value as 'help' | 'custom')}
           style={{ padding: '10px 12px', borderRadius: 'var(--radius)', border: '1.5px solid var(--border-light)', fontSize: '15px', fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--text-primary)', background: 'var(--surface)', cursor: 'pointer', outline: 'none' }}
         >
-          <option value="help">Help me</option>
-          <option value="custom">Custom prompt</option>
+          <option value="help">{t('profileImage.helpMe')}</option>
+          <option value="custom">{t('profileImage.customPrompt')}</option>
         </select>
       </div>
 
@@ -140,18 +142,18 @@ export function ProfileImageGenerator({ onGenerate }: {
           background: 'var(--surface)', borderRadius: 'var(--radius)',
           padding: '12px 14px', border: '1.5px solid var(--border-light)',
         }}>
-          <span>A fun </span>
+          <span>{t('profileImage.aFun')} </span>
           <select value={subject} onChange={e => setSubject(e.target.value)} style={selectStyle}>
             {subjects.map(s => <option key={s}>{s}</option>)}
           </select>
-          <span> avatar</span>
-          {clothes !== 'None' && <span>, wearing </span>}
+          <span> {t('profileImage.avatar')}</span>
+          {clothes !== 'None' && <span>, {t('profileImage.wearing')} </span>}
           {clothes === 'None' && <span> </span>}
           <select value={clothes} onChange={e => setClothes(e.target.value)} style={selectStyle}>
             {clothesList.map(c => <option key={c}>{c}</option>)}
           </select>
           {accessory !== 'None' && (
-            <span>{clothes === 'None' ? ' with ' : ' and '}</span>
+            <span>{clothes === 'None' ? ` ${t('profileImage.with')} ` : ` ${t('profileImage.and')} `}</span>
           )}
           <select value={accessory} onChange={e => setAccessory(e.target.value)} style={selectStyle}>
             {accessories.map(a => <option key={a}>{a}</option>)}
@@ -166,7 +168,7 @@ export function ProfileImageGenerator({ onGenerate }: {
           value={customPrompt}
           onChange={e => setCustomPrompt(e.target.value)}
           rows={3}
-          placeholder="Describe your profile image..."
+          placeholder={t('profileImage.describeImage')}
           style={textareaStyle}
           onFocus={e => { e.currentTarget.style.borderColor = 'var(--primary)' }}
           onBlur={e => { e.currentTarget.style.borderColor = 'var(--border-light)' }}
@@ -174,7 +176,7 @@ export function ProfileImageGenerator({ onGenerate }: {
       )}
 
       <Button onClick={handleGenerate} loading={loading} disabled={!canSubmit} variant="ghost" size="sm">
-        ✨ Generate Profile Image
+        {t('profileImage.generateProfileImage')}
       </Button>
       {error && <p style={{ color: 'var(--danger-text)', fontSize: '13px' }}>{error}</p>}
     </div>

@@ -6,20 +6,9 @@ import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { api } from '../../api/client'
+import { useTranslation } from 'react-i18next'
 
 type Category = 'subjects' | 'clothes' | 'accessories'
-
-const CATEGORY_LABELS: Record<Category, string> = {
-  subjects: 'Subjects',
-  clothes: 'Clothing',
-  accessories: 'Accessories',
-}
-
-const CATEGORY_HINTS: Record<Category, string> = {
-  subjects: 'e.g. "Farmyard Animal", "Robot", "Superhero"',
-  clothes: 'e.g. "a pirate hat", "a wedding dress". "None" cannot be removed.',
-  accessories: 'e.g. "a top hat", "sunglasses". "None" cannot be removed.',
-}
 
 function OptionList({
   category,
@@ -32,7 +21,20 @@ function OptionList({
   onAdd: (item: string) => void
   onRemove: (item: string) => void
 }) {
+  const { t } = useTranslation()
   const [newValue, setNewValue] = useState('')
+
+  const CATEGORY_LABELS: Record<Category, string> = {
+    subjects: t('admin.imageOptions.subjects'),
+    clothes: t('admin.imageOptions.clothing'),
+    accessories: t('admin.imageOptions.accessories'),
+  }
+
+  const CATEGORY_HINTS: Record<Category, string> = {
+    subjects: t('admin.imageOptions.subjectsHint'),
+    clothes: t('admin.imageOptions.clothesHint'),
+    accessories: t('admin.imageOptions.accessoriesHint'),
+  }
 
   const handleAdd = () => {
     const trimmed = newValue.trim()
@@ -75,7 +77,6 @@ function OptionList({
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   flexShrink: 0, opacity: isProtected ? 0.4 : 1,
                 }}
-                title={isProtected ? 'None cannot be removed' : `Remove "${item}"`}
               >
                 ×
               </button>
@@ -87,11 +88,11 @@ function OptionList({
       <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
         <div style={{ flex: 1 }}>
           <Input
-            label="Add option"
+            label={t('admin.imageOptions.addOption')}
             value={newValue}
             onChange={e => setNewValue(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') handleAdd() }}
-            placeholder="Type and press Enter or Add"
+            placeholder={t('admin.imageOptions.addOptionPlaceholder')}
           />
         </div>
         <Button
@@ -101,7 +102,7 @@ function OptionList({
           disabled={!newValue.trim() || items.includes(newValue.trim())}
           style={{ alignSelf: 'flex-end', height: '40px' }}
         >
-          Add
+          {t('common.add')}
         </Button>
       </div>
     </Card>
@@ -109,6 +110,7 @@ function OptionList({
 }
 
 export function AdminImageOptions() {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const [subjects, setSubjects] = useState<string[]>([])
   const [clothes, setClothes] = useState<string[]>([])
@@ -176,17 +178,17 @@ export function AdminImageOptions() {
   }
 
   return (
-    <AdminLayout title="Image Options">
+    <AdminLayout title={t('admin.imageOptions.title')}>
       {isLoading ? <LoadingSpinner /> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px' }}>
             {saved && (
               <p style={{ fontSize: '13px', color: 'var(--accent-green)', fontFamily: 'var(--font-ui)' }}>
-                Saved ✓
+                {t('admin.imageOptions.saved')}
               </p>
             )}
             <Button size="sm" variant="ghost" onClick={handleExport}>
-              {copied ? 'Copied ✓' : '⬇ Export lists'}
+              {copied ? t('admin.imageOptions.copied') : t('admin.imageOptions.exportLists')}
             </Button>
           </div>
           <OptionList

@@ -1,4 +1,5 @@
 import { ReactNode, CSSProperties } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface BadgeProps {
   children: ReactNode
@@ -40,23 +41,30 @@ export function Badge({ children, variant = 'default', style }: BadgeProps) {
 }
 
 export function RoleBadge({ role }: { role: string }) {
-  const map: Record<string, { label: string; variant: BadgeProps['variant'] }> = {
-    ADMIN: { label: 'Admin', variant: 'admin' },
-    SCOREKEEPER: { label: 'Scorekeeper', variant: 'info' },
-    PLAYER: { label: 'Player', variant: 'default' },
+  const { t } = useTranslation()
+  const map: Record<string, { key: string; variant: BadgeProps['variant'] }> = {
+    ADMIN: { key: 'badges.admin', variant: 'admin' },
+    SCOREKEEPER: { key: 'badges.scorekeeper', variant: 'info' },
+    PLAYER: { key: 'badges.player', variant: 'default' },
   }
-  const { label, variant } = map[role] ?? { label: role, variant: 'default' }
+  const entry = map[role]
+  const label = entry ? t(entry.key) : role
+  const variant = entry?.variant ?? 'default'
   return <Badge variant={variant}>{label}</Badge>
 }
 
 export function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; variant: BadgeProps['variant'] }> = {
-    DRAFT: { label: 'Draft', variant: 'default' },
-    ACTIVE: { label: 'Active', variant: 'success' },
-    REGISTRATION: { label: 'Registration', variant: 'info' },
-    COMPLETED: { label: 'Completed', variant: 'warning' },
-    ARCHIVED: { label: 'Archived', variant: 'default' },
+  const { t } = useTranslation()
+  const map: Record<string, { key: string; variant: BadgeProps['variant'] }> = {
+    DRAFT: { key: 'badges.draft', variant: 'default' },
+    ACTIVE: { key: 'badges.active', variant: 'success' },
+    REGISTRATION: { key: 'badges.registration', variant: 'info' },
+    COMPLETED: { key: 'badges.completed', variant: 'warning' },
+    ARCHIVED: { key: 'badges.archived', variant: 'default' },
+    TEMPLATE: { key: 'badges.template', variant: 'default' },
   }
-  const { label, variant } = map[status] ?? { label: status, variant: 'default' }
+  const entry = map[status]
+  const label = entry ? t(entry.key) : status
+  const variant = entry?.variant ?? 'default'
   return <Badge variant={variant}>{label}</Badge>
 }

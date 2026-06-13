@@ -22,10 +22,12 @@ import { ImageGenerator } from '../../components/ImageGenerator'
 import { TabBar } from '../../components/ui/TabBar'
 import { api } from '../../api/client'
 import { formatDate } from '../../utils'
+import { useTranslation } from 'react-i18next'
 
 type Tab = 'players' | 'teams' | 'challenges' | 'status'
 
 function SortableChallenge({ cc, index, onRemove }: { cc: any; index: number; onRemove: (cc: any) => void }) {
+  const { t } = useTranslation()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cc.id })
   return (
     <div ref={setNodeRef} style={{
@@ -50,7 +52,7 @@ function SortableChallenge({ cc, index, onRemove }: { cc: any; index: number; on
             <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{cc.challenge.scoreType}</p>
           </div>
           <Button size="sm" variant="danger" style={{ fontSize: '11px', padding: '4px 8px' }} onClick={() => onRemove(cc)}>
-            Remove
+            {t('common.remove')}
           </Button>
         </div>
       </Card>
@@ -59,13 +61,13 @@ function SortableChallenge({ cc, index, onRemove }: { cc: any; index: number; on
 }
 
 export function AdminCompetitionManage() {
+  const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const qc = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
   const tab = (searchParams.get('tab') as Tab) ?? 'players'
   const setTab = (key: Tab) => setSearchParams({ tab: key }, { replace: true })
 
-  // Modal state
   const [addPlayerOpen, setAddPlayerOpen] = useState(false)
   const [addChallengeOpen, setAddChallengeOpen] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState('')
@@ -184,21 +186,20 @@ export function AdminCompetitionManage() {
     })
   }
 
-  if (isLoading) return <AdminLayout title="Manage Competition"><LoadingSpinner /></AdminLayout>
+  if (isLoading) return <AdminLayout title={t('admin.manage.title')}><LoadingSpinner /></AdminLayout>
   const comp = compData?.competition
-  if (!comp) return <AdminLayout title="Competition"><p>Not found</p></AdminLayout>
+  if (!comp) return <AdminLayout title={t('admin.manage.title')}><p>{t('common.notFound')}</p></AdminLayout>
 
   const tabs: { key: Tab; label: string }[] = [
-    { key: 'players', label: `Players (${comp.players?.length ?? 0})` },
-    ...(comp.isTeamCompetition !== false ? [{ key: 'teams' as Tab, label: `Teams (${comp.teams?.length ?? 0})` }] : []),
-    { key: 'challenges', label: `Challenges (${comp.challenges?.length ?? 0})` },
-    { key: 'status', label: 'Settings' },
+    { key: 'players', label: t('admin.manage.players', { count: comp.players?.length ?? 0 }) },
+    ...(comp.isTeamCompetition !== false ? [{ key: 'teams' as Tab, label: t('admin.manage.teams', { count: comp.teams?.length ?? 0 }) }] : []),
+    { key: 'challenges', label: t('admin.manage.challenges', { count: comp.challenges?.length ?? 0 }) },
+    { key: 'status', label: t('admin.manage.settings') },
   ]
 
   const availableUsers = usersData?.users?.filter((u: any) => {
     if (comp.players?.some((p: any) => p.userId === u.id)) return false
     if (u.isDummy) return false
-    // Only show users who are in the competition's group
     if (comp.groupId) {
       return u.groups?.some((ug: any) => ug.groupId === comp.groupId)
     }
@@ -209,13 +210,22 @@ export function AdminCompetitionManage() {
     !comp.challenges?.some((cc: any) => cc.challengeId === c.id)
   ) ?? []
 
+  const autoMaxPts = comp.isTeamCompetition !== false
+    ? (comp.teams?.length ?? 0) * 10
+    : (comp.players?.length ?? 0) * 10
+
+  const currentMaxDesc = comp.placementMaxPoints != null
+    ? t('admin.manage.currently', { value: `${comp.placementMaxPoints} ${t('common.pts')}` })
+    : comp.isTeamCompetition !== false
+      ? t('admin.manage.currently', { value: t('admin.manage.maxPointsAutoTeams', { teams: comp.teams?.length ?? 0, points: (comp.teams?.length ?? 0) * 10 }) })
+      : t('admin.manage.currently', { value: t('admin.manage.maxPointsAutoPlayers', { players: comp.players?.length ?? 0, points: (comp.players?.length ?? 0) * 10 }) })
+
   return (
     <AdminLayout title={comp.name}>
       <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '12px' }}>
         {comp.date ? formatDate(comp.date) + ' · ' : ''}<StatusBadge status={comp.status} />
       </p>
 
-      {/* Tabs */}
       <TabBar
         tabs={tabs}
         active={tab}
@@ -226,7 +236,7 @@ export function AdminCompetitionManage() {
       {/* Players tab */}
       {tab === 'players' && (
         <>
-          <Button size="sm" onClick={() => setAddPlayerOpen(true)} style={{ marginBottom: '12px' }}>+ Add Player</Button>
+          <Button size="sm" onClick={() => setAddPlayerOpen(true)} style={{ marginBottom: '12px' }}>{t('admin.manage.addPlayer')}</Button>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {comp.players?.map((p: any) => (
               <Card key={p.userId} padding="10px">
@@ -235,9 +245,9 @@ export function AdminCompetitionManage() {
                   <div style={{ flex: 1 }}>
                     <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px' }}>{p.user.displayName ?? p.user.username}</p>
                     <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                      {comp.isTeamCompetition !== false && (p.team?.name ?? 'Player Pool')}
-                      {p.isTeamLeader ? (comp.isTeamCompetition !== false ? ' · Leader' : 'Leader') : ''}
-                      {p.isScorekeeper ? (p.isTeamLeader ? ' · Scorekeeper' : 'Scorekeeper') : ''}
+                      {comp.isTeamCompetition !== false && (p.team?.name ?? t('admin.manage.playerPool'))}
+                      {p.isTeamLeader ? (comp.isTeamCompetition !== false ? ` · ${t('admin.manage.leaderLabel')}` : t('admin.manage.leaderLabel')) : ''}
+                      {p.isScorekeeper ? (p.isTeamLeader ? ` · ${t('admin.manage.scorekeeperLabel')}` : t('admin.manage.scorekeeperLabel')) : ''}
                       {p.isQuizMaster ? ' · QM' : ''}
                     </p>
                   </div>
@@ -245,7 +255,7 @@ export function AdminCompetitionManage() {
                     {comp.isTeamCompetition !== false && (
                       <Button size="sm" variant="ghost" style={{ fontSize: '11px', padding: '4px 10px' }}
                         onClick={() => setAssignTeamPlayer(p)}>
-                        Team
+                        {t('admin.manage.team')}
                       </Button>
                     )}
                     <Button
@@ -255,7 +265,7 @@ export function AdminCompetitionManage() {
                       loading={toggleLeaderMutation.isPending}
                       onClick={() => toggleLeaderMutation.mutate({ userId: p.userId, isTeamLeader: !p.isTeamLeader })}
                     >
-                      {p.isTeamLeader ? '⭐ Leader' : 'Leader'}
+                      {p.isTeamLeader ? t('admin.manage.starLeader') : t('admin.manage.leaderLabel')}
                     </Button>
                     <Button
                       size="sm"
@@ -287,18 +297,18 @@ export function AdminCompetitionManage() {
                 <div style={{ flex: 1 }}>
                   <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700 }}>{team.name}</p>
                   <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                    {comp.players?.filter((p: any) => p.teamId === team.id).length ?? 0} players
+                    {comp.players?.filter((p: any) => p.teamId === team.id).length ?? 0} {t('common.players')}
                   </p>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '6px' }}>
                 <Button size="sm" variant="ghost" style={{ fontSize: '12px' }}
                   onClick={() => { setRenamingTeam(team); setNewTeamName(team.name) }}>
-                  Rename
+                  {t('common.rename')}
                 </Button>
                 <Button size="sm" variant="ghost" style={{ fontSize: '12px' }}
                   onClick={() => setImageTeam(team)}>
-                  ✨ Image
+                  {t('common.image')}
                 </Button>
               </div>
             </Card>
@@ -309,7 +319,7 @@ export function AdminCompetitionManage() {
       {/* Challenges tab */}
       {tab === 'challenges' && (
         <>
-          <Button size="sm" onClick={() => setAddChallengeOpen(true)} style={{ marginBottom: '12px' }}>+ Add Challenge</Button>
+          <Button size="sm" onClick={() => setAddChallengeOpen(true)} style={{ marginBottom: '12px' }}>{t('admin.manage.addChallenge')}</Button>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={localChallenges.map(c => c.id)} strategy={verticalListSortingStrategy}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -326,7 +336,7 @@ export function AdminCompetitionManage() {
       {tab === 'status' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
-            <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-muted)' }}>STATUS</p>
+            <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-muted)' }}>{t('admin.manage.status')}</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {['DRAFT', 'REGISTRATION', 'ACTIVE', 'COMPLETED', 'ARCHIVED'].map(s => (
                 <Button
@@ -342,11 +352,11 @@ export function AdminCompetitionManage() {
             </div>
           </div>
           <div>
-            <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-muted)' }}>COMPETITION TYPE</p>
+            <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-muted)' }}>{t('admin.manage.competitionType')}</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {[
-                { value: true, label: '🛡️ Team', desc: 'Players compete in teams' },
-                { value: false, label: '👤 Individual', desc: 'Players compete directly, no teams' },
+                { value: true, label: t('admin.manage.teamType'), desc: t('admin.manage.teamTypeDesc') },
+                { value: false, label: t('admin.manage.individualType'), desc: t('admin.manage.individualTypeDesc') },
               ].map(opt => (
                 <button
                   key={String(opt.value)}
@@ -364,11 +374,11 @@ export function AdminCompetitionManage() {
             </div>
           </div>
           <div>
-            <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-muted)' }}>SCORING MODE</p>
+            <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-muted)' }}>{t('admin.manage.scoringMode')}</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {[
-                { value: 'placement_points', label: 'Placement points', desc: '1st gets N×10 pts, 2nd (N-1)×10, … normalized per challenge' },
-                { value: 'raw_sum', label: 'Raw sum', desc: 'Add up actual scores across all challenges' },
+                { value: 'placement_points', label: t('admin.manage.placementPoints'), desc: t('admin.manage.placementPointsDesc') },
+                { value: 'raw_sum', label: t('admin.manage.rawSum'), desc: t('admin.manage.rawSumDesc') },
               ].map(opt => (
                 <button
                   key={opt.value}
@@ -387,13 +397,13 @@ export function AdminCompetitionManage() {
           </div>
           {comp.scoringMode === 'placement_points' && (
             <div>
-              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-muted)' }}>TIE-BREAKING MODE</p>
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-muted)' }}>{t('admin.manage.tieBreaking')}</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
                 {[
-                  { value: 'best_rank', label: 'Best Rank (Recommended)', desc: `Tied ${comp.isTeamCompetition !== false ? 'teams/players' : 'players'} all get the better rank's points. Next distinct rank skips. (e.g. 1st tied → both get 1st-place points, next is 3rd)` },
-                  { value: 'average', label: 'Average', desc: `Tied ${comp.isTeamCompetition !== false ? 'teams/players' : 'players'} get the mean of the tied positions' points. (e.g. 1st tied → both get average of 1st and 2nd place points)` },
-                  { value: 'worst_rank', label: 'Worst Rank', desc: `Tied ${comp.isTeamCompetition !== false ? 'teams/players' : 'players'} all get the lower rank's points. (e.g. 1st tied → both get 2nd-place points)` },
-                  { value: null, label: 'Legacy (off)', desc: 'No tie handling — sort order determines rank. Existing competitions default to this.' },
+                  { value: 'best_rank', label: t('admin.manage.bestRank'), desc: t('admin.manage.bestRankDesc') },
+                  { value: 'average', label: t('admin.manage.average'), desc: t('admin.manage.averageDesc') },
+                  { value: 'worst_rank', label: t('admin.manage.worstRank'), desc: t('admin.manage.worstRankDesc') },
+                  { value: null, label: t('admin.manage.legacyOff'), desc: t('admin.manage.legacyOffDesc') },
                 ].map(opt => (
                   <button
                     key={String(opt.value)}
@@ -413,10 +423,9 @@ export function AdminCompetitionManage() {
           )}
           {comp.scoringMode === 'placement_points' && (
             <div>
-              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, marginBottom: '4px', color: 'var(--text-muted)' }}>MAX POINTS PER CHALLENGE</p>
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, marginBottom: '4px', color: 'var(--text-muted)' }}>{t('admin.manage.maxPointsTitle')}</p>
               <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                Currently: {comp.placementMaxPoints != null ? `${comp.placementMaxPoints} pts` : comp.isTeamCompetition !== false ? `auto (${comp.teams?.length ?? 0} teams × 10 = ${(comp.teams?.length ?? 0) * 10} pts)` : `auto (${comp.players?.length ?? 0} players × 10 = ${(comp.players?.length ?? 0) * 10} pts)`}
-                {' — '}Enter a number to override, or leave blank / press Reset to use auto.
+                {currentMaxDesc}{' — '}{t('admin.manage.maxPointsOverride')}
               </p>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
                 <div style={{ flex: 1 }}>
@@ -425,7 +434,7 @@ export function AdminCompetitionManage() {
                     min="10"
                     max="1000"
                     step="10"
-                    placeholder={`Leave blank = auto (${comp.isTeamCompetition !== false ? (comp.teams?.length ?? 0) * 10 : (comp.players?.length ?? 0) * 10})`}
+                    placeholder={t('admin.manage.leaveBlankAuto', { points: autoMaxPts })}
                     value={maxPointsInput}
                     onChange={e => setMaxPointsInput(e.target.value)}
                     style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', fontSize: '16px' }}
@@ -436,7 +445,7 @@ export function AdminCompetitionManage() {
                   onClick={() => updateMaxPointsMutation.mutate(maxPointsInput ? parseInt(maxPointsInput, 10) : null)}
                   loading={updateMaxPointsMutation.isPending}
                 >
-                  Save
+                  {t('admin.manage.save')}
                 </Button>
                 {comp.placementMaxPoints != null && (
                   <Button
@@ -444,7 +453,7 @@ export function AdminCompetitionManage() {
                     variant="ghost"
                     onClick={() => { setMaxPointsInput(''); updateMaxPointsMutation.mutate(null) }}
                   >
-                    Reset
+                    {t('admin.manage.reset')}
                   </Button>
                 )}
               </div>
@@ -454,11 +463,11 @@ export function AdminCompetitionManage() {
       )}
 
       {/* Add Player modal */}
-      <Modal open={addPlayerOpen} onClose={() => setAddPlayerOpen(false)} title="Add Player"
+      <Modal open={addPlayerOpen} onClose={() => setAddPlayerOpen(false)} title={t('admin.manage.addPlayerModal')}
         footer={
           <>
-            <Button variant="ghost" onClick={() => setAddPlayerOpen(false)}>Cancel</Button>
-            <Button onClick={() => addPlayerMutation.mutate()} disabled={!selectedUserId} loading={addPlayerMutation.isPending}>Add</Button>
+            <Button variant="ghost" onClick={() => setAddPlayerOpen(false)}>{t('common.cancel')}</Button>
+            <Button onClick={() => addPlayerMutation.mutate()} disabled={!selectedUserId} loading={addPlayerMutation.isPending}>{t('common.add')}</Button>
           </>
         }
       >
@@ -481,7 +490,7 @@ export function AdminCompetitionManage() {
           ))}
           {availableUsers.length === 0 && (
             <p style={{ color: 'var(--text-muted)', fontSize: '14px', textAlign: 'center', padding: '16px 0' }}>
-              {comp.groupId ? 'All group members are already in this competition' : 'All users are already in this competition'}
+              {comp.groupId ? t('admin.manage.allGroupMembersAdded') : t('admin.manage.allUsersAdded')}
             </p>
           )}
         </div>
@@ -489,7 +498,7 @@ export function AdminCompetitionManage() {
 
       {/* Assign team modal */}
       <Modal open={!!assignTeamPlayer} onClose={() => setAssignTeamPlayer(null)}
-        title={`Assign ${assignTeamPlayer?.user?.displayName ?? assignTeamPlayer?.user?.username ?? ''}`}
+        title={t('admin.manage.assignTeam', { name: assignTeamPlayer?.user?.displayName ?? assignTeamPlayer?.user?.username ?? '' })}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <button
@@ -501,8 +510,8 @@ export function AdminCompetitionManage() {
               width: '100%',
             }}
           >
-            <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>Player Pool</p>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Not assigned to a team</p>
+            <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>{t('admin.manage.playerPool')}</p>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{t('admin.manage.notAssignedToTeam')}</p>
           </button>
           {comp.teams?.map((team: any) => (
             <button key={team.id}
@@ -519,7 +528,7 @@ export function AdminCompetitionManage() {
               <div>
                 <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>{team.name}</p>
                 <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  {comp.players?.filter((p: any) => p.teamId === team.id).length ?? 0} players
+                  {comp.players?.filter((p: any) => p.teamId === team.id).length ?? 0} {t('common.players')}
                 </p>
               </div>
               {assignTeamPlayer?.teamId === team.id && (
@@ -531,19 +540,19 @@ export function AdminCompetitionManage() {
       </Modal>
 
       {/* Rename team modal */}
-      <Modal open={!!renamingTeam} onClose={() => setRenamingTeam(null)} title="Rename Team"
+      <Modal open={!!renamingTeam} onClose={() => setRenamingTeam(null)} title={t('admin.manage.renameTeam')}
         footer={
           <>
-            <Button variant="ghost" onClick={() => setRenamingTeam(null)}>Cancel</Button>
-            <Button onClick={() => renameTeamMutation.mutate()} disabled={!newTeamName.trim()} loading={renameTeamMutation.isPending}>Save</Button>
+            <Button variant="ghost" onClick={() => setRenamingTeam(null)}>{t('common.cancel')}</Button>
+            <Button onClick={() => renameTeamMutation.mutate()} disabled={!newTeamName.trim()} loading={renameTeamMutation.isPending}>{t('admin.manage.save')}</Button>
           </>
         }
       >
-        <Input label="Team name" value={newTeamName} onChange={e => setNewTeamName(e.target.value)} autoFocus />
+        <Input label={t('admin.manage.teamName')} value={newTeamName} onChange={e => setNewTeamName(e.target.value)} autoFocus />
       </Modal>
 
       {/* Team image modal */}
-      <Modal open={!!imageTeam} onClose={() => setImageTeam(null)} title={imageTeam ? `Image for ${imageTeam.name}` : ''}>
+      <Modal open={!!imageTeam} onClose={() => setImageTeam(null)} title={imageTeam ? t('admin.challenges.imageFor', { name: imageTeam.name }) : ''}>
         {imageTeam && (
           <ImageGenerator
             defaultPrompt={`A fun mascot or logo for a sports team called "${imageTeam.name}". Bold, colorful, playful.`}
@@ -560,28 +569,28 @@ export function AdminCompetitionManage() {
       </Modal>
 
       {/* Remove challenge confirm modal */}
-      <Modal open={!!removingChallenge} onClose={() => setRemovingChallenge(null)} title="Remove Challenge"
+      <Modal open={!!removingChallenge} onClose={() => setRemovingChallenge(null)} title={t('admin.manage.removeChallenge')}
         footer={
           <>
-            <Button variant="ghost" onClick={() => setRemovingChallenge(null)}>Cancel</Button>
+            <Button variant="ghost" onClick={() => setRemovingChallenge(null)}>{t('common.cancel')}</Button>
             <Button variant="danger" onClick={() => removeChallengeMutation.mutate(removingChallenge.challengeId)} loading={removeChallengeMutation.isPending}>
-              Remove
+              {t('common.remove')}
             </Button>
           </>
         }
       >
         <p style={{ fontSize: '15px' }}>
-          Remove <strong>{removingChallenge?.challenge?.name}</strong> from this competition?
+          {t('admin.manage.removeChallengeConfirm', { name: removingChallenge?.challenge?.name })}
         </p>
-        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px' }}>Scores for this challenge will also be deleted.</p>
+        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px' }}>{t('admin.manage.removeChallengeDesc')}</p>
       </Modal>
 
       {/* Add challenge modal */}
-      <Modal open={addChallengeOpen} onClose={() => setAddChallengeOpen(false)} title="Add Challenge"
+      <Modal open={addChallengeOpen} onClose={() => setAddChallengeOpen(false)} title={t('admin.manage.addChallengeModal')}
         footer={
           <>
-            <Button variant="ghost" onClick={() => setAddChallengeOpen(false)}>Cancel</Button>
-            <Button onClick={() => addChallengeMutation.mutate()} disabled={!selectedChallengeId} loading={addChallengeMutation.isPending}>Add</Button>
+            <Button variant="ghost" onClick={() => setAddChallengeOpen(false)}>{t('common.cancel')}</Button>
+            <Button onClick={() => addChallengeMutation.mutate()} disabled={!selectedChallengeId} loading={addChallengeMutation.isPending}>{t('common.add')}</Button>
           </>
         }
       >
@@ -600,7 +609,7 @@ export function AdminCompetitionManage() {
             </button>
           ))}
           {availableChallenges.length === 0 && (
-            <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '16px 0' }}>All challenges have been added</p>
+            <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '16px 0' }}>{t('admin.manage.allChallengesAdded')}</p>
           )}
         </div>
       </Modal>

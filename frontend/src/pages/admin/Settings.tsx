@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { api } from '../../api/client'
+import { useTranslation } from 'react-i18next'
 
 function SettingField({
   label, description, fieldKey, value, placeholder, type = 'text', onChange,
@@ -35,6 +36,7 @@ function SettingField({
 }
 
 export function AdminSettings() {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const [form, setForm] = useState({
     azure_image_endpoint: '',
@@ -69,38 +71,38 @@ export function AdminSettings() {
   const env = data?.envDefaults ?? {}
 
   return (
-    <AdminLayout title="Settings">
+    <AdminLayout title={t('admin.settings.title')}>
       {isLoading ? <LoadingSpinner /> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
           <Card>
             <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', marginBottom: '4px' }}>
-              Image Generation
+              {t('admin.settings.imageGeneration')}
             </p>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-              Azure AI Foundry credentials for AI image generation. Leave blank to use values from environment variables.
+              {t('admin.settings.imageGenerationDesc')}
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <SettingField
-                label="API Endpoint"
-                description="Azure AI image generation endpoint URL"
+                label={t('admin.settings.apiEndpoint')}
+                description={t('admin.settings.apiEndpointDesc')}
                 fieldKey="azure_image_endpoint"
                 value={form.azure_image_endpoint}
                 placeholder={env.azure_image_endpoint || 'https://your-resource.services.ai.azure.com/...'}
                 onChange={set}
               />
               <SettingField
-                label="API Key"
-                description="Azure AI API key — stored securely in the database"
+                label={t('admin.settings.apiKey')}
+                description={t('admin.settings.apiKeyDesc')}
                 fieldKey="azure_image_api_key"
                 type="password"
                 value={form.azure_image_api_key}
-                placeholder={env.azure_image_api_key ? 'Set via environment variable' : 'Enter API key'}
+                placeholder={env.azure_image_api_key ? t('admin.settings.setViaEnv') : t('admin.settings.enterApiKey')}
                 onChange={set}
               />
               <SettingField
-                label="Model"
-                description="Model name, e.g. MAI-Image-2e"
+                label={t('admin.settings.model')}
+                description={t('admin.settings.modelDesc')}
                 fieldKey="azure_image_model"
                 value={form.azure_image_model}
                 placeholder={env.azure_image_model || 'MAI-Image-2e'}
@@ -111,11 +113,11 @@ export function AdminSettings() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <Button onClick={() => saveMutation.mutate()} loading={saveMutation.isPending}>
-              Save Settings
+              {t('admin.settings.saveSettings')}
             </Button>
             {saved && (
               <p style={{ fontSize: '14px', color: 'var(--accent-green)', fontFamily: 'var(--font-ui)' }}>
-                Saved
+                {t('admin.settings.saved')}
               </p>
             )}
           </div>
@@ -123,8 +125,7 @@ export function AdminSettings() {
           {env.azure_image_endpoint && (
             <Card padding="12px">
               <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                Environment variables are configured and used as fallback when fields are left blank.
-                Database values (set above) take priority over environment variables.
+                {t('admin.settings.envFallback')}
               </p>
             </Card>
           )}
@@ -132,7 +133,7 @@ export function AdminSettings() {
           <Card padding="12px" style={{ marginTop: '8px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontFamily: 'var(--font-ui)' }}>
-                KampKollen version
+                {t('admin.settings.version')}
               </p>
               <p style={{ fontSize: '13px', fontFamily: 'var(--font-ui)', fontWeight: 700 }}>
                 v{__APP_VERSION__}

@@ -3,8 +3,10 @@ import { AdminLayout } from './AdminLayout'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { api, ApiError } from '../../api/client'
+import { useTranslation } from 'react-i18next'
 
 export function AdminBackup() {
+  const { t } = useTranslation()
   const [downloading, setDownloading] = useState(false)
   const [downloadError, setDownloadError] = useState('')
 
@@ -21,7 +23,7 @@ export function AdminBackup() {
     try {
       await api.backup.download()
     } catch (e) {
-      setDownloadError(e instanceof ApiError ? e.message : 'Download failed')
+      setDownloadError(e instanceof ApiError ? e.message : t('admin.backup.downloadFailed'))
     } finally {
       setDownloading(false)
     }
@@ -39,26 +41,26 @@ export function AdminBackup() {
       setConfirm(false)
       if (fileRef.current) fileRef.current.value = ''
     } catch (e) {
-      setRestoreError(e instanceof ApiError ? e.message : 'Restore failed')
+      setRestoreError(e instanceof ApiError ? e.message : t('admin.backup.restoreFailed'))
     } finally {
       setRestoring(false)
     }
   }
 
   return (
-    <AdminLayout title="Backup">
+    <AdminLayout title={t('admin.backup.title')}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
         {/* Download */}
         <Card>
           <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', marginBottom: '4px' }}>
-            Download Backup
+            {t('admin.backup.downloadBackup')}
           </p>
           <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-            Exports all users, competitions, challenges, scores, trophies, settings, and uploaded images into a single ZIP file.
+            {t('admin.backup.downloadDesc')}
           </p>
           <Button onClick={handleDownload} loading={downloading}>
-            Download Backup
+            {t('admin.backup.download')}
           </Button>
           {downloadError && (
             <p style={{ fontSize: '13px', color: 'var(--accent-warm)', marginTop: '8px', fontFamily: 'var(--font-ui)' }}>
@@ -70,10 +72,10 @@ export function AdminBackup() {
         {/* Restore */}
         <Card>
           <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', marginBottom: '4px' }}>
-            Restore from Backup
+            {t('admin.backup.restoreBackup')}
           </p>
           <p style={{ fontSize: '13px', color: 'var(--accent-warm)', marginBottom: '12px', fontFamily: 'var(--font-ui)' }}>
-            Warning: This will replace all current data with the contents of the backup. This cannot be undone.
+            {t('admin.backup.restoreWarning')}
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -87,7 +89,7 @@ export function AdminBackup() {
                   background: 'var(--surface-raised)',
                 }}
               >
-                {restoreFile ? restoreFile.name : 'Choose ZIP file'}
+                {restoreFile ? restoreFile.name : t('admin.backup.chooseFile')}
               </label>
               <input
                 ref={fileRef}
@@ -112,14 +114,14 @@ export function AdminBackup() {
                 border: '1px solid color-mix(in srgb, var(--accent-warm) 30%, transparent)',
               }}>
                 <p style={{ fontSize: '13px', fontFamily: 'var(--font-ui)', marginBottom: '10px' }}>
-                  All current data will be permanently replaced. Are you sure?
+                  {t('admin.backup.willBeReplaced')}
                 </p>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <Button variant="ghost" size="sm" onClick={() => { setRestoreFile(null); if (fileRef.current) fileRef.current.value = '' }}>
-                    Cancel
+                    {t('common.cancel')}
                   </Button>
                   <Button size="sm" onClick={() => setConfirm(true)}>
-                    Yes, restore
+                    {t('admin.backup.yesRestore')}
                   </Button>
                 </div>
               </div>
@@ -127,14 +129,14 @@ export function AdminBackup() {
 
             {restoreFile && confirm && (
               <Button onClick={handleRestore} loading={restoring} disabled={restoring}>
-                Restore Now
+                {t('admin.backup.restoreNow')}
               </Button>
             )}
           </div>
 
           {restoreSuccess && (
             <p style={{ fontSize: '13px', color: 'var(--accent-green)', marginTop: '10px', fontFamily: 'var(--font-ui)' }}>
-              Restore complete. Reload the page to see the restored data.
+              {t('admin.backup.restoreComplete')}
             </p>
           )}
           {restoreError && (

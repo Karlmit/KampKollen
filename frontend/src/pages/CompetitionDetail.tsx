@@ -12,9 +12,10 @@ import { useAuth } from '../contexts/AuthContext'
 import { formatDate } from '../utils'
 import { TabBar } from '../components/ui/TabBar'
 import { api } from '../api/client'
-import { Competition, CompetitionPlayer, Team, SCORE_TYPE_LABELS, LeaderboardTeam, CompetitionLeaderboard } from '../types'
+import { Competition, CompetitionPlayer, Team, LeaderboardTeam, CompetitionLeaderboard } from '../types'
 import { GuestCompetitionView } from './GuestCompetitionView'
 import { CompetitionLeaderboardContent } from '../components/CompetitionLeaderboardContent'
+import { useTranslation } from 'react-i18next'
 
 type Tab = 'leaderboard' | 'teams' | 'challenges' | 'pool'
 
@@ -22,6 +23,7 @@ export function CompetitionDetail() {
   const { id } = useParams<{ id: string }>()
   const { user, isAdmin } = useAuth()
   const qc = useQueryClient()
+  const { t } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
   const tab = (searchParams.get('tab') as Tab) ?? 'leaderboard'
   const setTab = (key: Tab) => setSearchParams({ tab: key }, { replace: true })
@@ -61,9 +63,9 @@ export function CompetitionDetail() {
     },
   })
 
-  if (isLoading) return <Layout title="Competition"><LoadingSpinner /></Layout>
+  if (isLoading) return <Layout title=""><LoadingSpinner /></Layout>
   const comp: Competition = data?.competition
-  if (!comp) return <Layout title="Competition"><p>Not found</p></Layout>
+  if (!comp) return <Layout title=""><p>{t('competition.notFound')}</p></Layout>
 
   // Guests get a purpose-built read-only spectator view
   if (!user) return <GuestCompetitionView id={id!} />
@@ -77,10 +79,10 @@ export function CompetitionDetail() {
   const lbData: CompetitionLeaderboard | undefined = (lbDataRaw as any)
 
   const tabs: { key: Tab; label: string; count?: number }[] = [
-    { key: 'leaderboard', label: '📊 Leaderboard' },
-    ...(isTeamComp ? [{ key: 'teams' as Tab, label: 'Teams', count: comp.teams?.length }] : []),
-    { key: 'challenges', label: 'Challenges', count: comp.challenges?.length },
-    { key: 'pool', label: isTeamComp ? 'Player Pool' : 'Players', count: comp.players?.length },
+    { key: 'leaderboard', label: t('competition.leaderboard') },
+    ...(isTeamComp ? [{ key: 'teams' as Tab, label: t('competition.teams'), count: comp.teams?.length }] : []),
+    { key: 'challenges', label: t('competition.challenges'), count: comp.challenges?.length },
+    { key: 'pool', label: isTeamComp ? t('competition.playerPool') : t('competition.players'), count: comp.players?.length },
   ]
 
   return (
@@ -92,7 +94,7 @@ export function CompetitionDetail() {
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
         {comp.date && <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>{formatDate(comp.date)}</span>}
         <StatusBadge status={comp.status} />
-        {isJoined && <Badge variant="success">✓ Joined</Badge>}
+        {isJoined && <Badge variant="success">{t('competition.joined')}</Badge>}
       </div>
 
       {/* Join CTA */}
@@ -114,11 +116,11 @@ export function CompetitionDetail() {
           }}
         >
           {joinMutation.isPending ? (
-            <span style={{ fontSize: '16px' }}>Joining…</span>
+            <span style={{ fontSize: '16px' }}>{t('competition.joining')}</span>
           ) : (
             <>
               <span style={{ fontSize: '22px', lineHeight: 1 }}>🏁</span>
-              Join Competition
+              {t('competition.joinCompetition')}
               <span style={{ fontSize: '20px', lineHeight: 1 }}>→</span>
             </>
           )}
@@ -131,9 +133,9 @@ export function CompetitionDetail() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span style={{ fontSize: '28px', flexShrink: 0 }}>⏳</span>
             <div>
-              <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', marginBottom: '2px' }}>You're in the player pool</p>
+              <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', marginBottom: '2px' }}>{t('competition.inPlayerPool')}</p>
               <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                A Team Leader or Admin will assign you to a team. Hang tight!
+                {t('competition.teamLeaderAssign')}
               </p>
             </div>
           </div>
@@ -146,7 +148,7 @@ export function CompetitionDetail() {
           <Card style={{ background: 'var(--text-primary)', color: '#fff', borderColor: 'var(--text-primary)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
-                <p style={{ fontSize: '12px', opacity: 0.7, marginBottom: '2px' }}>YOUR TEAM</p>
+                <p style={{ fontSize: '12px', opacity: 0.7, marginBottom: '2px' }}>{t('competition.yourTeam')}</p>
                 <p style={{ fontFamily: 'var(--font-ui)', fontSize: '18px' }}>{myTeam.name}</p>
               </div>
               {myTeam.imageUrl && (
@@ -191,8 +193,8 @@ export function CompetitionDetail() {
                   <div style={{ flex: 1 }}>
                     <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px' }}>{team.name}</p>
                     <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                      {team.players?.length ?? 0} players
-                      {team.leader ? ` · Leader: ${team.leader.displayName ?? team.leader.username}` : ''}
+                      {team.players?.length ?? 0} {t('common.players')}
+                      {team.leader ? ` · ${t('competition.leaderPrefix', { name: team.leader.displayName ?? team.leader.username })}` : ''}
                     </p>
                   </div>
                   <span style={{ fontSize: '18px', color: 'var(--text-muted)', lineHeight: 1 }}>›</span>
@@ -242,8 +244,8 @@ export function CompetitionDetail() {
                 </p>
                 <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '3px' }}>
                   {cc.challenge.isQuiz
-                    ? `Quiz${cc.quizSession ? ` · ${cc.quizSession.status}` : ' · Not started'}`
-                    : SCORE_TYPE_LABELS[cc.challenge.scoreType as keyof typeof SCORE_TYPE_LABELS]}
+                    ? `Quiz${cc.quizSession ? ` · ${cc.quizSession.status}` : ` · ${t('competition.notStarted')}`}`
+                    : t(`scoreTypes.${cc.challenge.scoreType as string}` as any)}
                 </p>
                 {cc.challenge.description && (
                   <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: 1.5 }}>
@@ -253,11 +255,11 @@ export function CompetitionDetail() {
                 {cc.challenge.isQuiz && (
                   <Link to={`/competitions/${id}/quiz/${cc.id}`} style={{ textDecoration: 'none', display: 'inline-block', marginTop: '10px' }}>
                     <Button size="sm" variant={cc.quizSession?.status === 'ACTIVE' || cc.quizSession?.status === 'CORRECTING' ? 'primary' : 'ghost'} style={{ fontSize: '13px' }}>
-                      {cc.quizSession?.status === 'LOBBY' ? '⏳ Join Lobby' :
-                       cc.quizSession?.status === 'ACTIVE' ? '🔴 Quiz Live!' :
-                       cc.quizSession?.status === 'CORRECTING' ? '🟡 Correction' :
-                       cc.quizSession?.status === 'COMPLETED' ? '✅ View Results' :
-                       '🎯 Open Quiz'}
+                      {cc.quizSession?.status === 'LOBBY' ? t('competition.joinLobby') :
+                       cc.quizSession?.status === 'ACTIVE' ? t('competition.quizLive') :
+                       cc.quizSession?.status === 'CORRECTING' ? t('competition.correction') :
+                       cc.quizSession?.status === 'COMPLETED' ? t('competition.viewResults') :
+                       t('competition.openQuiz')}
                     </Button>
                   </Link>
                 )}
@@ -281,7 +283,7 @@ export function CompetitionDetail() {
                         <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700 }}>{p.user.displayName ?? p.user.username}</p>
                         {(p.isTeamLeader || p.isScorekeeper) && (
                           <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                            {[p.isTeamLeader && 'Leader', p.isScorekeeper && 'Scorekeeper'].filter(Boolean).join(' · ')}
+                            {[p.isTeamLeader && t('competition.leaderboard'), p.isScorekeeper && t('badges.scorekeeper')].filter(Boolean).join(' · ')}
                           </p>
                         )}
                       </div>
@@ -302,10 +304,10 @@ export function CompetitionDetail() {
           {/* Team competition: unassigned players */}
           {isTeamComp && <div>
             <h3 style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px' }}>
-              Unassigned ({playerPool.length})
+              {t('competition.unassigned')} ({playerPool.length})
             </h3>
             {playerPool.length === 0 ? (
-              <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Everyone is assigned to a team</p>
+              <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{t('competition.everyoneAssigned')}</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {playerPool.map((p: CompetitionPlayer) => (
@@ -321,7 +323,7 @@ export function CompetitionDetail() {
                         <div style={{ display: 'flex', gap: '4px' }}>
                           <Button size="sm" variant="ghost" style={{ fontSize: '12px', padding: '4px 10px' }}
                             onClick={() => { setAssigningPlayer(p); setAssignTargetTeamId('') }}>
-                            Assign
+                            {t('competition.assign')}
                           </Button>
                           <Button size="sm" variant="danger" style={{ fontSize: '11px', padding: '4px 8px' }}
                             loading={removeFromPoolMutation.isPending}
@@ -347,7 +349,7 @@ export function CompetitionDetail() {
                   {team.name} ({teamPlayers.length})
                 </h3>
                 {teamPlayers.length === 0 ? (
-                  <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>No players yet</p>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{t('competition.noPlayers')}</p>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {teamPlayers.map((p: CompetitionPlayer) => isAdmin ? (
@@ -357,13 +359,13 @@ export function CompetitionDetail() {
                             <Avatar src={p.user.profileImageUrl} name={p.user.displayName ?? p.user.username} size={36} />
                             <div>
                               <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700 }}>{p.user.displayName ?? p.user.username}</p>
-                              {p.isTeamLeader && <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Leader</p>}
+                              {p.isTeamLeader && <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{t('badges.leader')}</p>}
                             </div>
                           </Link>
                           <div style={{ display: 'flex', gap: '4px' }}>
                             <Button size="sm" variant="ghost" style={{ fontSize: '12px', padding: '4px 10px' }}
                               onClick={() => { setAssigningPlayer(p); setAssignTargetTeamId('') }}>
-                              Move
+                              {t('competition.move')}
                             </Button>
                             <Button size="sm" variant="danger" style={{ fontSize: '11px', padding: '4px 8px' }}
                               loading={removeFromPoolMutation.isPending}
@@ -382,7 +384,7 @@ export function CompetitionDetail() {
                               <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700 }}>
                                 {p.user.displayName ?? p.user.username}
                               </p>
-                              {p.isTeamLeader && <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Leader</p>}
+                              {p.isTeamLeader && <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{t('badges.leader')}</p>}
                             </div>
                           </div>
                         </Card>
@@ -399,16 +401,16 @@ export function CompetitionDetail() {
       <Modal
         open={!!assigningPlayer}
         onClose={() => setAssigningPlayer(null)}
-        title={`${assigningPlayer?.teamId ? 'Move' : 'Assign'} ${assigningPlayer?.user?.displayName ?? assigningPlayer?.user?.username ?? ''} to team`}
+        title={`${assigningPlayer?.teamId ? t('competition.move') : t('competition.assign')} ${assigningPlayer?.user?.displayName ?? assigningPlayer?.user?.username ?? ''}`}
         footer={
           <>
-            <Button variant="ghost" onClick={() => setAssigningPlayer(null)}>Cancel</Button>
+            <Button variant="ghost" onClick={() => setAssigningPlayer(null)}>{t('common.cancel')}</Button>
             <Button
               onClick={() => assignToTeamMutation.mutate({ userId: assigningPlayer.userId, teamId: assignTargetTeamId })}
               disabled={!assignTargetTeamId}
               loading={assignToTeamMutation.isPending}
             >
-              {assigningPlayer?.teamId ? 'Move' : 'Assign'}
+              {assigningPlayer?.teamId ? t('competition.move') : t('competition.assign')}
             </Button>
           </>
         }
@@ -430,7 +432,7 @@ export function CompetitionDetail() {
               <div>
                 <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>{team.name}</p>
                 <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  {comp.players?.filter((pl: CompetitionPlayer) => pl.teamId === team.id).length ?? 0} players
+                  {comp.players?.filter((pl: CompetitionPlayer) => pl.teamId === team.id).length ?? 0} {t('common.players')}
                 </p>
               </div>
               {assignTargetTeamId === team.id && (

@@ -15,6 +15,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { api } from '../api/client'
 import { formatScore, extractScoreValue } from '../utils'
 import { BoldText } from '../components/ui/BoldText'
+import { useTranslation } from 'react-i18next'
 
 function TrophyCard({ trophy, isSelf, adminMode, giftAnimData, onOpen, onTakeBack }: {
   trophy: any
@@ -24,6 +25,7 @@ function TrophyCard({ trophy, isSelf, adminMode, giftAnimData, onOpen, onTakeBac
   onOpen: () => void
   onTakeBack: () => void
 }) {
+  const { t } = useTranslation()
   const [playing, setPlaying] = useState(false)
   const [revealed, setRevealed] = useState(trophy.isOpened)
 
@@ -54,7 +56,7 @@ function TrophyCard({ trophy, isSelf, adminMode, giftAnimData, onOpen, onTakeBac
       ) : giftAnimData ? (
         <div
           onClick={handleClick}
-          title={canTap ? 'Tap to open!' : undefined}
+          title={canTap ? t('profile.tapToOpen') : undefined}
           style={{
             width: 80, height: 80, cursor: canTap ? 'pointer' : 'default',
             position: 'relative', borderRadius: 'var(--radius)', overflow: 'hidden',
@@ -80,7 +82,7 @@ function TrophyCard({ trophy, isSelf, adminMode, giftAnimData, onOpen, onTakeBac
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
           {!revealed && (
             <p style={{ fontSize: '9px', fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--accent-warm)', textAlign: 'center', letterSpacing: '0.04em' }}>
-              UNOPENED
+              {t('profile.unopened')}
             </p>
           )}
           <p style={{
@@ -101,7 +103,7 @@ function TrophyCard({ trophy, isSelf, adminMode, giftAnimData, onOpen, onTakeBac
         </div>
       ) : (
         <p style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center' }}>
-          {isSelf ? 'Tap to open' : '???'}
+          {isSelf ? t('profile.tapToOpen') : '???'}
         </p>
       )}
       {adminMode && (
@@ -113,7 +115,7 @@ function TrophyCard({ trophy, isSelf, adminMode, giftAnimData, onOpen, onTakeBac
             cursor: 'pointer', padding: '2px 0',
           }}
         >
-          ↩ Take back
+          {t('profile.takeBack')}
         </button>
       )}
     </div>
@@ -125,6 +127,7 @@ export function Profile() {
   const { user: me, logout, refreshUser, isAdmin } = useAuth()
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const { t, i18n } = useTranslation()
   const userId = paramId ?? me?.id
   const isSelf = userId === me?.id
 
@@ -178,14 +181,19 @@ export function Profile() {
     navigate('/login')
   }
 
-  if (isLoading) return <Layout title="Profile"><LoadingSpinner /></Layout>
+  function changeLanguage(lang: string) {
+    i18n.changeLanguage(lang)
+    localStorage.setItem('language', lang)
+  }
+
+  if (isLoading) return <Layout title={t('profile.myProfile')}><LoadingSpinner /></Layout>
   const user = data?.user
-  if (!user) return <Layout title="Profile"><p>User not found</p></Layout>
+  if (!user) return <Layout title={t('profile.myProfile')}><p>{t('profile.userNotFound')}</p></Layout>
 
   return (
     <Layout
-      title={isSelf ? 'My Profile' : (user.displayName ?? user.username)}
-      action={isSelf ? <Button variant="ghost" size="sm" onClick={handleLogout}>Log out</Button> : null}
+      title={isSelf ? t('profile.myProfile') : (user.displayName ?? user.username)}
+      action={isSelf ? <Button variant="ghost" size="sm" onClick={handleLogout}>{t('profile.logOut')}</Button> : null}
     >
       {/* Profile header */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '24px', gap: '12px' }}>
@@ -234,36 +242,65 @@ export function Profile() {
         )}
       </div>
 
-      {/* Edit form */}
+      {/* Account settings card */}
       {(isSelf || isAdmin) && (
         <Card style={{ marginBottom: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <h3 style={{ fontFamily: 'var(--font-ui)', fontSize: '15px' }}>Account settings</h3>
+            <h3 style={{ fontFamily: 'var(--font-ui)', fontSize: '15px' }}>{t('profile.accountSettings')}</h3>
             <Button size="sm" variant="ghost" onClick={() => {
               setEditing(!editing)
               setForm({ displayName: user.displayName ?? '', realName: user.realName ?? '', password: '' })
             }}>
-              {editing ? 'Cancel' : 'Edit'}
+              {editing ? t('profile.cancel') : t('profile.edit')}
             </Button>
           </div>
           {editing ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <Input label="Display name" value={form.displayName} onChange={e => setForm(f => ({ ...f, displayName: e.target.value }))} />
-              <Input label="Real name" value={form.realName} onChange={e => setForm(f => ({ ...f, realName: e.target.value }))} />
-              <Input label="New password (leave blank to keep current)" type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
+              <Input label={t('profile.displayName')} value={form.displayName} onChange={e => setForm(f => ({ ...f, displayName: e.target.value }))} />
+              <Input label={t('profile.realName')} value={form.realName} onChange={e => setForm(f => ({ ...f, realName: e.target.value }))} />
+              <Input label={t('profile.newPassword')} type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
               <Button onClick={() => updateMutation.mutate()} loading={updateMutation.isPending} fullWidth>
-                Save changes
+                {t('profile.saveChanges')}
               </Button>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Display name</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>{t('profile.displayName')}</span>
                 <span style={{ fontFamily: 'var(--font-ui)', fontSize: '14px' }}>{user.displayName ?? '—'}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Real name</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>{t('profile.realName')}</span>
                 <span style={{ fontFamily: 'var(--font-ui)', fontSize: '14px' }}>{user.realName ?? '—'}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Language switcher */}
+          {isSelf && (
+            <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border-light)' }}>
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-muted)' }}>
+                {t('language.label')}
+              </p>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {(['sv', 'en'] as const).map(lang => (
+                  <button
+                    key={lang}
+                    onClick={() => changeLanguage(lang)}
+                    style={{
+                      padding: '6px 16px',
+                      borderRadius: 'var(--radius)',
+                      border: i18n.language === lang ? '2px solid var(--accent)' : '2px solid var(--border-light)',
+                      background: i18n.language === lang ? 'color-mix(in srgb, var(--accent) 10%, transparent)' : 'var(--background)',
+                      color: i18n.language === lang ? 'var(--accent)' : 'var(--text-muted)',
+                      fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px',
+                      cursor: 'pointer',
+                      transition: 'all 150ms',
+                    }}
+                  >
+                    {t(`language.${lang}`)}
+                  </button>
+                ))}
               </div>
             </div>
           )}
@@ -275,7 +312,7 @@ export function Profile() {
         <section style={{ marginBottom: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
             <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-              Awards {trophies.length > 0 ? `(${trophies.length})` : ''}
+              {trophies.length > 0 ? t('profile.awardsCount', { count: trophies.length }) : t('profile.awards')}
             </h2>
             {isAdmin && (
               <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
@@ -286,7 +323,7 @@ export function Profile() {
                     loading={generateSendMutation.isPending}
                     style={{ fontSize: '11px' }}
                   >
-                    🎁 Give Award
+                    {t('profile.giveAward')}
                   </Button>
                 )}
                 <Button
@@ -295,14 +332,14 @@ export function Profile() {
                   onClick={() => setAdminMode(m => !m)}
                   style={{ fontSize: '11px' }}
                 >
-                  {adminMode ? 'Managing ✓' : 'Manage'}
+                  {adminMode ? t('profile.managing') : t('profile.manage')}
                 </Button>
               </div>
             )}
           </div>
 
           {trophies.length === 0 ? (
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', padding: '16px 0' }}>No trophies yet.</p>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', padding: '16px 0' }}>{t('profile.noTrophies')}</p>
           ) : (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
               {trophies.map((trophy: any) => (
@@ -348,7 +385,7 @@ export function Profile() {
         return (
           <section style={{ marginBottom: '16px' }}>
             <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '12px', color: 'var(--text-muted)' }}>
-              Personal Bests
+              {t('profile.personalBests')}
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {bests.map((b: any) => (
@@ -378,7 +415,7 @@ export function Profile() {
       {user.competitionPlayers?.length > 0 && (
         <section>
           <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '12px', color: 'var(--text-muted)' }}>
-            Competitions
+            {t('profile.competitions')}
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {user.competitionPlayers.map((cp: any) => (
@@ -387,10 +424,10 @@ export function Profile() {
                   <div>
                     <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>{cp.competition.name}</p>
                     <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                      {cp.team ? cp.team.name : 'Player Pool'}
+                      {cp.team ? cp.team.name : t('profile.playerPool')}
                     </p>
                   </div>
-                  {cp.isTeamLeader && <Badge variant="info">Leader</Badge>}
+                  {cp.isTeamLeader && <Badge variant="info">{t('profile.leader')}</Badge>}
                 </div>
               </Card>
             ))}

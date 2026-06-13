@@ -12,6 +12,7 @@ import { Badge, StatusBadge } from '../../components/ui/Badge'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { api } from '../../api/client'
 import { formatDate } from '../../utils'
+import { useTranslation } from 'react-i18next'
 
 function maskDateInput(raw: string): string {
   const digits = raw.replace(/\D/g, '').slice(0, 8)
@@ -27,6 +28,7 @@ function displayToIso(display: string): string {
 }
 
 export function AdminCompetitions() {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const { user } = useAuth()
   const [createOpen, setCreateOpen] = useState(false)
@@ -36,7 +38,6 @@ export function AdminCompetitions() {
   const { data: groupsData } = useQuery({ queryKey: ['my-groups'], queryFn: () => api.groups.list() })
   const myGroups: any[] = groupsData?.groups ?? []
 
-  // Auto-select if only one group
   const effectiveGroupId = form.groupId || (myGroups.length === 1 ? myGroups[0].id : '')
 
   const createMutation = useMutation({
@@ -56,11 +57,13 @@ export function AdminCompetitions() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['competitions'] }); setCreateOpen(false); setForm({ name: '', dateDisplay: '', competitionType: 'team', teamCount: '3', scoringMode: 'placement_points', placementMaxPoints: '', tieBreakingMode: 'best_rank', groupId: '' }) },
   })
 
+  const resetForm = { name: '', dateDisplay: '', competitionType: 'team' as 'team' | 'individual', teamCount: '3', scoringMode: 'placement_points', placementMaxPoints: '', tieBreakingMode: 'best_rank', groupId: '' }
+
   return (
-    <AdminLayout title="Competitions">
+    <AdminLayout title={t('admin.competitions.title')}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>{compsData?.competitions?.length ?? 0} competitions</p>
-        <Button size="sm" onClick={() => setCreateOpen(true)}>+ New Competition</Button>
+        <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>{t('admin.competitions.count', { count: compsData?.competitions?.length ?? 0 })}</p>
+        <Button size="sm" onClick={() => setCreateOpen(true)}>{t('admin.competitions.newCompetition')}</Button>
       </div>
 
       {isLoading ? <LoadingSpinner /> : (
@@ -76,10 +79,10 @@ export function AdminCompetitions() {
               </div>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <Link to={`/admin/competitions/${c.id}`}>
-                  <Button size="sm" variant="ghost">Manage →</Button>
+                  <Button size="sm" variant="ghost">{t('admin.competitions.manage')}</Button>
                 </Link>
                 <Link to={`/competitions/${c.id}/leaderboard`}>
-                  <Button size="sm" variant="ghost">Leaderboard</Button>
+                  <Button size="sm" variant="ghost">{t('admin.competitions.leaderboard')}</Button>
                 </Link>
               </div>
             </Card>
@@ -87,21 +90,21 @@ export function AdminCompetitions() {
         </div>
       )}
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Create Competition"
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title={t('admin.competitions.createCompetition')}
         footer={
           <>
-            <Button variant="ghost" onClick={() => { setCreateOpen(false); setForm({ name: '', dateDisplay: '', competitionType: 'team', teamCount: '3', scoringMode: 'placement_points', placementMaxPoints: '', tieBreakingMode: 'best_rank', groupId: '' }) }}>Cancel</Button>
-            <Button onClick={() => createMutation.mutate()} loading={createMutation.isPending} disabled={!form.name}>Create</Button>
+            <Button variant="ghost" onClick={() => { setCreateOpen(false); setForm(resetForm) }}>{t('common.cancel')}</Button>
+            <Button onClick={() => createMutation.mutate()} loading={createMutation.isPending} disabled={!form.name}>{t('admin.competitions.create')}</Button>
           </>
         }
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>Competition type</label>
+            <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>{t('admin.competitions.competitionType')}</label>
             <div style={{ display: 'flex', gap: '8px' }}>
               {([
-                { value: 'team', label: '🛡️ Team', desc: 'Players compete in teams' },
-                { value: 'individual', label: '👤 Individual', desc: 'Players compete directly' },
+                { value: 'team', label: t('admin.competitions.teamType'), desc: t('admin.competitions.teamTypeDesc') },
+                { value: 'individual', label: t('admin.competitions.individualType'), desc: t('admin.competitions.individualTypeDesc') },
               ] as const).map(opt => (
                 <button
                   key={opt.value}
@@ -119,52 +122,52 @@ export function AdminCompetitions() {
               ))}
             </div>
           </div>
-          <Input label="Competition name *" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+          <Input label={t('admin.competitions.competitionName')} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
           <Input
-            label="Date (optional)"
+            label={t('admin.competitions.date')}
             type="text"
             inputMode="numeric"
-            placeholder="DD-MM-YYYY"
+            placeholder={t('admin.competitions.datePlaceholder')}
             value={form.dateDisplay}
             onChange={e => setForm(f => ({ ...f, dateDisplay: maskDateInput(e.target.value) }))}
           />
           {form.competitionType === 'team' && (
-            <Input label="Number of teams" type="number" min="1" max="20" value={form.teamCount} onChange={e => setForm(f => ({ ...f, teamCount: e.target.value }))} />
+            <Input label={t('admin.competitions.numberOfTeams')} type="number" min="1" max="20" value={form.teamCount} onChange={e => setForm(f => ({ ...f, teamCount: e.target.value }))} />
           )}
           {myGroups.length > 1 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>Group *</label>
+              <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>{t('admin.competitions.group')}</label>
               <select
                 value={form.groupId}
                 onChange={e => setForm(f => ({ ...f, groupId: e.target.value }))}
                 style={{ padding: '10px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', fontSize: '16px' }}
                 required
               >
-                <option value="">Select a group…</option>
+                <option value="">{t('admin.competitions.selectGroup')}</option>
                 {myGroups.map((g: any) => <option key={g.id} value={g.id}>{g.name}</option>)}
               </select>
             </div>
           )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>Scoring mode</label>
+            <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>{t('admin.competitions.scoringMode')}</label>
             <select
               value={form.scoringMode}
               onChange={e => setForm(f => ({ ...f, scoringMode: e.target.value }))}
               style={{ padding: '10px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', fontSize: '16px' }}
             >
-              <option value="placement_points">Placement points — 1st gets N×10, 2nd (N-1)×10, …</option>
-              <option value="raw_sum">Raw sum — add up actual scores across challenges</option>
+              <option value="placement_points">{t('admin.competitions.placementPoints')}</option>
+              <option value="raw_sum">{t('admin.competitions.rawSum')}</option>
             </select>
           </div>
           {form.scoringMode === 'placement_points' && (
             <>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>Tie-breaking mode</label>
+                <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>{t('admin.competitions.tieBreakingMode')}</label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {[
-                    { value: 'best_rank', label: 'Best Rank (Recommended)', desc: 'Tied for 1st → both get 1st-place points. Next distinct rank skips.' },
-                    { value: 'average', label: 'Average', desc: 'Tied for 1st → both get the mean of 1st and 2nd place points.' },
-                    { value: 'worst_rank', label: 'Worst Rank', desc: 'Tied for 1st → both get 2nd-place points.' },
+                    { value: 'best_rank', label: t('admin.competitions.bestRank'), desc: t('admin.competitions.bestRankDesc') },
+                    { value: 'average', label: t('admin.competitions.average'), desc: t('admin.competitions.averageDesc') },
+                    { value: 'worst_rank', label: t('admin.competitions.worstRank'), desc: t('admin.competitions.worstRankDesc') },
                   ].map(opt => (
                     <button
                       key={opt.value}
@@ -184,20 +187,20 @@ export function AdminCompetitions() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>
-                  Max points per challenge
+                  {t('admin.competitions.maxPoints')}
                 </label>
                 <input
                   type="number"
                   min="10"
                   max="1000"
                   step="10"
-                  placeholder={`Leave blank = auto (${parseInt(form.teamCount, 10) * 10})`}
+                  placeholder={t('admin.competitions.leaveBlankAuto', { points: parseInt(form.teamCount, 10) * 10 })}
                   value={form.placementMaxPoints}
                   onChange={e => setForm(f => ({ ...f, placementMaxPoints: e.target.value }))}
                   style={{ padding: '10px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', fontSize: '16px' }}
                 />
                 <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Leave blank to auto-calculate (teams × 10 = {parseInt(form.teamCount, 10) * 10}). Enter a number to override.
+                  {t('admin.competitions.leaveBlankAutoCalc', { points: parseInt(form.teamCount, 10) * 10 })}
                 </p>
               </div>
             </>

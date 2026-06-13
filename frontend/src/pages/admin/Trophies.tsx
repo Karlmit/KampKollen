@@ -8,6 +8,7 @@ import { Avatar } from '../../components/ui/Avatar'
 import { Modal } from '../../components/ui/Modal'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { api } from '../../api/client'
+import { useTranslation } from 'react-i18next'
 
 function WordList({ words, generatingWord, onAdd, onRemove, onGenerate }: {
   words: string[]
@@ -16,6 +17,7 @@ function WordList({ words, generatingWord, onAdd, onRemove, onGenerate }: {
   onRemove: (w: string) => void
   onGenerate: (w: string) => void
 }) {
+  const { t } = useTranslation()
   const [newWord, setNewWord] = useState('')
 
   const handleAdd = () => {
@@ -27,9 +29,9 @@ function WordList({ words, generatingWord, onAdd, onRemove, onGenerate }: {
 
   return (
     <Card>
-      <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', marginBottom: '4px' }}>Award Words</p>
+      <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', marginBottom: '4px' }}>{t('admin.trophies.awardWords')}</p>
       <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-        Random words used when generating award images. Click ⚡ to generate for a specific word.
+        {t('admin.trophies.awardWordsDesc')}
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
         {words.map(word => (
@@ -44,7 +46,7 @@ function WordList({ words, generatingWord, onAdd, onRemove, onGenerate }: {
             <button
               onClick={() => onGenerate(word)}
               disabled={generatingWord !== null}
-              title={`Generate award for "${word}"`}
+              title={t('admin.trophies.generateAwardFor', { word })}
               style={{
                 width: 28, height: 28, borderRadius: 'var(--radius-sm)',
                 border: '1px solid var(--border-light)',
@@ -77,11 +79,11 @@ function WordList({ words, generatingWord, onAdd, onRemove, onGenerate }: {
       <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
         <div style={{ flex: 1 }}>
           <Input
-            label="Add word"
+            label={t('admin.trophies.addWord')}
             value={newWord}
             onChange={e => setNewWord(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') handleAdd() }}
-            placeholder="Type and press Enter or Add"
+            placeholder={t('admin.trophies.addWordPlaceholder')}
           />
         </div>
         <Button
@@ -91,7 +93,7 @@ function WordList({ words, generatingWord, onAdd, onRemove, onGenerate }: {
           disabled={!newWord.trim() || words.includes(newWord.trim())}
           style={{ alignSelf: 'flex-end', height: '40px' }}
         >
-          Add
+          {t('admin.trophies.add')}
         </Button>
       </div>
     </Card>
@@ -99,6 +101,7 @@ function WordList({ words, generatingWord, onAdd, onRemove, onGenerate }: {
 }
 
 export function AdminTrophies() {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const [words, setWords] = useState<string[]>([])
   const [generatingWord, setGeneratingWord] = useState<string | null>(null)
@@ -133,7 +136,6 @@ export function AdminTrophies() {
     },
   })
 
-  // Competitions available for reservation (ACTIVE or REGISTRATION)
   const { data: compsData } = useQuery({
     queryKey: ['competitions'],
     queryFn: () => api.competitions.list(),
@@ -222,7 +224,7 @@ export function AdminTrophies() {
   const activeCompetitions = statusData?.activeCompetitions ?? []
 
   return (
-    <AdminLayout title="Awards">
+    <AdminLayout title={t('admin.trophies.title')}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
         {/* Award Words */}
         <WordList
@@ -237,7 +239,7 @@ export function AdminTrophies() {
         {activeCompetitions.length > 0 && (
           <section>
             <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '12px' }}>
-              Active Competitions
+              {t('admin.trophies.activeCompetitions')}
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {activeCompetitions.map((comp: any) => {
@@ -249,13 +251,15 @@ export function AdminTrophies() {
                       <div style={{ flex: 1 }}>
                         <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>{comp.name}</p>
                         <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                          Needs {comp.needed} ({comp.maxTeamSize} players + {comp.challengeCount} challenges)
+                          {t('admin.trophies.needs', { needed: comp.needed, maxTeamSize: comp.maxTeamSize, challengeCount: comp.challengeCount })}
                           {comp.reservedCount > 0 && (
-                            <span style={{ color: 'var(--accent)', fontWeight: 600 }}> · {comp.reservedCount} reserved</span>
+                            <span style={{ color: 'var(--accent)', fontWeight: 600 }}> {t('admin.trophies.reserved', { count: comp.reservedCount })}</span>
                           )}
                           {' · '}
                           <span style={{ color: hasEnough ? 'var(--accent)' : 'var(--accent-warm)', fontWeight: 600 }}>
-                            {hasEnough ? `${storageCount} in storage ✓` : `${storageCount} in storage, ${deficit} missing`}
+                            {hasEnough
+                              ? t('admin.trophies.inStorage', { count: storageCount })
+                              : t('admin.trophies.missing', { count: storageCount, deficit })}
                           </span>
                         </p>
                       </div>
@@ -266,7 +270,7 @@ export function AdminTrophies() {
                           loading={ensureMutation.isPending}
                           style={{ flexShrink: 0, fontSize: '11px' }}
                         >
-                          Generate {deficit}
+                          {t('admin.trophies.generate', { count: deficit })}
                         </Button>
                       )}
                     </div>
@@ -282,7 +286,7 @@ export function AdminTrophies() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-                Award Storage ({storageCount})
+                {t('admin.trophies.awardStorage', { count: storageCount })}
               </h2>
               {generating > 0 && (
                 <span style={{
@@ -292,7 +296,7 @@ export function AdminTrophies() {
                   borderRadius: '20px', padding: '2px 8px',
                 }}>
                   <span className="live-dot" style={{ background: 'var(--accent)', width: 6, height: 6 }} />
-                  Generating {generating}…
+                  {t('admin.trophies.generating', { count: generating })}
                 </span>
               )}
             </div>
@@ -301,27 +305,27 @@ export function AdminTrophies() {
               onClick={() => generateMutation.mutate(undefined)}
               loading={generateMutation.isPending && generatingWord === null}
             >
-              + Generate
+              {t('admin.trophies.generateNew')}
             </Button>
           </div>
 
           {storageLoading ? <LoadingSpinner /> : storageData?.trophies?.length === 0 ? (
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', padding: '24px 0' }}>
-              No awards in storage. Generate one!
+              {t('admin.trophies.noAwards')}
             </p>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px' }}>
-              {storageData?.trophies?.map((t: any) => (
-                <Card key={t.id} padding="10px" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+              {storageData?.trophies?.map((trophy: any) => (
+                <Card key={trophy.id} padding="10px" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
                   <img
-                    src={t.imageUrl}
-                    alt={t.title}
+                    src={trophy.imageUrl}
+                    alt={trophy.title}
                     style={{ width: 80, height: 80, borderRadius: 'var(--radius-sm)', objectFit: 'cover' }}
                   />
-                  <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px', textAlign: 'center' }}>{t.title}</p>
+                  <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px', textAlign: 'center' }}>{trophy.title}</p>
 
                   {/* Reservation status */}
-                  {t.reservedForCompetition ? (
+                  {trophy.reservedForCompetition ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px', width: '100%', justifyContent: 'center' }}>
                       <span style={{
                         fontSize: '10px', fontFamily: 'var(--font-ui)', fontWeight: 700,
@@ -329,11 +333,10 @@ export function AdminTrophies() {
                         borderRadius: '20px', padding: '2px 6px',
                         maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                       }}>
-                        🔒 {t.reservedForCompetition.name}
+                        {t('admin.trophies.reservedFor', { name: trophy.reservedForCompetition.name })}
                       </span>
                       <button
-                        onClick={() => reserveMutation.mutate({ id: t.id, competitionId: null })}
-                        title="Clear reservation"
+                        onClick={() => reserveMutation.mutate({ id: trophy.id, competitionId: null })}
                         style={{
                           background: 'none', border: 'none', cursor: 'pointer',
                           color: 'var(--text-muted)', fontSize: '12px', padding: '0', lineHeight: 1,
@@ -345,14 +348,14 @@ export function AdminTrophies() {
                     </div>
                   ) : (
                     <button
-                      onClick={() => { setReserveTrophy(t); setReserveCompId('') }}
+                      onClick={() => { setReserveTrophy(trophy); setReserveCompId('') }}
                       style={{
                         background: 'none', border: 'none', cursor: 'pointer',
                         fontSize: '11px', fontFamily: 'var(--font-ui)', color: 'var(--text-muted)',
                         padding: '0', textDecoration: 'underline', textDecorationStyle: 'dotted',
                       }}
                     >
-                      Reserve for…
+                      {t('admin.trophies.reserveFor')}
                     </button>
                   )}
 
@@ -361,15 +364,15 @@ export function AdminTrophies() {
                       size="sm"
                       variant="ghost"
                       style={{ flex: 1, fontSize: '11px' }}
-                      onClick={() => { setSendTrophy(t); setSendUserId(''); setSendError('') }}
+                      onClick={() => { setSendTrophy(trophy); setSendUserId(''); setSendError('') }}
                     >
-                      Send
+                      {t('admin.trophies.send')}
                     </Button>
                     <Button
                       size="sm"
                       variant="danger"
                       style={{ fontSize: '11px' }}
-                      onClick={() => deleteMutation.mutate(t.id)}
+                      onClick={() => deleteMutation.mutate(trophy.id)}
                       loading={deleteMutation.isPending}
                     >
                       ×
@@ -386,16 +389,16 @@ export function AdminTrophies() {
       <Modal
         open={!!sendTrophy}
         onClose={() => { setSendTrophy(null); setSendUserId(''); setSendError('') }}
-        title={`Send "${sendTrophy?.title}" to…`}
+        title={t('admin.trophies.sendTrophy', { title: sendTrophy?.title })}
         footer={
           <>
-            <Button variant="ghost" onClick={() => { setSendTrophy(null); setSendUserId(''); setSendError('') }}>Cancel</Button>
+            <Button variant="ghost" onClick={() => { setSendTrophy(null); setSendUserId(''); setSendError('') }}>{t('common.cancel')}</Button>
             <Button
               onClick={() => sendMutation.mutate()}
               disabled={!sendUserId}
               loading={sendMutation.isPending}
             >
-              Send
+              {t('admin.trophies.send')}
             </Button>
           </>
         }
@@ -436,23 +439,23 @@ export function AdminTrophies() {
       <Modal
         open={!!reserveTrophy}
         onClose={() => { setReserveTrophy(null); setReserveCompId('') }}
-        title={`Reserve "${reserveTrophy?.title}" for…`}
+        title={t('admin.trophies.reserveTrophy', { title: reserveTrophy?.title })}
         footer={
           <>
-            <Button variant="ghost" onClick={() => { setReserveTrophy(null); setReserveCompId('') }}>Cancel</Button>
+            <Button variant="ghost" onClick={() => { setReserveTrophy(null); setReserveCompId('') }}>{t('common.cancel')}</Button>
             <Button
               onClick={() => reserveMutation.mutate({ id: reserveTrophy.id, competitionId: reserveCompId })}
               disabled={!reserveCompId}
               loading={reserveMutation.isPending}
             >
-              Reserve
+              {t('admin.trophies.reserve')}
             </Button>
           </>
         }
       >
         {reservableComps.length === 0 ? (
           <p style={{ fontSize: '13px', color: 'var(--text-muted)', padding: '12px 0' }}>
-            No active or upcoming competitions to reserve for.
+            {t('admin.trophies.noActiveComps')}
           </p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>

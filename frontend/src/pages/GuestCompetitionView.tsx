@@ -9,12 +9,14 @@ import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { api } from '../api/client'
 import { Competition, CompetitionPlayer, CompetitionLeaderboard, LeaderboardTeam } from '../types'
 import { formatDate } from '../utils'
+import { useTranslation } from 'react-i18next'
 
 const rankEmoji = (r: number) => r === 1 ? '🥇' : r === 2 ? '🥈' : r === 3 ? '🥉' : `#${r}`
 
 export function GuestCompetitionView({ id }: { id: string }) {
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null)
   const [expandedChallenge, setExpandedChallenge] = useState<string | null>(null)
+  const { t } = useTranslation()
 
   const { data: compData, isLoading: compLoading } = useQuery({
     queryKey: ['competition', id],
@@ -41,7 +43,7 @@ export function GuestCompetitionView({ id }: { id: string }) {
   const lb: CompetitionLeaderboard = lbData
 
   if (!comp) {
-    return <Layout title="Competition" back="/competitions"><p>Not found</p></Layout>
+    return <Layout title="" back="/competitions"><p>{t('guest.noScores')}</p></Layout>
   }
 
   // Build roster map from competition data (comp.players has teamId)
@@ -77,9 +79,9 @@ export function GuestCompetitionView({ id }: { id: string }) {
         )}
         <div style={{ display: 'flex', gap: '20px' }}>
           {[
-            { val: comp.teams?.length ?? 0, label: 'teams' },
-            { val: comp.players?.length ?? 0, label: 'players' },
-            { val: comp.challenges?.length ?? 0, label: 'challenges' },
+            { val: comp.teams?.length ?? 0, label: t('common.teams') },
+            { val: comp.players?.length ?? 0, label: t('common.players') },
+            { val: comp.challenges?.length ?? 0, label: t('common.challenges') },
           ].map(s => (
             <div key={s.label}>
               <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '20px', color: '#fff' }}>{s.val}</span>
@@ -97,21 +99,21 @@ export function GuestCompetitionView({ id }: { id: string }) {
         border: '1px solid var(--border-light)', borderTop: 'none',
       }}>
         <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontFamily: 'var(--font-ui)' }}>
-          Want to participate?
+          {t('guest.wantToParticipate')}
         </p>
         <div style={{ display: 'flex', gap: '12px' }}>
           <Link to="/login" style={{
             fontSize: '13px', fontFamily: 'var(--font-ui)', fontWeight: 700,
             color: 'var(--accent)', textDecoration: 'none',
           }}>
-            Sign in
+            {t('guest.signIn')}
           </Link>
           <span style={{ color: 'var(--border-light)' }}>·</span>
           <Link to="/register" style={{
             fontSize: '13px', fontFamily: 'var(--font-ui)', fontWeight: 700,
             color: 'var(--accent)', textDecoration: 'none',
           }}>
-            Create account
+            {t('guest.createAccount')}
           </Link>
         </div>
       </div>
@@ -130,10 +132,14 @@ export function GuestCompetitionView({ id }: { id: string }) {
             <span style={{ fontSize: '28px', lineHeight: 1, flexShrink: 0 }}>🎯</span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '16px', color: '#fff', marginBottom: '2px' }}>
-                {cc.quizSession.status === 'LOBBY' ? 'Quiz starting soon…' : cc.quizSession.status === 'ACTIVE' ? '🔴 Quiz LIVE!' : '🟡 Quiz — correction in progress'}
+                {cc.quizSession.status === 'LOBBY'
+                  ? t('guest.quizStartingSoon')
+                  : cc.quizSession.status === 'ACTIVE'
+                  ? t('guest.quizLive')
+                  : t('guest.quizCorrection')}
               </p>
               <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)' }}>
-                {cc.challenge.name} — tap to watch
+                {cc.challenge.name} {t('guest.tapToWatch')}
               </p>
             </div>
             <span style={{ fontSize: '20px', color: 'rgba(255,255,255,0.8)', flexShrink: 0 }}>›</span>
@@ -149,7 +155,7 @@ export function GuestCompetitionView({ id }: { id: string }) {
             color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em',
             marginBottom: '10px',
           }}>
-            Standings
+            {t('guest.standings')}
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {lb.teamLeaderboard.map((team: LeaderboardTeam) => {
@@ -185,10 +191,10 @@ export function GuestCompetitionView({ id }: { id: string }) {
                         {team.teamName}
                       </p>
                       <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                        {roster.length} player{roster.length !== 1 ? 's' : ''}
+                        {roster.length} {roster.length !== 1 ? t('common.players') : t('common.players')}
                         {' · '}
                         <span style={{ color: isExpanded ? 'var(--accent)' : 'var(--text-muted)' }}>
-                          {isExpanded ? 'hide roster ▲' : 'see roster ▼'}
+                          {isExpanded ? t('guest.hideRoster') : t('guest.seeRoster')}
                         </span>
                       </p>
                     </div>
@@ -196,7 +202,7 @@ export function GuestCompetitionView({ id }: { id: string }) {
                       <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '22px', lineHeight: 1, color: isFirst ? '#8a6800' : 'var(--text-primary)' }}>
                         {team.totalPoints.toFixed(0)}
                       </p>
-                      <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>pts</p>
+                      <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{t('common.pts')}</p>
                     </div>
                   </div>
 
@@ -209,7 +215,7 @@ export function GuestCompetitionView({ id }: { id: string }) {
                     }}>
                       {roster.length === 0 ? (
                         <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontFamily: 'var(--font-ui)' }}>
-                          No players assigned yet
+                          {t('guest.noPlayersAssigned')}
                         </p>
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -232,12 +238,12 @@ export function GuestCompetitionView({ id }: { id: string }) {
                                         background: 'var(--border-light)',
                                         padding: '1px 5px', borderRadius: '99px',
                                       }}>
-                                        guest
+                                        {t('guest.guest')}
                                       </span>
                                     )}
                                   </p>
                                   {p.isTeamLeader && (
-                                    <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Leader</p>
+                                    <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{t('guest.leader')}</p>
                                   )}
                                 </div>
                                 {indEntry && indEntry.totalPoints > 0 && (
@@ -264,7 +270,7 @@ export function GuestCompetitionView({ id }: { id: string }) {
         lb?.teamLeaderboard?.length > 0 && (
         <Card style={{ marginBottom: '28px', textAlign: 'center' }}>
           <p style={{ fontSize: '14px', color: 'var(--text-muted)', padding: '8px 0', fontFamily: 'var(--font-ui)' }}>
-            No scores recorded yet
+            {t('guest.noScores')}
           </p>
         </Card>
       )}
@@ -277,7 +283,7 @@ export function GuestCompetitionView({ id }: { id: string }) {
             color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em',
             marginBottom: '10px',
           }}>
-            By Challenge
+            {t('guest.byChallenge')}
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {lb.challengeLeaderboards.map((cl: any) => {
@@ -306,7 +312,7 @@ export function GuestCompetitionView({ id }: { id: string }) {
                           {cl.challengeName}
                         </p>
                         {cl.lowerIsBetter && (
-                          <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>lower is better</p>
+                          <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{t('guest.lowerIsBetter')}</p>
                         )}
                       </div>
                     </div>
@@ -328,21 +334,21 @@ export function GuestCompetitionView({ id }: { id: string }) {
                           </div>
                           <span style={{ fontSize: '13px', fontFamily: 'var(--font-ui)', fontWeight: 700, flexShrink: 0 }}>
                             {isPlacementMode && team.placementPoints != null
-                              ? `${team.placementPoints} pts`
+                              ? `${team.placementPoints} ${t('common.pts')}`
                               : (team.score != null ? team.score.toFixed(1) : '—')}
                           </span>
                         </div>
                       ))}
                       {!isExpanded && items.length > 3 && (
                         <p style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', marginTop: '2px' }}>
-                          +{items.length - 3} more
+                          {t('guest.moreItems', { count: items.length - 3 })}
                         </p>
                       )}
                     </div>
                   )}
 
                   {visible.length === 0 && (
-                    <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>No scores yet</p>
+                    <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{t('guest.noScoresYet')}</p>
                   )}
                 </Card>
               )

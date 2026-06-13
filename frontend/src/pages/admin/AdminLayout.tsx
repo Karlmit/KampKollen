@@ -2,21 +2,23 @@ import { ReactNode } from 'react'
 import { NavLink, Navigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { BottomNav } from '../../components/layout/BottomNav'
-
-const sections = [
-  { to: '/admin/competitions', icon: '🏆', label: 'Competitions' },
-  { to: '/admin/challenges', icon: '⚔️', label: 'Challenges' },
-  { to: '/admin/users', icon: '👥', label: 'Users' },
-  { to: '/admin/image-options', icon: '🎨', label: 'Image Options' },
-  { to: '/admin/trophies', icon: '🎁', label: 'Awards' },
-  { to: '/admin/settings', icon: '🔧', label: 'Settings' },
-  { to: '/admin/groups', icon: '👥', label: 'Groups' },
-  { to: '/admin/backup', icon: '💾', label: 'Backup' },
-]
+import { useTranslation } from 'react-i18next'
 
 export function AdminLayout({ children, title }: { children: ReactNode; title: string }) {
   const { isAdmin, loading } = useAuth()
+  const { t } = useTranslation()
   if (!loading && !isAdmin) return <Navigate to="/" replace />
+
+  const sections = [
+    { to: '/admin/competitions', icon: '🏆', label: t('admin.sections.competitions') },
+    { to: '/admin/challenges',   icon: '⚔️', label: t('admin.sections.challenges') },
+    { to: '/admin/users',        icon: '👥', label: t('admin.sections.users') },
+    { to: '/admin/image-options',icon: '🎨', label: t('admin.sections.imageOptions') },
+    { to: '/admin/trophies',     icon: '🎁', label: t('admin.sections.awards') },
+    { to: '/admin/settings',     icon: '🔧', label: t('admin.sections.settings') },
+    { to: '/admin/groups',       icon: '👥', label: t('admin.sections.groups') },
+    { to: '/admin/backup',       icon: '💾', label: t('admin.sections.backup') },
+  ]
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>

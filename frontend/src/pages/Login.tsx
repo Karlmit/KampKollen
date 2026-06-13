@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { ApiError } from '../api/client'
+import { useTranslation } from 'react-i18next'
 
 export function Login() {
   const [username, setUsername] = useState('')
@@ -12,6 +13,7 @@ export function Login() {
   const [loading, setLoading] = useState(false)
   const { login } = useAuth()
   const navigate = useNavigate()
+  const { t } = useTranslation()
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -21,7 +23,7 @@ export function Login() {
       await login(username, password)
       navigate('/')
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Login failed')
+      setError(err instanceof ApiError ? err.message : t('auth.loginFailed'))
     } finally {
       setLoading(false)
     }
@@ -45,7 +47,7 @@ export function Login() {
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <Input
-            label="Username"
+            label={t('auth.username')}
             value={username}
             onChange={e => setUsername(e.target.value)}
             autoComplete="username"
@@ -53,7 +55,7 @@ export function Login() {
             required
           />
           <Input
-            label="Password / PIN"
+            label={t('auth.passwordPin')}
             type="password"
             value={password}
             onChange={e => setPassword(e.target.value)}
@@ -70,21 +72,21 @@ export function Login() {
             </p>
           )}
           <Button type="submit" loading={loading} fullWidth size="lg">
-            Log in
+            {t('auth.logIn')}
           </Button>
         </form>
 
         <p style={{ textAlign: 'center', marginTop: '24px', fontSize: '14px', color: 'var(--text-muted)' }}>
-          No account?{' '}
+          {t('auth.noAccount')}{' '}
           <Link to="/register" style={{ color: 'var(--accent)', fontFamily: 'var(--font-ui)' }}>
-            Create one
+            {t('auth.createOne')}
           </Link>
         </p>
 
         {/* Divider */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '24px 0' }}>
           <div style={{ flex: 1, height: 1, background: 'var(--border-light)' }} />
-          <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-ui)', fontWeight: 700, letterSpacing: '0.06em' }}>OR</span>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-ui)', fontWeight: 700, letterSpacing: '0.06em' }}>{t('common.or').toUpperCase()}</span>
           <div style={{ flex: 1, height: 1, background: 'var(--border-light)' }} />
         </div>
 
@@ -104,10 +106,10 @@ export function Login() {
           >
             <p style={{ fontSize: '28px', lineHeight: 1, marginBottom: '8px' }}>📊</p>
             <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '16px', marginBottom: '4px', color: 'var(--text-primary)' }}>
-              Watch Live Competitions
+              {t('auth.watchLive')}
             </p>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-              No account needed — view live leaderboards and scores
+              {t('auth.watchLiveDesc')}
             </p>
           </div>
         </Link>

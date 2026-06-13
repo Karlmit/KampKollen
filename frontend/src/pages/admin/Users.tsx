@@ -11,8 +11,10 @@ import { RoleBadge } from '../../components/ui/Badge'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { useAuth } from '../../contexts/AuthContext'
 import { api } from '../../api/client'
+import { useTranslation } from 'react-i18next'
 
 export function AdminUsers() {
+  const { t } = useTranslation()
   const { user: me } = useAuth()
   const qc = useQueryClient()
   const [editUser, setEditUser] = useState<any>(null)
@@ -20,7 +22,6 @@ export function AdminUsers() {
   const [deleteError, setDeleteError] = useState('')
   const [form, setForm] = useState({ globalRole: '', password: '', displayName: '' })
 
-  // Add-to-competition state
   const [addCompUser, setAddCompUser] = useState<any>(null)
   const [addCompId, setAddCompId] = useState('')
   const [addCompError, setAddCompError] = useState('')
@@ -71,9 +72,9 @@ export function AdminUsers() {
   }
 
   return (
-    <AdminLayout title="Users">
+    <AdminLayout title={t('admin.users.title')}>
       <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginBottom: '16px' }}>
-        {data?.users?.length ?? 0} users
+        {t('admin.users.count', { count: data?.users?.length ?? 0 })}
       </p>
 
       {isLoading ? <LoadingSpinner /> : (
@@ -92,8 +93,8 @@ export function AdminUsers() {
                   <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>@{u.username}</p>
                 </Link>
                 <div style={{ display: 'flex', gap: '4px' }}>
-                  <Button size="sm" variant="ghost" style={{ fontSize: '11px' }} onClick={() => openAddComp(u)}>+ Comp</Button>
-                  <Button size="sm" variant="ghost" style={{ fontSize: '11px' }} onClick={() => openEdit(u)}>Edit</Button>
+                  <Button size="sm" variant="ghost" style={{ fontSize: '11px' }} onClick={() => openAddComp(u)}>{t('admin.users.addToComp')}</Button>
+                  <Button size="sm" variant="ghost" style={{ fontSize: '11px' }} onClick={() => openEdit(u)}>{t('admin.users.edit')}</Button>
                   {u.id !== me?.id && (
                     <Button size="sm" variant="danger" style={{ fontSize: '11px' }}
                       onClick={() => setDeleteConfirm(u)}>
@@ -111,22 +112,22 @@ export function AdminUsers() {
       <Modal
         open={!!addCompUser}
         onClose={() => { setAddCompUser(null); setAddCompId(''); setAddCompError('') }}
-        title={`Add ${addCompUser?.displayName ?? addCompUser?.username ?? ''} to competition`}
+        title={t('admin.users.addToCompTitle', { name: addCompUser?.displayName ?? addCompUser?.username ?? '' })}
         footer={
           <>
-            <Button variant="ghost" onClick={() => { setAddCompUser(null); setAddCompId(''); setAddCompError('') }}>Cancel</Button>
+            <Button variant="ghost" onClick={() => { setAddCompUser(null); setAddCompId(''); setAddCompError('') }}>{t('common.cancel')}</Button>
             <Button
               onClick={() => addToCompMutation.mutate()}
               disabled={!addCompId}
               loading={addToCompMutation.isPending}
             >
-              Add
+              {t('common.add')}
             </Button>
           </>
         }
       >
         {!compsData ? <LoadingSpinner /> : compsData.competitions?.length === 0 ? (
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>No competitions found.</p>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{t('admin.users.noCompetitions')}</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {compsData.competitions.map((c: any) => (
@@ -163,18 +164,18 @@ export function AdminUsers() {
       <Modal
         open={!!deleteConfirm}
         onClose={() => { setDeleteConfirm(null); setDeleteError('') }}
-        title="Delete User"
+        title={t('admin.users.deleteUser')}
         footer={
           <>
-            <Button variant="ghost" onClick={() => { setDeleteConfirm(null); setDeleteError('') }}>Cancel</Button>
+            <Button variant="ghost" onClick={() => { setDeleteConfirm(null); setDeleteError('') }}>{t('common.cancel')}</Button>
             <Button variant="danger" onClick={() => { setDeleteError(''); deleteMutation.mutate(deleteConfirm.id) }} loading={deleteMutation.isPending}>
-              Delete
+              {t('admin.users.delete')}
             </Button>
           </>
         }
       >
-        <p style={{ fontSize: '15px' }}>Delete <strong>{deleteConfirm?.displayName ?? deleteConfirm?.username}</strong>?</p>
-        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px' }}>This cannot be undone. Their scores will be removed.</p>
+        <p style={{ fontSize: '15px' }}>{t('admin.users.deleteConfirm', { name: deleteConfirm?.displayName ?? deleteConfirm?.username })}</p>
+        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px' }}>{t('admin.users.deleteDesc')}</p>
         {deleteError && (
           <p style={{ fontSize: '13px', color: 'var(--accent-warm)', marginTop: '10px', fontFamily: 'var(--font-ui)' }}>
             {deleteError}
@@ -182,26 +183,26 @@ export function AdminUsers() {
         )}
       </Modal>
 
-      <Modal open={!!editUser} onClose={() => setEditUser(null)} title={`Edit: ${editUser?.username}`}
+      <Modal open={!!editUser} onClose={() => setEditUser(null)} title={t('admin.users.editUser', { username: editUser?.username })}
         footer={
           <>
-            <Button variant="ghost" onClick={() => setEditUser(null)}>Cancel</Button>
-            <Button onClick={() => updateMutation.mutate()} loading={updateMutation.isPending}>Save</Button>
+            <Button variant="ghost" onClick={() => setEditUser(null)}>{t('common.cancel')}</Button>
+            <Button onClick={() => updateMutation.mutate()} loading={updateMutation.isPending}>{t('admin.users.save')}</Button>
           </>
         }
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <Input label="Display name" value={form.displayName} onChange={e => setForm(f => ({ ...f, displayName: e.target.value }))} />
+          <Input label={t('admin.users.displayName')} value={form.displayName} onChange={e => setForm(f => ({ ...f, displayName: e.target.value }))} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>Role</label>
+            <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>{t('admin.users.role')}</label>
             <select value={form.globalRole} onChange={e => setForm(f => ({ ...f, globalRole: e.target.value }))}
               style={{ padding: '10px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', fontSize: '15px' }}>
-              <option value="PLAYER">Player</option>
-              <option value="SCOREKEEPER">Scorekeeper</option>
-              <option value="ADMIN">Admin</option>
+              <option value="PLAYER">{t('admin.users.player')}</option>
+              <option value="SCOREKEEPER">{t('admin.users.scorekeeper')}</option>
+              <option value="ADMIN">{t('admin.users.adminRole')}</option>
             </select>
           </div>
-          <Input label="New password (leave blank to keep current)" type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
+          <Input label={t('admin.users.newPassword')} type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
         </div>
       </Modal>
     </AdminLayout>

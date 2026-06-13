@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Card } from './ui/Card'
 import { Avatar } from './ui/Avatar'
 import { CompetitionLeaderboard, LeaderboardTeam } from '../types'
+import { useTranslation } from 'react-i18next'
 
 type View = 'teams' | 'individual'
 
@@ -15,6 +16,7 @@ export function CompetitionLeaderboardContent({
   id: string
   userId?: string | null
 }) {
+  const { t } = useTranslation()
   const [view, setView] = useState<View>(() =>
     lb.competition.isTeamCompetition !== false ? 'teams' : 'individual'
   )
@@ -34,7 +36,7 @@ export function CompetitionLeaderboardContent({
       return (
         <div style={{ textAlign: 'right' }}>
           <span style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>
-            {placementPoints != null ? `${placementPoints} pts` : '—'}
+            {placementPoints != null ? `${placementPoints} ${t('leaderboardContent.pts')}` : '—'}
           </span>
           <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '6px' }}>
             ({score?.toFixed(1) ?? '0'})
@@ -58,7 +60,7 @@ export function CompetitionLeaderboardContent({
         {isLive && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span className="live-dot" />
-            <span style={{ fontSize: '11px', fontFamily: 'var(--font-ui)', fontWeight: 700, letterSpacing: '0.08em', color: '#d7283d' }}>LIVE</span>
+            <span style={{ fontSize: '11px', fontFamily: 'var(--font-ui)', fontWeight: 700, letterSpacing: '0.08em', color: '#d7283d' }}>{t('leaderboard.live')}</span>
           </div>
         )}
         <span style={{
@@ -66,7 +68,7 @@ export function CompetitionLeaderboardContent({
           background: 'var(--surface)', border: '1px solid var(--border-light)',
           fontSize: '12px', fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--text-muted)',
         }}>
-          {isPlacementMode ? '🏅 Placement points' : '➕ Raw sum'}
+          {isPlacementMode ? t('leaderboardContent.placementPoints') : t('leaderboardContent.rawSum')}
         </span>
       </div>
 
@@ -92,7 +94,7 @@ export function CompetitionLeaderboardContent({
                 transition: 'color 200ms var(--ease-out)',
               }}
             >
-              {v === 'teams' ? '🛡️ Teams' : '👤 Individual'}
+              {v === 'teams' ? t('leaderboardContent.teams') : t('leaderboardContent.individual')}
             </button>
           ))}
         </div>
@@ -112,15 +114,15 @@ export function CompetitionLeaderboardContent({
                     <Avatar src={team.teamImageUrl} name={team.teamName} size={isFirst ? 48 : 40} style={{ borderRadius: '50%', border: isFirst ? '2px solid rgba(255,255,255,0.25)' : undefined }} />
                     <div style={{ minWidth: 0 }}>
                       <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: isFirst ? '18px' : '16px', color: isFirst ? '#fff' : undefined }}>{team.teamName}</p>
-                      <p style={{ fontSize: '12px', color: isFirst ? 'rgba(255,255,255,0.6)' : 'var(--text-muted)' }}>{team.playerCount} players</p>
+                      <p style={{ fontSize: '12px', color: isFirst ? 'rgba(255,255,255,0.6)' : 'var(--text-muted)' }}>{team.playerCount} {t('leaderboardContent.players')}</p>
                       {myTeamId && team.teamId === myTeamId && (
-                        <p style={{ fontSize: '11px', fontFamily: 'var(--font-ui)', fontWeight: 700, letterSpacing: '0.06em', color: isFirst ? 'rgba(255,255,255,0.7)' : 'var(--accent)', marginTop: '2px' }}>YOUR TEAM</p>
+                        <p style={{ fontSize: '11px', fontFamily: 'var(--font-ui)', fontWeight: 700, letterSpacing: '0.06em', color: isFirst ? 'rgba(255,255,255,0.7)' : 'var(--accent)', marginTop: '2px' }}>{t('leaderboardContent.yourTeam')}</p>
                       )}
                     </div>
                   </Link>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
                     <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: isFirst ? '32px' : '22px', color: isFirst ? '#fff' : undefined, lineHeight: 1 }}>{team.totalPoints.toFixed(0)}</p>
-                    <p style={{ fontSize: '11px', color: isFirst ? 'rgba(255,255,255,0.55)' : 'var(--text-muted)', marginTop: '2px' }}>pts</p>
+                    <p style={{ fontSize: '11px', color: isFirst ? 'rgba(255,255,255,0.55)' : 'var(--text-muted)', marginTop: '2px' }}>{t('leaderboardContent.pts')}</p>
                   </div>
                 </div>
               </Card>
@@ -147,7 +149,7 @@ export function CompetitionLeaderboardContent({
                         <Link to={`/profile/${p.userId}`} style={{ color: 'inherit', textDecoration: 'none' }}>{p.displayName ?? p.username ?? p.userId}</Link>
                       </p>
                       {p.teamName && <p style={{ fontSize: '12px', color: isFirst ? 'rgba(255,255,255,0.6)' : 'var(--text-muted)' }}>{p.teamName}</p>}
-                      {isMe && !isFirst && <p style={{ fontSize: '11px', fontFamily: 'var(--font-ui)', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--accent)', marginTop: '1px' }}>YOU</p>}
+                      {isMe && !isFirst && <p style={{ fontSize: '11px', fontFamily: 'var(--font-ui)', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--accent)', marginTop: '1px' }}>{t('leaderboardContent.you')}</p>}
                     </div>
                     <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: isFirst ? '24px' : '18px', color: isFirst ? '#fff' : undefined }}>{p.totalPoints.toFixed(0)}</p>
                   </div>
@@ -169,7 +171,7 @@ export function CompetitionLeaderboardContent({
                         <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>{p.displayName ?? p.username ?? p.userId}</p>
                       </Link>
                       {p.teamName && <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{p.teamName}</p>}
-                      {isMe && <p style={{ fontSize: '11px', fontFamily: 'var(--font-ui)', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--accent)' }}>YOU</p>}
+                      {isMe && <p style={{ fontSize: '11px', fontFamily: 'var(--font-ui)', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--accent)' }}>{t('leaderboardContent.you')}</p>}
                     </div>
                     <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '16px' }}>{p.totalPoints.toFixed(0)}</p>
                   </div>
@@ -182,7 +184,7 @@ export function CompetitionLeaderboardContent({
             <Link to={`/competitions/${id}/leaderboard/individual`} style={{ textDecoration: 'none', display: 'block', marginTop: '10px' }}>
               <Card padding="12px" style={{ textAlign: 'center', background: 'var(--surface)' }}>
                 <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, color: 'var(--accent)' }}>
-                  Full individual leaderboard ({lb.individualLeaderboard.length} players) ›
+                  {t('leaderboardContent.fullIndividual', { count: lb.individualLeaderboard.length })}
                 </p>
               </Card>
             </Link>
@@ -194,7 +196,7 @@ export function CompetitionLeaderboardContent({
       {lb.challengeLeaderboards.length > 0 && (
         <section style={{ marginTop: '28px' }}>
           <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '12px', color: 'var(--text-muted)' }}>
-            By Challenge
+            {t('leaderboard.challengeBreakdown')}
           </h2>
           <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {lb.challengeLeaderboards.map((cl: any) => {
@@ -208,7 +210,7 @@ export function CompetitionLeaderboardContent({
                       {cl.challengeLogoUrl && <img src={cl.challengeLogoUrl} alt="" style={{ width: 36, height: 36, borderRadius: 'var(--radius-sm)', objectFit: 'cover', flexShrink: 0 }} />}
                       <div style={{ minWidth: 0 }}>
                         <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cl.challengeName}</p>
-                        {cl.lowerIsBetter && <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>lower = better</p>}
+                        {cl.lowerIsBetter && <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{t('leaderboardContent.lowerBetter')}</p>}
                       </div>
                     </div>
                     <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '8px', flexShrink: 0 }}>{isExpanded ? '▲' : `▼ ${items.length}`}</span>
@@ -238,7 +240,7 @@ export function CompetitionLeaderboardContent({
                       )
                     })}
                     {!isExpanded && items.length > 3 && (
-                      <p style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', marginTop: '4px' }}>+{items.length - 3} more — tap to expand</p>
+                      <p style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', marginTop: '4px' }}>{t('leaderboardContent.moreExpand', { count: items.length - 3 })}</p>
                     )}
                   </div>
                 </Card>

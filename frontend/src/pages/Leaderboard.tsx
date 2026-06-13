@@ -7,10 +7,12 @@ import { CompetitionLeaderboardContent } from '../components/CompetitionLeaderbo
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../api/client'
 import { CompetitionLeaderboard } from '../types'
+import { useTranslation } from 'react-i18next'
 
 export function CompetitionLeaderboardPage() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
+  const { t } = useTranslation()
 
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['leaderboard', id],
@@ -19,10 +21,10 @@ export function CompetitionLeaderboardPage() {
     refetchInterval: 30_000,
   })
 
-  if (isLoading) return <Layout title="Leaderboard" back={`/competitions/${id}`}><LoadingSpinner /></Layout>
+  if (isLoading) return <Layout title={t('leaderboard.title')} back={`/competitions/${id}`}><LoadingSpinner /></Layout>
 
   const lb: CompetitionLeaderboard = data
-  if (!lb) return <Layout title="Leaderboard"><p>Not found</p></Layout>
+  if (!lb) return <Layout title={t('leaderboard.title')}><p>{t('leaderboard.notFound')}</p></Layout>
 
   return (
     <Layout
@@ -30,7 +32,7 @@ export function CompetitionLeaderboardPage() {
       back={`/competitions/${id}`}
       action={
         <Button variant="ghost" size="sm" onClick={() => refetch()} loading={isFetching}>
-          ↻ Refresh
+          {t('leaderboard.refresh')}
         </Button>
       }
     >

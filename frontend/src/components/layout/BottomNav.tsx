@@ -2,19 +2,7 @@ import { useRef, useState, useLayoutEffect, useEffect } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../contexts/AuthContext'
-
-const NAV_ITEMS = [
-  { to: '/',            icon: '🏠', label: 'Home' },
-  { to: '/competitions', icon: '🏆', label: 'Compete' },
-  { to: '/leaderboard', icon: '📊', label: 'Scores' },
-  { to: '/profile',     icon: '👤', label: 'Profile' },
-]
-const ADMIN_ITEM = { to: '/admin', icon: '⚙️', label: 'Admin' }
-const GUEST_NAV_ITEMS = [
-  { to: '/competitions', icon: '🏆', label: 'Compete' },
-  { to: '/leaderboard', icon: '📊', label: 'Scores' },
-  { to: '/login',       icon: '👤', label: 'Sign In' },
-]
+import { useTranslation } from 'react-i18next'
 
 function matchItem(to: string, pathname: string) {
   if (to === '/') return pathname === '/'
@@ -26,6 +14,20 @@ export function BottomNav() {
   const location = useLocation()
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const { t } = useTranslation()
+
+  const NAV_ITEMS = [
+    { to: '/',             icon: '🏠', label: t('nav.home') },
+    { to: '/competitions', icon: '🏆', label: t('nav.compete') },
+    { to: '/leaderboard',  icon: '📊', label: t('nav.scores') },
+    { to: '/profile',      icon: '👤', label: t('nav.profile') },
+  ]
+  const ADMIN_ITEM = { to: '/admin', icon: '⚙️', label: t('nav.admin') }
+  const GUEST_NAV_ITEMS = [
+    { to: '/competitions', icon: '🏆', label: t('nav.compete') },
+    { to: '/leaderboard',  icon: '📊', label: t('nav.scores') },
+    { to: '/login',        icon: '👤', label: t('nav.signIn') },
+  ]
 
   function handleScoreNav() {
     const cached = qc.getQueryData<{ competitions: any[] }>(['competitions'])
@@ -179,7 +181,7 @@ export function BottomNav() {
                   }}
                 >
                   <span style={{ fontSize: '20px', lineHeight: 1 }}>✏️</span>
-                  <span style={{ fontSize: '9px', fontFamily: 'var(--font-ui)', fontWeight: 700, letterSpacing: '0.05em' }}>SCORE</span>
+                  <span style={{ fontSize: '9px', fontFamily: 'var(--font-ui)', fontWeight: 700, letterSpacing: '0.05em' }}>{t('nav.score')}</span>
                 </button>
               </div>
             )}

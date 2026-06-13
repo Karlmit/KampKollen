@@ -5,9 +5,11 @@ import { Card } from '../components/ui/Card'
 import { Avatar } from '../components/ui/Avatar'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { api } from '../api/client'
+import { useTranslation } from 'react-i18next'
 
 export function IndividualLeaderboardPage() {
   const { id } = useParams<{ id: string }>()
+  const { t } = useTranslation()
 
   const { data, isLoading } = useQuery({
     queryKey: ['leaderboard', id],
@@ -16,17 +18,17 @@ export function IndividualLeaderboardPage() {
     refetchInterval: 30_000,
   })
 
-  if (isLoading) return <Layout title="Individual" back={`/competitions/${id}/leaderboard`}><LoadingSpinner /></Layout>
+  if (isLoading) return <Layout title={t('leaderboard.individual')} back={`/competitions/${id}/leaderboard`}><LoadingSpinner /></Layout>
 
   const lb = data
-  if (!lb) return <Layout title="Individual"><p>Not found</p></Layout>
+  if (!lb) return <Layout title={t('leaderboard.individual')}><p>{t('leaderboard.notFound')}</p></Layout>
 
   const rankEmoji = (rank: number) => rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`
 
   return (
-    <Layout title="Individual" back={`/competitions/${id}/leaderboard`}>
+    <Layout title={t('leaderboard.individual')} back={`/competitions/${id}/leaderboard`}>
       <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '16px' }}>
-        {lb.competition.name} · {lb.individualLeaderboard.length} players
+        {lb.competition.name} · {t('leaderboard.playersCount', { count: lb.individualLeaderboard.length })}
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {lb.individualLeaderboard.map((p: any) => (
@@ -50,7 +52,7 @@ export function IndividualLeaderboardPage() {
                 <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px' }}>
                   {p.totalPoints.toFixed(0)}
                 </p>
-                <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>pts</p>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{t('leaderboard.pts')}</p>
               </div>
             </div>
           </Card>

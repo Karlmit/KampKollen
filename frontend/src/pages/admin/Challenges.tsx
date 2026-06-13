@@ -10,34 +10,11 @@ import { Badge } from '../../components/ui/Badge'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { api } from '../../api/client'
 import { ImageGenerator } from '../../components/ImageGenerator'
-import { ScoreType, TeamScoreMode, SCORE_TYPE_LABELS } from '../../types'
-
-const SCORE_TYPES = Object.entries(SCORE_TYPE_LABELS) as [ScoreType, string][]
-
-const TEAM_MODE_OPTIONS: { value: TeamScoreMode; label: string; desc: string }[] = [
-  {
-    value: 'sum_all_players',
-    label: 'Sum all players',
-    desc: 'Add up every player\'s score. Best when all players participate equally and teams are the same size.',
-  },
-  {
-    value: 'best_n_players',
-    label: 'Best N players',
-    desc: 'Only the top N scores from each team count. Useful when teams have different sizes or you want only the best performers to matter.',
-  },
-  {
-    value: 'average_score',
-    label: 'Average score',
-    desc: 'Total divided by number of players. Fair when teams have different sizes — a large team can\'t just win by having more people.',
-  },
-  {
-    value: 'manual_team_score',
-    label: 'Manual team score',
-    desc: 'Enter one score per team directly. Use for relay races, group challenges, or any event where individual scores aren\'t tracked.',
-  },
-]
+import { ScoreType, TeamScoreMode } from '../../types'
+import { useTranslation } from 'react-i18next'
 
 export function AdminChallenges() {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<any>(null)
@@ -48,6 +25,20 @@ export function AdminChallenges() {
     defaultTeamScoreMode: 'sum_all_players' as TeamScoreMode,
     bestNPlayers: '', isGlobalTemplate: true, isQuiz: false,
   })
+
+  const SCORE_TYPES: [ScoreType, string][] = [
+    ['number_highest_wins', t('scoreTypes.number_highest_wins')],
+    ['number_lowest_wins', t('scoreTypes.number_lowest_wins')],
+    ['time_fastest_wins', t('scoreTypes.time_fastest_wins')],
+    ['manual_points', t('scoreTypes.manual_points')],
+  ]
+
+  const TEAM_MODE_OPTIONS: { value: TeamScoreMode; label: string; desc: string }[] = [
+    { value: 'sum_all_players', label: t('admin.challenges.sumAllPlayers'), desc: t('admin.challenges.sumAllPlayersDesc') },
+    { value: 'best_n_players', label: t('admin.challenges.bestNPlayers'), desc: t('admin.challenges.bestNPlayersDesc') },
+    { value: 'average_score', label: t('admin.challenges.averageScore'), desc: t('admin.challenges.averageScoreDesc') },
+    { value: 'manual_team_score', label: t('admin.challenges.manualTeamScore'), desc: t('admin.challenges.manualTeamScoreDesc') },
+  ]
 
   const { data, isLoading } = useQuery({ queryKey: ['challenges'], queryFn: () => api.challenges.list() })
 
@@ -80,10 +71,10 @@ export function AdminChallenges() {
     setForm(f => ({ ...f, [key]: e.target.value }))
 
   return (
-    <AdminLayout title="Challenges">
+    <AdminLayout title={t('admin.challenges.title')}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>{data?.challenges?.length ?? 0} challenges</p>
-        <Button size="sm" onClick={openCreate}>+ New Challenge</Button>
+        <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>{t('admin.challenges.count', { count: data?.challenges?.length ?? 0 })}</p>
+        <Button size="sm" onClick={openCreate}>{t('admin.challenges.newChallenge')}</Button>
       </div>
 
       {isLoading ? <LoadingSpinner /> : (
@@ -93,23 +84,23 @@ export function AdminChallenges() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
                 <div>
                   <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px' }}>{c.name}</p>
-                  <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{SCORE_TYPE_LABELS[c.scoreType as ScoreType]}</p>
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{t(`scoreTypes.${c.scoreType}` as any)}</p>
                 </div>
                 <div style={{ display: 'flex', gap: '4px' }}>
-                  {c.isGlobalTemplate && <Badge variant="info">Template</Badge>}
-                  {c.isQuiz && <Badge variant="success">🎯 Quiz ({c._count?.quizQuestions ?? 0} Q)</Badge>}
+                  {c.isGlobalTemplate && <Badge variant="info">{t('admin.challenges.template')}</Badge>}
+                  {c.isQuiz && <Badge variant="success">{t('admin.challenges.quiz', { count: c._count?.quizQuestions ?? 0 })}</Badge>}
                 </div>
               </div>
               {c.description && <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>{c.description}</p>}
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                <Button size="sm" variant="ghost" style={{ fontSize: '12px' }} onClick={() => openEdit(c)}>Edit</Button>
+                <Button size="sm" variant="ghost" style={{ fontSize: '12px' }} onClick={() => openEdit(c)}>{t('admin.challenges.edit')}</Button>
                 {c.isQuiz && (
                   <Link to={`/admin/quiz/${c.id}`}>
-                    <Button size="sm" variant="ghost" style={{ fontSize: '12px' }}>📝 Questions</Button>
+                    <Button size="sm" variant="ghost" style={{ fontSize: '12px' }}>{t('admin.challenges.questions')}</Button>
                   </Link>
                 )}
-                <Button size="sm" variant="ghost" style={{ fontSize: '12px' }} onClick={() => setImageChallenge(c)}>✨ Image</Button>
-                <Button size="sm" variant="danger" style={{ fontSize: '12px' }} onClick={() => setDeleteConfirm(c)}>Delete</Button>
+                <Button size="sm" variant="ghost" style={{ fontSize: '12px' }} onClick={() => setImageChallenge(c)}>{t('admin.challenges.image')}</Button>
+                <Button size="sm" variant="danger" style={{ fontSize: '12px' }} onClick={() => setDeleteConfirm(c)}>{t('admin.challenges.delete')}</Button>
               </div>
             </Card>
           ))}
@@ -117,7 +108,7 @@ export function AdminChallenges() {
       )}
 
       {/* Challenge image modal */}
-      <Modal open={!!imageChallenge} onClose={() => setImageChallenge(null)} title={imageChallenge ? `Image for ${imageChallenge.name}` : ''}>
+      <Modal open={!!imageChallenge} onClose={() => setImageChallenge(null)} title={imageChallenge ? t('admin.challenges.imageFor', { name: imageChallenge.name }) : ''}>
         {imageChallenge && (
           <ImageGenerator
             defaultPrompt={`An app icon for a sports challenge called "${imageChallenge.name}". Simple, bold, colorful icon style.`}
@@ -134,51 +125,51 @@ export function AdminChallenges() {
       </Modal>
 
       {/* Delete confirm modal */}
-      <Modal open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="Delete Challenge"
+      <Modal open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title={t('admin.challenges.deleteChallenge')}
         footer={
           <>
-            <Button variant="ghost" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+            <Button variant="ghost" onClick={() => setDeleteConfirm(null)}>{t('common.cancel')}</Button>
             <Button variant="danger" onClick={() => { deleteMutation.mutate(deleteConfirm.id); setDeleteConfirm(null) }} loading={deleteMutation.isPending}>
-              Delete
+              {t('admin.challenges.delete')}
             </Button>
           </>
         }
       >
-        <p style={{ fontSize: '15px' }}>Delete <strong>{deleteConfirm?.name}</strong>?</p>
-        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px' }}>This will remove the challenge from all competitions.</p>
+        <p style={{ fontSize: '15px' }}>{t('admin.challenges.deleteChallengeTitle', { name: deleteConfirm?.name })}</p>
+        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px' }}>{t('admin.challenges.deleteChallengeDesc')}</p>
       </Modal>
 
-      <Modal open={open} onClose={() => setOpen(false)} title={editing ? 'Edit Challenge' : 'Create Challenge'}
+      <Modal open={open} onClose={() => setOpen(false)} title={editing ? t('admin.challenges.editChallengeTitle') : t('admin.challenges.createChallenge')}
         footer={
           <>
-            <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={() => saveMutation.mutate()} loading={saveMutation.isPending} disabled={!form.name}>Save</Button>
+            <Button variant="ghost" onClick={() => setOpen(false)}>{t('common.cancel')}</Button>
+            <Button onClick={() => saveMutation.mutate()} loading={saveMutation.isPending} disabled={!form.name}>{t('admin.challenges.save')}</Button>
           </>
         }
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <Input label="Name *" value={form.name} onChange={set('name')} autoFocus />
-          <Input label="Description" value={form.description} onChange={set('description')} />
+          <Input label={t('admin.challenges.name')} value={form.name} onChange={set('name')} autoFocus />
+          <Input label={t('admin.challenges.description')} value={form.description} onChange={set('description')} />
           <div>
             <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
               <input type="checkbox" checked={form.isQuiz} onChange={e => setForm(f => ({ ...f, isQuiz: e.target.checked }))} />
-              🎯 This is a quiz challenge
+              {t('admin.challenges.isQuizChallenge')}
             </label>
             {form.isQuiz && (
-              <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Quiz challenges use multiple-choice questions with guided correction. Score type is fixed to manual points.</p>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{t('admin.challenges.quizDesc')}</p>
             )}
           </div>
           {!form.isQuiz && (
             <>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>Score type</label>
+                <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>{t('admin.challenges.scoreType')}</label>
                 <select value={form.scoreType} onChange={set('scoreType') as any}
                   style={{ padding: '10px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', fontSize: '15px' }}>
                   {SCORE_TYPES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
                 </select>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>How team score is calculated</label>
+                <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>{t('admin.challenges.teamScoreCalc')}</label>
                 {TEAM_MODE_OPTIONS.map(opt => (
                   <button
                     key={opt.value}
@@ -197,7 +188,7 @@ export function AdminChallenges() {
                 ))}
               </div>
               {form.defaultTeamScoreMode === 'best_n_players' && (
-                <Input label="How many top players to count" type="number" value={form.bestNPlayers} onChange={set('bestNPlayers')} placeholder="e.g. 3" />
+                <Input label={t('admin.challenges.topPlayersCount')} type="number" value={form.bestNPlayers} onChange={set('bestNPlayers')} placeholder={t('admin.challenges.topPlayersPlaceholder')} />
               )}
             </>
           )}

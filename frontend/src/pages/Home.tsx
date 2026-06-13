@@ -8,9 +8,11 @@ import { useAuth } from '../contexts/AuthContext'
 import { api } from '../api/client'
 import { Competition } from '../types'
 import { formatDate } from '../utils'
+import { useTranslation } from 'react-i18next'
 
 export function Home() {
   const { user } = useAuth()
+  const { t } = useTranslation()
   const { data, isLoading } = useQuery({
     queryKey: ['competitions'],
     queryFn: () => api.competitions.list(),
@@ -44,13 +46,13 @@ export function Home() {
                   <span style={{
                     fontSize: '11px', fontFamily: 'var(--font-ui)',
                     fontWeight: 700, letterSpacing: '0.1em', opacity: 0.9,
-                  }}>LIVE NOW</span>
+                  }}>{t('home.liveNow')}</span>
                 </>
               ) : (
                 <span style={{
                   fontSize: '11px', fontFamily: 'var(--font-ui)',
                   fontWeight: 700, letterSpacing: '0.1em', opacity: 0.6,
-                }}>REGISTRATION OPEN</span>
+                }}>{t('home.registrationOpen')}</span>
               )}
             </div>
             <h1 style={{
@@ -60,7 +62,7 @@ export function Home() {
               {primaryComp.name}
             </h1>
             <p style={{ fontSize: '14px', opacity: 0.65 }}>
-              {(primaryComp as any).teams?.length ?? 0} teams · {primaryComp._count?.players ?? 0} players
+              {(primaryComp as any).teams?.length ?? 0} {t('common.teams')} · {primaryComp._count?.players ?? 0} {t('common.players')}
             </p>
           </>
         ) : (
@@ -68,14 +70,14 @@ export function Home() {
             <p style={{
               fontSize: '11px', fontFamily: 'var(--font-ui)', fontWeight: 700,
               letterSpacing: '0.1em', opacity: 0.55, marginBottom: '10px',
-            }}>WELCOME BACK</p>
+            }}>{t('home.welcomeBack')}</p>
             <h1 style={{
               fontSize: '28px', fontFamily: 'var(--font-ui)',
               color: '#fff', marginBottom: '8px', lineHeight: 1.15,
             }}>
               {user?.displayName ?? user?.username}
             </h1>
-            <p style={{ fontSize: '14px', opacity: 0.65 }}>No active competitions right now</p>
+            <p style={{ fontSize: '14px', opacity: 0.65 }}>{t('home.noActiveCompetitions')}</p>
           </>
         )}
       </div>
@@ -89,7 +91,7 @@ export function Home() {
             fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '0.08em',
             textTransform: 'uppercase', marginBottom: '10px', color: 'var(--text-muted)',
           }}>
-            Active Competitions
+            {t('home.activeCompetitions')}
           </h2>
           <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {activeCompetitions.map((comp: Competition) => (
@@ -107,7 +109,7 @@ export function Home() {
                         </p>
                       </div>
                       <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                        {comp.date ? formatDate(comp.date) + ' · ' : ''}{comp._count?.players ?? 0} players
+                        {comp.date ? formatDate(comp.date) + ' · ' : ''}{comp._count?.players ?? 0} {t('common.players')}
                       </p>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px', flexShrink: 0 }}>
@@ -124,10 +126,10 @@ export function Home() {
         <Link to="/competitions" style={{ textDecoration: 'none' }}>
           <Card className="card-interactive" style={{ textAlign: 'center', padding: '24px 16px' }}>
             <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px', marginBottom: '4px' }}>
-              Browse Competitions
+              {t('home.browseCompetitions')}
             </p>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-              View all upcoming and past events
+              {t('home.viewAllEvents')}
             </p>
           </Card>
         </Link>
