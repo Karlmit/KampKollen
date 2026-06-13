@@ -304,7 +304,7 @@ export async function leaderboardRoutes(app: FastifyInstance) {
     } catch { /* guest: no filter */ }
 
     const challenges = await prisma.challenge.findMany({
-      where: { competitionChallenges: { some: { scores: { some: {} } } } },
+      where: { isQuiz: { not: true }, competitionChallenges: { some: { scores: { some: {} } } } },
       include: {
         competitionChallenges: {
           where: groupFilter ? { competition: { groupId: { in: groupFilter } } } : undefined,

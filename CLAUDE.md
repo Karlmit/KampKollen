@@ -47,3 +47,13 @@ KampKollen uses **i18next** + **react-i18next**. Swedish (`sv`) is the default l
 | `scoreTypes.*` | Score type labels |
 | `admin.*` | All admin pages |
 | *(page name).*` | Per-page keys (competitions, challenges, profile, …) |
+
+## Always push and tag after changes
+
+After every set of changes:
+
+1. Commit with a descriptive message.
+2. Tag the commit `vX.Y.Z` (increment the appropriate semver part).
+3. Push both: `git push && git push --tags`
+
+The tag triggers GitHub Actions → GHCR publish → Unraid update. Without the tag push the deployment never fires.

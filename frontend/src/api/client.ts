@@ -172,6 +172,8 @@ export const api = {
       request(`/quiz/${ccId}/answers/${answerId}/lock`, { method: 'PUT', body: '{}' }),
     setQuizMaster: (compId: string, userId: string, isQuizMaster: boolean) =>
       request(`/quiz/competition/${compId}/players/${userId}/quiz-master`, { method: 'PUT', body: JSON.stringify({ isQuizMaster }) }),
+    history: (groupId?: string | null) =>
+      request<{ quizSessions: any[] }>(`/quiz/history${groupId ? `?groupId=${groupId}` : ''}`),
   },
 
   // Groups

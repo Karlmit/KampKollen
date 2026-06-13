@@ -70,8 +70,12 @@ export function AdminCompetitionManage() {
 
   const [addPlayerOpen, setAddPlayerOpen] = useState(false)
   const [addChallengeOpen, setAddChallengeOpen] = useState(false)
+  const [addQuizOpen, setAddQuizOpen] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState('')
   const [selectedChallengeId, setSelectedChallengeId] = useState('')
+  const [selectedQuizId, setSelectedQuizId] = useState('')
+  const [newQuizName, setNewQuizName] = useState('')
+  const [deletingQuizTemplate, setDeletingQuizTemplate] = useState<any>(null)
 
   const [assignTeamPlayer, setAssignTeamPlayer] = useState<any>(null)
   const [renamingTeam, setRenamingTeam] = useState<any>(null)
@@ -125,6 +129,25 @@ export function AdminCompetitionManage() {
   const removeChallengeMutation = useMutation({
     mutationFn: (challengeId: string) => api.competitions.removeChallenge(id!, challengeId),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['competition', id] }); setRemovingChallenge(null) },
+  })
+
+  const addQuizMutation = useMutation({
+    mutationFn: (challengeId: string) => api.competitions.addChallenge(id!, { challengeId }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['competition', id] }); setAddQuizOpen(false); setSelectedQuizId('') },
+  })
+
+  const createQuizMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const { challenge } = await api.challenges.create({ name, isQuiz: true, scoreType: 'manual_points', defaultTeamScoreMode: 'sum_all_players' })
+      await api.competitions.addChallenge(id!, { challengeId: challenge.id })
+      return challenge
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['challenges'] }); qc.invalidateQueries({ queryKey: ['competition', id] }); setAddQuizOpen(false); setNewQuizName('') },
+  })
+
+  const deleteQuizTemplateMutation = useMutation({
+    mutationFn: (challengeId: string) => api.challenges.delete(challengeId),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['challenges'] }); setDeletingQuizTemplate(null) },
   })
 
   const reorderMutation = useMutation({
@@ -207,8 +230,11 @@ export function AdminCompetitionManage() {
   }) ?? []
 
   const availableChallenges = challengesData?.challenges?.filter((c: any) =>
-    !comp.challenges?.some((cc: any) => cc.challengeId === c.id)
+    !c.isQuiz && !comp.challenges?.some((cc: any) => cc.challengeId === c.id)
   ) ?? []
+
+  const allQuizTemplates = challengesData?.challenges?.filter((c: any) => c.isQuiz) ?? []
+  const addedQuizIds = new Set(comp.challenges?.filter((cc: any) => cc.challenge?.isQuiz).map((cc: any) => cc.challengeId) ?? [])
 
   const autoMaxPts = comp.isTeamCompetition !== false
     ? (comp.teams?.length ?? 0) * 10
@@ -319,7 +345,10 @@ export function AdminCompetitionManage() {
       {/* Challenges tab */}
       {tab === 'challenges' && (
         <>
-          <Button size="sm" onClick={() => setAddChallengeOpen(true)} style={{ marginBottom: '12px' }}>{t('admin.manage.addChallenge')}</Button>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+            <Button size="sm" onClick={() => setAddChallengeOpen(true)}>{t('admin.manage.addChallenge')}</Button>
+            <Button size="sm" variant="ghost" onClick={() => { setAddQuizOpen(true); setSelectedQuizId(''); setNewQuizName('') }}>{t('admin.manage.addQuiz')}</Button>
+          </div>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={localChallenges.map(c => c.id)} strategy={verticalListSortingStrategy}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -583,6 +612,126 @@ export function AdminCompetitionManage() {
           {t('admin.manage.removeChallengeConfirm', { name: removingChallenge?.challenge?.name })}
         </p>
         <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px' }}>{t('admin.manage.removeChallengeDesc')}</p>
+      </Modal>
+
+      {/* Add Quiz modal */}
+      <Modal open={addQuizOpen} onClose={() => { setAddQuizOpen(false); setSelectedQuizId(''); setNewQuizName('') }} title={t('admin.manage.addQuizModal')}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {/* Existing quiz templates */}
+          {allQuizTemplates.length > 0 && (
+            <div>
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '8px', letterSpacing: '0.05em' }}>
+                {t('admin.manage.quizTemplates').toUpperCase()}
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {allQuizTemplates.map((c: any) => {
+                  const alreadyAdded = addedQuizIds.has(c.id)
+                  const isSelected = selectedQuizId === c.id
+                  return (
+                    <div key={c.id} style={{
+                      display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px',
+                      borderRadius: 'var(--radius)',
+                      border: isSelected ? '2px solid var(--accent)' : '1.5px solid var(--border-light)',
+                      background: isSelected ? 'var(--surface)' : alreadyAdded ? 'var(--surface)' : 'var(--background)',
+                      opacity: alreadyAdded ? 0.6 : 1,
+                    }}>
+                      <span style={{ fontSize: '18px', flexShrink: 0 }}>🎯</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</p>
+                        <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                          {c._count?.quizQuestions ?? 0} {t('admin.manage.questions')}
+                          {alreadyAdded && ` · ${t('admin.manage.alreadyInCompetition')}`}
+                        </p>
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                        {!alreadyAdded && (
+                          <Button
+                            size="sm"
+                            variant={isSelected ? 'primary' : 'ghost'}
+                            style={{ fontSize: '11px', padding: '4px 10px' }}
+                            onClick={() => setSelectedQuizId(isSelected ? '' : c.id)}
+                          >
+                            {isSelected ? '✓ ' + t('admin.manage.selected') : t('admin.manage.select')}
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          style={{ fontSize: '11px', padding: '4px 8px' }}
+                          onClick={() => setDeletingQuizTemplate(c)}
+                        >
+                          ×
+                        </Button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {selectedQuizId && (
+            <Button
+              fullWidth
+              onClick={() => addQuizMutation.mutate(selectedQuizId)}
+              loading={addQuizMutation.isPending}
+            >
+              {t('admin.manage.addSelectedQuiz')}
+            </Button>
+          )}
+
+          {/* Create new quiz template */}
+          <div>
+            <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '8px', letterSpacing: '0.05em' }}>
+              {t('admin.manage.createNewQuiz').toUpperCase()}
+            </p>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                value={newQuizName}
+                onChange={e => setNewQuizName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && newQuizName.trim()) createQuizMutation.mutate(newQuizName.trim()) }}
+                placeholder={t('admin.manage.quizNamePlaceholder')}
+                style={{ flex: 1, padding: '10px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', fontSize: '14px', fontFamily: 'var(--font-ui)' }}
+              />
+              <Button
+                size="sm"
+                disabled={!newQuizName.trim()}
+                loading={createQuizMutation.isPending}
+                onClick={() => createQuizMutation.mutate(newQuizName.trim())}
+              >
+                {t('admin.manage.createAndAdd')}
+              </Button>
+            </div>
+          </div>
+
+          {allQuizTemplates.length === 0 && !newQuizName && (
+            <p style={{ color: 'var(--text-muted)', fontSize: '14px', textAlign: 'center', padding: '8px 0' }}>
+              {t('admin.manage.noQuizTemplates')}
+            </p>
+          )}
+        </div>
+      </Modal>
+
+      {/* Delete quiz template confirm modal */}
+      <Modal
+        open={!!deletingQuizTemplate}
+        onClose={() => setDeletingQuizTemplate(null)}
+        title={t('admin.manage.deleteQuizTemplate')}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setDeletingQuizTemplate(null)}>{t('common.cancel')}</Button>
+            <Button
+              variant="danger"
+              onClick={() => deleteQuizTemplateMutation.mutate(deletingQuizTemplate.id)}
+              loading={deleteQuizTemplateMutation.isPending}
+            >
+              {t('common.delete')}
+            </Button>
+          </>
+        }
+      >
+        <p style={{ fontSize: '15px' }}>{t('admin.manage.deleteQuizTemplateConfirm', { name: deletingQuizTemplate?.name })}</p>
+        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px' }}>{t('admin.manage.deleteQuizTemplateDesc')}</p>
       </Modal>
 
       {/* Add challenge modal */}

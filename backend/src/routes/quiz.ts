@@ -708,6 +708,41 @@ export async function quizRoutes(app: FastifyInstance) {
     return { success: true }
   })
 
+  // ── Quiz history — completed quiz sessions ───────────────────────────────────
+  app.get('/history', { preHandler: optionalAuth }, async (request, reply) => {
+    const { groupId } = request.query as { groupId?: string }
+    const groupFilter: string | null = groupId ?? null
+
+    const sessions = await prisma.quizSession.findMany({
+      where: {
+        status: 'COMPLETED',
+        ...(groupFilter ? {
+          competitionChallenge: { competition: { groupId: groupFilter } }
+        } : {}),
+      },
+      include: {
+        competitionChallenge: {
+          include: {
+            challenge: { select: { id: true, name: true } },
+            competition: { select: { id: true, name: true } },
+          }
+        }
+      },
+      orderBy: { updatedAt: 'desc' },
+    })
+
+    return reply.send({
+      quizSessions: sessions.map(s => ({
+        ccId: s.competitionChallengeId,
+        competitionId: s.competitionChallenge.competition.id,
+        competitionName: s.competitionChallenge.competition.name,
+        quizName: s.competitionChallenge.challenge.name,
+        challengeId: s.competitionChallenge.challenge.id,
+        updatedAt: s.updatedAt.toISOString(),
+      }))
+    })
+  })
+
   // ── Quiz Master toggle (admin only) ─────────────────────────────────────────
   app.put('/competition/:compId/players/:userId/quiz-master', { preHandler: requireAdmin }, async (request, reply) => {
     const { compId, userId } = request.params as { compId: string; userId: string }

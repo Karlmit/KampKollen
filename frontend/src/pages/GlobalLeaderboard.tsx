@@ -12,7 +12,7 @@ import { api } from '../api/client'
 import { formatDate, formatScore } from '../utils'
 import { useTranslation } from 'react-i18next'
 
-type View = 'competitions' | 'challenges' | 'awards'
+type View = 'competitions' | 'challenges' | 'awards' | 'quizHistory'
 
 export function GlobalLeaderboard() {
   const { user } = useAuth()
@@ -43,6 +43,12 @@ export function GlobalLeaderboard() {
     enabled: view === 'awards',
   })
 
+  const { data: quizHistoryData, isLoading: quizHistoryLoading } = useQuery({
+    queryKey: ['quiz-history', activeGroupId],
+    queryFn: () => api.quiz.history(activeGroupId),
+    enabled: view === 'quizHistory',
+  })
+
   const allComps: any[] = compsData?.competitions ?? []
   const filteredComps = activeGroupId ? allComps.filter((c: any) => c.groupId === activeGroupId) : allComps
   const activeComps = filteredComps.filter((c: any) => c.status === 'ACTIVE')
@@ -50,10 +56,12 @@ export function GlobalLeaderboard() {
 
   const challengeRecords: any[] = challengeData?.challenges ?? []
   const awardPlayers: any[] = awardsData?.players ?? []
+  const quizSessions: any[] = quizHistoryData?.quizSessions ?? []
 
   const viewButtons: { key: View; icon: string; labelKey: string }[] = [
     { key: 'competitions', icon: '🏆', labelKey: 'globalLeaderboard.competitionsLabel' },
     { key: 'challenges',   icon: '⚔️',  labelKey: 'globalLeaderboard.challengesLabel' },
+    { key: 'quizHistory',  icon: '🎯',  labelKey: 'globalLeaderboard.quizHistoryLabel' },
     { key: 'awards',       icon: '🎁',  labelKey: 'globalLeaderboard.awardsLabel' },
   ]
 
@@ -206,6 +214,36 @@ export function GlobalLeaderboard() {
                     ))}
                   </div>
                 </Card>
+              ))}
+            </div>
+          )
+        )
+      )}
+
+      {/* ── Quiz History view ── */}
+      {view === 'quizHistory' && (
+        quizHistoryLoading ? <LoadingSpinner /> : (
+          quizSessions.length === 0 ? (
+            <Card><p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 0' }}>{t('globalLeaderboard.noQuizzesYet')}</p></Card>
+          ) : (
+            <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {quizSessions.map((s: any) => (
+                <Link to={`/competitions/${s.competitionId}/quiz/${s.ccId}`} key={s.ccId} style={{ textDecoration: 'none' }}>
+                  <Card className="card-interactive">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span style={{ fontSize: '28px', lineHeight: 1, flexShrink: 0 }}>🎯</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {s.quizName}
+                        </p>
+                        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {s.competitionName}
+                        </p>
+                      </div>
+                      <span style={{ fontSize: '18px', color: 'var(--text-muted)', lineHeight: 1, flexShrink: 0 }}>›</span>
+                    </div>
+                  </Card>
+                </Link>
               ))}
             </div>
           )
