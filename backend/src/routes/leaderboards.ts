@@ -67,11 +67,20 @@ export async function leaderboardRoutes(app: FastifyInstance) {
       if (competition.status !== 'ACTIVE') return reply.status(403).send({ error: 'Access denied' })
     }
 
-    const numPlayers = competition.players.length
     const numTeams = competition.teams.length
+
+    // In team competitions, only players assigned to a team are real participants.
+    // Unassigned (player-pool) players are excluded from the individual leaderboard
+    // and from every per-challenge score calculation.
+    const isTeamComp = competition.isTeamCompetition !== false
+    const individualPlayerIds = new Set(
+      competition.players.filter(p => !isTeamComp || p.teamId).map(p => p.userId)
+    )
+    const numIndividualPlayers = individualPlayerIds.size
+
     const playerMaxPts = (!competition.isTeamCompetition && competition.placementMaxPoints)
       ? competition.placementMaxPoints
-      : numPlayers * 10
+      : numIndividualPlayers * 10
 
     // Mutable totals
     const teamPoints: Record<string, { totalPoints: number; challengeBreakdown: Record<string, number> }> = {}
@@ -80,7 +89,7 @@ export async function leaderboardRoutes(app: FastifyInstance) {
     }
     const playerPoints: Record<string, number> = {}
     for (const p of competition.players) {
-      playerPoints[p.userId] = 0
+      if (individualPlayerIds.has(p.userId)) playerPoints[p.userId] = 0
     }
 
     const challengeLeaderboards: any[] = []
@@ -91,14 +100,18 @@ export async function leaderboardRoutes(app: FastifyInstance) {
       const bestN = cc.bestNPlayersOverride ?? cc.challenge.bestNPlayers
       const lowerBetter = isLowerBetter(scoreType)
 
-      const allScoreInputs = cc.scores.map(s => ({
+      // Drop unassigned players' scores entirely, so they neither rank nor shift
+      // anyone else's points (relevant for relative score types like ranked_points).
+      const scores = cc.scores.filter(s => individualPlayerIds.has(s.userId))
+
+      const allScoreInputs = scores.map(s => ({
         userId: s.userId, rawScore: s.rawScore, timeMs: s.timeMs,
         placement: s.placement, calculatedPoints: s.calculatedPoints, teamId: null,
       }))
 
       // Compute raw calculated points per player for this challenge
       const playerChallengePoints: Record<string, number> = {}
-      for (const s of cc.scores) {
+      for (const s of scores) {
         playerChallengePoints[s.userId] = computeCalculatedPoints(
           { userId: s.userId, rawScore: s.rawScore, timeMs: s.timeMs, placement: s.placement, calculatedPoints: s.calculatedPoints, teamId: null },
           allScoreInputs,
@@ -130,7 +143,7 @@ export async function leaderboardRoutes(app: FastifyInstance) {
             sortedPlayers.forEach(({ userId, score }, i) => {
               if (score === 0) return
               if (playerPoints[userId] !== undefined)
-                playerPoints[userId] += (numPlayers - i) * 10
+                playerPoints[userId] += (numIndividualPlayers - i) * 10
             })
           }
         } else {
@@ -223,7 +236,7 @@ export async function leaderboardRoutes(app: FastifyInstance) {
           ...(competition.scoringMode === 'placement_points' && score > 0
             ? { placementPoints: tbm
                 ? calcPlacementPts(rank, playerMaxPts, cpRankSizes[rank], tbm)
-                : (numPlayers - (rank - 1)) * 10 }
+                : (numIndividualPlayers - (rank - 1)) * 10 }
             : {}),
         }
       })
@@ -273,8 +286,9 @@ export async function leaderboardRoutes(app: FastifyInstance) {
       ? tiedRanks(sortedTeams, t => t.totalPoints)
       : sortedTeams.map((t, i) => ({ ...t, rank: i + 1 }))
 
-    // Individual leaderboard
+    // Individual leaderboard — unassigned players are excluded in team competitions
     const sortedPlayers = competition.players
+      .filter(cp => individualPlayerIds.has(cp.userId))
       .map(cp => {
         const team = competition.teams.find(t => t.id === cp.teamId)
         return {

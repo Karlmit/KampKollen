@@ -49,10 +49,11 @@ async function getUserGroupIds(userId: string): Promise<string[]> {
 const AUTO_ENROLL_STATUSES = ['REGISTRATION', 'ACTIVE']
 
 // Ensure every member of a competition's group has a CompetitionPlayer row, i.e.
-// sits in the player pool as an unassigned player. Group membership *is* enrollment —
-// users no longer actively join. Idempotent and safe to call on every read.
-async function ensureGroupPlayers(competitionId: string, groupId: string | null, status: string): Promise<void> {
-  if (!groupId || !AUTO_ENROLL_STATUSES.includes(status)) return
+// sits in the player pool as an unassigned player. Group membership *is* enrollment
+// for team competitions, so members don't actively join. Individual competitions still
+// require an explicit join, so they are skipped. Idempotent and safe to call on every read.
+async function ensureGroupPlayers(competitionId: string, groupId: string | null, status: string, isTeamCompetition: boolean): Promise<void> {
+  if (!groupId || !AUTO_ENROLL_STATUSES.includes(status) || isTeamCompetition === false) return
   const [members, existing] = await Promise.all([
     prisma.userGroup.findMany({ where: { groupId }, select: { userId: true } }),
     prisma.competitionPlayer.findMany({ where: { competitionId }, select: { userId: true } }),
@@ -86,9 +87,9 @@ export async function competitionRoutes(app: FastifyInstance) {
     if (callerId) {
       const eligible = await prisma.competition.findMany({
         where: { ...where, status: { in: AUTO_ENROLL_STATUSES } },
-        select: { id: true, groupId: true, status: true },
+        select: { id: true, groupId: true, status: true, isTeamCompetition: true },
       })
-      await Promise.all(eligible.map(c => ensureGroupPlayers(c.id, c.groupId, c.status)))
+      await Promise.all(eligible.map(c => ensureGroupPlayers(c.id, c.groupId, c.status, c.isTeamCompetition)))
     }
 
     const competitions = await prisma.competition.findMany({
@@ -119,9 +120,9 @@ export async function competitionRoutes(app: FastifyInstance) {
 
     // Auto-enroll group members into the player pool before reading, so the
     // viewer (and everyone in the group) appears as an unassigned player.
-    const meta = await prisma.competition.findUnique({ where: { id }, select: { groupId: true, status: true } })
+    const meta = await prisma.competition.findUnique({ where: { id }, select: { groupId: true, status: true, isTeamCompetition: true } })
     if (!meta) return reply.status(404).send({ error: 'Competition not found' })
-    await ensureGroupPlayers(id, meta.groupId, meta.status)
+    await ensureGroupPlayers(id, meta.groupId, meta.status, meta.isTeamCompetition)
 
     const competition = await prisma.competition.findUnique({
       where: { id },

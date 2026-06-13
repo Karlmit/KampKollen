@@ -45,6 +45,12 @@ export function CompetitionDetail() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['competition', id] }),
   })
 
+  // Individual competitions require an explicit join (team competitions auto-enroll group members)
+  const joinMutation = useMutation({
+    mutationFn: () => api.competitions.join(id!),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['competition', id] }),
+  })
+
   const [assigningPlayer, setAssigningPlayer] = useState<any>(null)
   const [assignTargetTeamId, setAssignTargetTeamId] = useState('')
 
@@ -96,6 +102,36 @@ export function CompetitionDetail() {
         <div style={{ marginBottom: '16px' }}>
           <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>{formatDate(comp.date)}</span>
         </div>
+      )}
+
+      {/* Join CTA — individual competitions only (team competitions auto-enroll) */}
+      {!isTeamComp && !isJoined && ['REGISTRATION', 'ACTIVE'].includes(comp.status) && (
+        <button
+          onClick={() => joinMutation.mutate()}
+          disabled={joinMutation.isPending}
+          style={{
+            width: '100%', marginBottom: '16px', padding: '18px 24px',
+            borderRadius: 'var(--radius-lg)', border: 'none', cursor: 'pointer',
+            background: 'linear-gradient(135deg, #f97316 0%, #ef4444 100%)',
+            color: '#fff', fontFamily: 'var(--font-ui)', fontWeight: 800,
+            fontSize: '18px', letterSpacing: '0.02em',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+            boxShadow: '0 4px 20px rgba(249,115,22,0.45)',
+            animation: 'joinPulse 2s ease-in-out infinite',
+            opacity: joinMutation.isPending ? 0.7 : 1,
+            transition: 'opacity 150ms',
+          }}
+        >
+          {joinMutation.isPending ? (
+            <span style={{ fontSize: '16px' }}>{t('competition.joining')}</span>
+          ) : (
+            <>
+              <span style={{ fontSize: '22px', lineHeight: 1 }}>🏁</span>
+              {t('competition.joinCompetition')}
+              <span style={{ fontSize: '20px', lineHeight: 1 }}>→</span>
+            </>
+          )}
+        </button>
       )}
 
       {/* Waiting for team notice — only for team competitions */}
