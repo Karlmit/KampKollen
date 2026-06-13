@@ -25,7 +25,6 @@ export function CompetitionLeaderboardContent({
   const myEntry = userId ? lb.individualLeaderboard.find((p: any) => p.userId === userId) : null
   const myTeamId = myEntry?.teamId
   const isPlacementMode = lb.competition.scoringMode === 'placement_points'
-  const isLive = lb.competition.status === 'ACTIVE'
   const isTeamComp = lb.competition.isTeamCompetition !== false
 
   const toggleChallenge = (ccId: string) =>
@@ -55,23 +54,6 @@ export function CompetitionLeaderboardContent({
 
   return (
     <div>
-      {/* Status strip */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
-        {isLive && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span className="live-dot" />
-            <span style={{ fontSize: '11px', fontFamily: 'var(--font-ui)', fontWeight: 700, letterSpacing: '0.08em', color: '#d7283d' }}>{t('leaderboard.live')}</span>
-          </div>
-        )}
-        <span style={{
-          display: 'inline-block', padding: '4px 10px', borderRadius: '99px',
-          background: 'var(--surface)', border: '1px solid var(--border-light)',
-          fontSize: '12px', fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--text-muted)',
-        }}>
-          {isPlacementMode ? t('leaderboardContent.placementPoints') : t('leaderboardContent.rawSum')}
-        </span>
-      </div>
-
       {/* View toggle — team competitions only */}
       {isTeamComp && (
         <div style={{ position: 'relative', display: 'flex', background: 'var(--surface)', borderRadius: 'var(--radius)', padding: '4px', marginBottom: '20px', gap: '4px' }}>

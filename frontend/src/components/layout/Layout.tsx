@@ -1,6 +1,9 @@
 import { ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { BottomNav } from './BottomNav'
+import { Avatar } from '../ui/Avatar'
+import { useAuth } from '../../contexts/AuthContext'
 
 interface LayoutProps {
   children: ReactNode
@@ -11,10 +14,17 @@ interface LayoutProps {
 }
 
 export function Layout({ children, title, back, action, noPadding }: LayoutProps) {
+  const { user, hasUnopenedTrophies } = useAuth()
+  const location = useLocation()
+  const { t } = useTranslation()
+
+  // Persistent "My Profile" entry point in the upper right (hidden on the profile page itself)
+  const showProfile = !!user && location.pathname !== '/profile'
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh', background: 'var(--background)' }}>
       {/* Top bar */}
-      {(title || back || action) && (
+      {(title || back || action || showProfile) && (
         <header style={{
           position: 'sticky', top: 0, zIndex: 50,
           background: 'var(--background)',
@@ -35,15 +45,38 @@ export function Layout({ children, title, back, action, noPadding }: LayoutProps
               ←
             </Link>
           )}
-          {title && (
+          {title ? (
             <h1 style={{
               fontFamily: 'var(--font-ui)', fontSize: '18px', fontWeight: 700,
               color: 'var(--text-primary)', flex: 1,
             }}>
               {title}
             </h1>
+          ) : (
+            <div style={{ flex: 1 }} />
           )}
-          {action && <div style={{ marginLeft: 'auto', flexShrink: 0 }}>{action}</div>}
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+            {action}
+            {showProfile && (
+              <Link
+                to="/profile"
+                aria-label={t('profile.myProfile')}
+                title={t('profile.myProfile')}
+                style={{ position: 'relative', display: 'flex', borderRadius: '50%', textDecoration: 'none', flexShrink: 0 }}
+              >
+                <Avatar src={user!.profileImageUrl} name={user!.displayName ?? user!.username} size={34} />
+                {hasUnopenedTrophies && (
+                  <span style={{
+                    position: 'absolute', top: -1, right: -1,
+                    width: 10, height: 10, borderRadius: '50%',
+                    background: 'var(--accent-warm)',
+                    border: '2px solid var(--background)',
+                    pointerEvents: 'none',
+                  }} />
+                )}
+              </Link>
+            )}
+          </div>
         </header>
       )}
 

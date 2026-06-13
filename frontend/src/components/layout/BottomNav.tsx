@@ -10,17 +10,15 @@ function matchItem(to: string, pathname: string) {
 }
 
 export function BottomNav() {
-  const { user, isAdmin, isScorekeeper, hasUnopenedTrophies } = useAuth()
+  const { user, isAdmin, isScorekeeper } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
   const qc = useQueryClient()
   const { t } = useTranslation()
 
   const NAV_ITEMS = [
-    { to: '/',             icon: '🏠', label: t('nav.home'),    onClick: undefined as ((e: { preventDefault(): void }) => void) | undefined },
     { to: '/competitions', icon: '🏆', label: t('nav.compete'), onClick: handleCompeteNav },
     { to: '/leaderboard',  icon: '📊', label: t('nav.scores'),  onClick: undefined as ((e: { preventDefault(): void }) => void) | undefined },
-    { to: '/profile',      icon: '👤', label: t('nav.profile'), onClick: undefined as ((e: { preventDefault(): void }) => void) | undefined },
   ]
   const ADMIN_ITEM = { to: '/admin', icon: '⚙️', label: t('nav.admin'), onClick: undefined as ((e: { preventDefault(): void }) => void) | undefined }
   const GUEST_NAV_ITEMS = [
@@ -155,15 +153,6 @@ export function BottomNav() {
                     }}>
                       {item.icon}
                     </span>
-                    {item.to === '/profile' && hasUnopenedTrophies && (
-                      <span style={{
-                        position: 'absolute', top: 0, right: -2,
-                        width: 8, height: 8, borderRadius: '50%',
-                        background: 'var(--accent-warm)',
-                        border: '2px solid var(--background)',
-                        pointerEvents: 'none',
-                      }} />
-                    )}
                   </span>
                   <span>{item.label}</span>
                 </>

@@ -4,7 +4,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Layout } from '../components/layout/Layout'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
-import { Badge, StatusBadge } from '../components/ui/Badge'
 import { Avatar } from '../components/ui/Avatar'
 import { Modal } from '../components/ui/Modal'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
@@ -90,12 +89,12 @@ export function CompetitionDetail() {
       title={comp.name}
       back="/competitions"
     >
-      {/* Status row */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-        {comp.date && <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>{formatDate(comp.date)}</span>}
-        <StatusBadge status={comp.status} />
-        {isJoined && <Badge variant="success">{t('competition.joined')}</Badge>}
-      </div>
+      {/* Date */}
+      {comp.date && (
+        <div style={{ marginBottom: '16px' }}>
+          <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>{formatDate(comp.date)}</span>
+        </div>
+      )}
 
       {/* Join CTA */}
       {!isJoined && ['REGISTRATION', 'ACTIVE'].includes(comp.status) && (
@@ -148,7 +147,15 @@ export function CompetitionDetail() {
           <Card style={{ background: 'var(--text-primary)', color: '#fff', borderColor: 'var(--text-primary)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
-                <p style={{ fontSize: '12px', opacity: 0.7, marginBottom: '2px' }}>{t('competition.yourTeam')}</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '2px' }}>
+                  <p style={{ fontSize: '12px', opacity: 0.7 }}>{t('competition.yourTeam')}</p>
+                  {comp.status === 'ACTIVE' && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                      <span className="live-dot" />
+                      <span style={{ fontSize: '10px', fontFamily: 'var(--font-ui)', fontWeight: 700, letterSpacing: '0.08em', color: '#ff6b6b' }}>{t('leaderboard.live')}</span>
+                    </span>
+                  )}
+                </div>
                 <p style={{ fontFamily: 'var(--font-ui)', fontSize: '18px' }}>{myTeam.name}</p>
               </div>
               {myTeam.imageUrl && (

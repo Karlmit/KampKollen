@@ -193,7 +193,6 @@ export function Profile() {
   return (
     <Layout
       title={isSelf ? t('profile.myProfile') : (user.displayName ?? user.username)}
-      action={isSelf ? <Button variant="ghost" size="sm" onClick={handleLogout}>{t('profile.logOut')}</Button> : null}
     >
       {/* Profile header */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '24px', gap: '12px' }}>
@@ -302,6 +301,13 @@ export function Profile() {
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Log out */}
+          {isSelf && (
+            <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border-light)' }}>
+              <Button variant="danger" onClick={handleLogout} fullWidth>{t('profile.logOut')}</Button>
             </div>
           )}
         </Card>

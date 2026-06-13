@@ -6,7 +6,6 @@ import { PageLoader } from './components/ui/LoadingSpinner'
 
 import { Login } from './pages/Login'
 import { Register } from './pages/Register'
-import { Home } from './pages/Home'
 import { Profile } from './pages/Profile'
 import { CompetitionList } from './pages/CompetitionList'
 import { CompetitionDetail } from './pages/CompetitionDetail'
@@ -56,7 +55,7 @@ function AppRoutes() {
       <Route path="/register" element={user ? <Navigate to="/" replace /> : <Register />} />
 
       {/* Protected */}
-      <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
+      <Route path="/" element={<RequireAuth><Navigate to="/competitions" replace /></RequireAuth>} />
       <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
       <Route path="/profile/:id" element={<RequireAuth><Profile /></RequireAuth>} />
       <Route path="/competitions" element={<CompetitionList />} />
@@ -83,7 +82,7 @@ function AppRoutes() {
       <Route path="/competitions/:competitionId/quiz/:ccId" element={<QuizPage />} />
       <Route path="/competitions/:competitionId/quiz/:ccId/edit" element={<RequireAuth><QuizEditorPage /></RequireAuth>} />
 
-      <Route path="*" element={<Navigate to={user ? '/' : '/competitions'} replace />} />
+      <Route path="*" element={<Navigate to="/competitions" replace />} />
       </Routes>
     </>
   )
