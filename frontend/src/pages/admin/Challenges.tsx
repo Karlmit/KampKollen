@@ -23,7 +23,7 @@ export function AdminChallenges() {
   const [form, setForm] = useState({
     name: '', description: '', scoreType: 'number_highest_wins' as ScoreType,
     defaultTeamScoreMode: 'sum_all_players' as TeamScoreMode,
-    bestNPlayers: '', isGlobalTemplate: true, isQuiz: false,
+    bestNPlayers: '', isGlobalTemplate: true,
   })
 
   const SCORE_TYPES: [ScoreType, string][] = [
@@ -44,13 +44,13 @@ export function AdminChallenges() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ name: '', description: '', scoreType: 'number_highest_wins', defaultTeamScoreMode: 'sum_all_players', bestNPlayers: '', isGlobalTemplate: true, isQuiz: false })
+    setForm({ name: '', description: '', scoreType: 'number_highest_wins', defaultTeamScoreMode: 'sum_all_players', bestNPlayers: '', isGlobalTemplate: true })
     setOpen(true)
   }
 
   const openEdit = (c: any) => {
     setEditing(c)
-    setForm({ name: c.name, description: c.description ?? '', scoreType: c.scoreType, defaultTeamScoreMode: c.defaultTeamScoreMode, bestNPlayers: c.bestNPlayers?.toString() ?? '', isGlobalTemplate: c.isGlobalTemplate, isQuiz: c.isQuiz ?? false })
+    setForm({ name: c.name, description: c.description ?? '', scoreType: c.scoreType, defaultTeamScoreMode: c.defaultTeamScoreMode, bestNPlayers: c.bestNPlayers?.toString() ?? '', isGlobalTemplate: c.isGlobalTemplate })
     setOpen(true)
   }
 
@@ -150,47 +150,34 @@ export function AdminChallenges() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <Input label={t('admin.challenges.name')} value={form.name} onChange={set('name')} autoFocus />
           <Input label={t('admin.challenges.description')} value={form.description} onChange={set('description')} />
-          <div>
-            <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-              <input type="checkbox" checked={form.isQuiz} onChange={e => setForm(f => ({ ...f, isQuiz: e.target.checked }))} />
-              {t('admin.challenges.isQuizChallenge')}
-            </label>
-            {form.isQuiz && (
-              <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{t('admin.challenges.quizDesc')}</p>
-            )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>{t('admin.challenges.scoreType')}</label>
+            <select value={form.scoreType} onChange={set('scoreType') as any}
+              style={{ padding: '10px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', fontSize: '15px' }}>
+              {SCORE_TYPES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+            </select>
           </div>
-          {!form.isQuiz && (
-            <>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>{t('admin.challenges.scoreType')}</label>
-                <select value={form.scoreType} onChange={set('scoreType') as any}
-                  style={{ padding: '10px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', fontSize: '15px' }}>
-                  {SCORE_TYPES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
-                </select>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>{t('admin.challenges.teamScoreCalc')}</label>
-                {TEAM_MODE_OPTIONS.map(opt => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setForm(f => ({ ...f, defaultTeamScoreMode: opt.value as TeamScoreMode }))}
-                    style={{
-                      padding: '10px 12px', borderRadius: 'var(--radius)', cursor: 'pointer', textAlign: 'left',
-                      border: form.defaultTeamScoreMode === opt.value ? '2px solid var(--accent)' : '1.5px solid var(--border-light)',
-                      background: form.defaultTeamScoreMode === opt.value ? 'var(--surface)' : 'var(--background)',
-                      width: '100%',
-                    }}
-                  >
-                    <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', marginBottom: '2px' }}>{opt.label}</p>
-                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.4 }}>{opt.desc}</p>
-                  </button>
-                ))}
-              </div>
-              {form.defaultTeamScoreMode === 'best_n_players' && (
-                <Input label={t('admin.challenges.topPlayersCount')} type="number" value={form.bestNPlayers} onChange={set('bestNPlayers')} placeholder={t('admin.challenges.topPlayersPlaceholder')} />
-              )}
-            </>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>{t('admin.challenges.teamScoreCalc')}</label>
+            {TEAM_MODE_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setForm(f => ({ ...f, defaultTeamScoreMode: opt.value as TeamScoreMode }))}
+                style={{
+                  padding: '10px 12px', borderRadius: 'var(--radius)', cursor: 'pointer', textAlign: 'left',
+                  border: form.defaultTeamScoreMode === opt.value ? '2px solid var(--accent)' : '1.5px solid var(--border-light)',
+                  background: form.defaultTeamScoreMode === opt.value ? 'var(--surface)' : 'var(--background)',
+                  width: '100%',
+                }}
+              >
+                <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', marginBottom: '2px' }}>{opt.label}</p>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.4 }}>{opt.desc}</p>
+              </button>
+            ))}
+          </div>
+          {form.defaultTeamScoreMode === 'best_n_players' && (
+            <Input label={t('admin.challenges.topPlayersCount')} type="number" value={form.bestNPlayers} onChange={set('bestNPlayers')} placeholder={t('admin.challenges.topPlayersPlaceholder')} />
           )}
         </div>
       </Modal>
