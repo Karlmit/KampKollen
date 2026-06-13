@@ -76,6 +76,7 @@ export function AdminCompetitionManage() {
   const [selectedQuizId, setSelectedQuizId] = useState('')
   const [newQuizName, setNewQuizName] = useState('')
   const [deletingQuizTemplate, setDeletingQuizTemplate] = useState<any>(null)
+  const [deleteQuizTemplateError, setDeleteQuizTemplateError] = useState<string | null>(null)
 
   const [assignTeamPlayer, setAssignTeamPlayer] = useState<any>(null)
   const [renamingTeam, setRenamingTeam] = useState<any>(null)
@@ -155,7 +156,11 @@ export function AdminCompetitionManage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['challenges'] })
       setDeletingQuizTemplate(null)
+      setDeleteQuizTemplateError(null)
       setAddQuizOpen(true)
+    },
+    onError: (err: any) => {
+      setDeleteQuizTemplateError(err.message ?? 'Something went wrong')
     },
   })
 
@@ -718,14 +723,14 @@ export function AdminCompetitionManage() {
       {/* Delete quiz template confirm modal */}
       <Modal
         open={!!deletingQuizTemplate}
-        onClose={() => { setDeletingQuizTemplate(null); setAddQuizOpen(true) }}
+        onClose={() => { setDeletingQuizTemplate(null); setDeleteQuizTemplateError(null); setAddQuizOpen(true) }}
         title={t('admin.manage.deleteQuizTemplate')}
         footer={
           <>
-            <Button variant="ghost" onClick={() => { setDeletingQuizTemplate(null); setAddQuizOpen(true) }}>{t('common.cancel')}</Button>
+            <Button variant="ghost" onClick={() => { setDeletingQuizTemplate(null); setDeleteQuizTemplateError(null); setAddQuizOpen(true) }}>{t('common.cancel')}</Button>
             <Button
               variant="danger"
-              onClick={() => deleteQuizTemplateMutation.mutate(deletingQuizTemplate.id)}
+              onClick={() => { setDeleteQuizTemplateError(null); deleteQuizTemplateMutation.mutate(deletingQuizTemplate.id) }}
               loading={deleteQuizTemplateMutation.isPending}
             >
               {t('common.delete')}
@@ -735,6 +740,9 @@ export function AdminCompetitionManage() {
       >
         <p style={{ fontSize: '15px' }}>{t('admin.manage.deleteQuizTemplateConfirm', { name: deletingQuizTemplate?.name })}</p>
         <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px' }}>{t('admin.manage.deleteQuizTemplateDesc')}</p>
+        {deleteQuizTemplateError && (
+          <p style={{ fontSize: '13px', color: 'var(--accent-warm)', marginTop: '10px', fontWeight: 600 }}>{deleteQuizTemplateError}</p>
+        )}
       </Modal>
 
       {/* Add challenge modal */}
