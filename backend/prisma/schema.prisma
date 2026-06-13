@@ -294,6 +294,7 @@ model QuizAnswer {
   option         QuizOption?  @relation(fields: [optionId], references: [id], onDelete: SetNull)
   freeTextAnswer String?
   freeTextPoints Int?
+  freeTextLocked Boolean      @default(false)
   userId         String?
   teamId         String?
   submittedAt    DateTime     @default(now())

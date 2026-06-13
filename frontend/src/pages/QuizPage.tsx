@@ -145,6 +145,11 @@ export function QuizPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz', ccId] }),
   })
 
+  const toggleFreeTextLock = useMutation({
+    mutationFn: (answerId: string) => api.quiz.toggleFreeTextLock(ccId!, answerId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz', ccId] }),
+  })
+
   const readyMutation = useMutation({
     mutationFn: (teamId?: string) => api.quiz.markReady(ccId!, teamId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz', ccId] }),
@@ -600,12 +605,12 @@ export function QuizPage() {
           {/* Answer options / free text answers */}
           {correctionQ.isFreeText ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {/* Player view: show their own submitted answer */}
+              {/* Player view: show their own submitted answer; points only revealed once locked */}
               {!isQM && correctionQ.myFreeTextAnswer && (
                 <Card padding="12px">
                   <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--text-muted)', marginBottom: 4 }}>{t('quiz.yourAnswer')}</p>
                   <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px' }}>{correctionQ.myFreeTextAnswer}</p>
-                  {correctionQ.myFreeTextPoints !== null && correctionQ.myFreeTextPoints !== undefined && (
+                  {correctionQ.myFreeTextLocked && correctionQ.myFreeTextPoints !== null && (
                     <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', color: 'var(--accent-green)', marginTop: 4, fontWeight: 700 }}>
                       {t('quiz.freeTextPointsAwarded', { points: correctionQ.myFreeTextPoints, max: correctionQ.points })}
                     </p>
@@ -613,7 +618,7 @@ export function QuizPage() {
                 </Card>
               )}
 
-              {/* QM view: all submitted answers with +/- point controls */}
+              {/* QM view: all submitted answers with +/- point controls and per-answer lock */}
               {isQM && (
                 <>
                   <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', color: 'var(--text-muted)', fontWeight: 700 }}>
@@ -626,35 +631,55 @@ export function QuizPage() {
                       ? competition.teams.find((x: any) => x.id === a.teamId)?.name ?? a.teamId
                       : competition.players.find((x: any) => x.userId === a.userId)?.user?.displayName ?? a.userId
                     const pts = a.freeTextPoints ?? 0
-                    const maxPts = correctionQ.points
+                    const locked = !!a.freeTextLocked
                     return (
-                      <div key={a.id} style={{ padding: '10px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--background)', border: '1.5px solid var(--border-light)' }}>
+                      <div key={a.id} style={{
+                        padding: '10px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--background)',
+                        border: `1.5px solid ${locked ? 'var(--accent-green)' : 'var(--border-light)'}`,
+                        transition: 'border-color 200ms',
+                      }}>
                         <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px', color: 'var(--text-muted)', marginBottom: 4 }}>{label}</p>
                         <p style={{ fontFamily: 'var(--font-ui)', fontSize: '15px', marginBottom: 8 }}>{a.freeTextAnswer}</p>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <button
                             type="button"
-                            onClick={() => setFreeTextPoints.mutate({ answerId: a.id, points: Math.max(0, pts - 1) })}
-                            disabled={pts <= 0}
+                            onClick={() => !locked && setFreeTextPoints.mutate({ answerId: a.id, points: Math.max(0, pts - 1) })}
+                            disabled={pts <= 0 || locked}
                             style={{
                               width: 32, height: 32, borderRadius: '50%', border: '1.5px solid var(--border-light)', background: 'var(--surface)',
-                              fontSize: '18px', cursor: pts <= 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              opacity: pts <= 0 ? 0.4 : 1, fontWeight: 700,
+                              fontSize: '18px', cursor: (pts <= 0 || locked) ? 'not-allowed' : 'pointer',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              opacity: (pts <= 0 || locked) ? 0.3 : 1, fontWeight: 700,
                             }}
                           >−</button>
-                          <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '16px', minWidth: 60, textAlign: 'center' }}>
-                            {t('quiz.freeTextPointsAwarded', { points: pts, max: maxPts })}
+                          <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '16px', minWidth: 48, textAlign: 'center' }}>
+                            {pts}
                           </span>
                           <button
                             type="button"
-                            onClick={() => setFreeTextPoints.mutate({ answerId: a.id, points: Math.min(maxPts, pts + 1) })}
-                            disabled={pts >= maxPts}
+                            onClick={() => !locked && setFreeTextPoints.mutate({ answerId: a.id, points: pts + 1 })}
+                            disabled={locked}
                             style={{
                               width: 32, height: 32, borderRadius: '50%', border: '1.5px solid var(--border-light)', background: 'var(--surface)',
-                              fontSize: '18px', cursor: pts >= maxPts ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              opacity: pts >= maxPts ? 0.4 : 1, fontWeight: 700,
+                              fontSize: '18px', cursor: locked ? 'not-allowed' : 'pointer',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              opacity: locked ? 0.3 : 1, fontWeight: 700,
                             }}
                           >+</button>
+                          <button
+                            type="button"
+                            onClick={() => toggleFreeTextLock.mutate(a.id)}
+                            style={{
+                              marginLeft: 'auto', padding: '4px 12px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                              border: `1.5px solid ${locked ? 'var(--accent-green)' : 'var(--border-light)'}`,
+                              background: locked ? 'color-mix(in srgb, var(--accent-green) 12%, transparent)' : 'var(--surface)',
+                              color: locked ? 'var(--accent-green)' : 'var(--text-muted)',
+                              fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px',
+                              transition: 'border-color 150ms, background 150ms, color 150ms',
+                            }}
+                          >
+                            {locked ? t('quiz.freeTextLockedStatus') : t('quiz.freeTextLock')}
+                          </button>
                         </div>
                       </div>
                     )
@@ -733,11 +758,20 @@ export function QuizPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: 'var(--surface)', borderRadius: 'var(--radius)' }}>
               <p style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '4px' }}>{t('quiz.quizMaster')}</p>
               <div style={{ display: 'flex', gap: '8px' }}>
-                {correctionQ.isFreeText ? (
-                  <Button size="sm" onClick={() => qmMutate(() => api.quiz.nextCorrection(ccId!))}>
-                    {session.correctionIndex >= questions.length - 1 ? t('quiz.completeQuiz') : t('quiz.nextCorrection')}
-                  </Button>
-                ) : (
+                {correctionQ.isFreeText ? (() => {
+                  const answers = correctionQ.freeTextAnswers ?? []
+                  const allLocked = answers.length === 0 || answers.every((a: any) => a.freeTextLocked)
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <Button size="sm" disabled={!allLocked} onClick={() => qmMutate(() => api.quiz.nextCorrection(ccId!))}>
+                        {session.correctionIndex >= questions.length - 1 ? t('quiz.completeQuiz') : t('quiz.nextCorrection')}
+                      </Button>
+                      {!allLocked && (
+                        <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-ui)' }}>{t('quiz.freeTextLockAllFirst')}</p>
+                      )}
+                    </div>
+                  )
+                })() : (
                   <>
                     {!session.correctAnswerVisible && (
                       <Button size="sm" onClick={() => qmMutate(() => api.quiz.showAnswer(ccId!))}>

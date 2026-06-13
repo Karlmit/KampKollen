@@ -168,6 +168,8 @@ export const api = {
       request(`/quiz/${ccId}/answers`, { method: 'POST', body: JSON.stringify(data) }),
     setFreeTextPoints: (ccId: string, answerId: string, points: number) =>
       request(`/quiz/${ccId}/answers/${answerId}/points`, { method: 'PUT', body: JSON.stringify({ points }) }),
+    toggleFreeTextLock: (ccId: string, answerId: string) =>
+      request(`/quiz/${ccId}/answers/${answerId}/lock`, { method: 'PUT', body: '{}' }),
     setQuizMaster: (compId: string, userId: string, isQuizMaster: boolean) =>
       request(`/quiz/competition/${compId}/players/${userId}/quiz-master`, { method: 'PUT', body: JSON.stringify({ isQuizMaster }) }),
   },

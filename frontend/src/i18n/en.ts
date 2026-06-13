@@ -582,6 +582,10 @@ const en = {
     freeTextNoAnswers: 'No answers submitted',
     freeTextPointsAwarded: '{{points}} / {{max}} pts',
     freeTextDone: 'Done — proceed to next',
+    freeTextLock: 'Lock',
+    freeTextUnlock: 'Unlock',
+    freeTextLockedStatus: '✓ Locked',
+    freeTextLockAllFirst: 'Lock all answers before proceeding',
   },
 
   profileImage: {

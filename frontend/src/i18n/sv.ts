@@ -580,6 +580,10 @@ const sv = {
     freeTextNoAnswers: 'Inga svar inkomna',
     freeTextPointsAwarded: '{{points}} / {{max}} p',
     freeTextDone: 'Klart — gå vidare till nästa',
+    freeTextLock: 'Lås',
+    freeTextUnlock: 'Lås upp',
+    freeTextLockedStatus: '✓ Låst',
+    freeTextLockAllFirst: 'Lås alla svar innan du går vidare',
   },
 
   profileImage: {

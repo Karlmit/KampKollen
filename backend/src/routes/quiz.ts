@@ -206,7 +206,7 @@ export async function quizRoutes(app: FastifyInstance) {
               orderBy: { order: 'asc' },
               include: {
                 options: { orderBy: { order: 'asc' } },
-                answers: true,
+                answers: { orderBy: { submittedAt: 'asc' } },
               },
             },
           },
@@ -275,6 +275,7 @@ export async function quizRoutes(app: FastifyInstance) {
             id: a.id,
             freeTextAnswer: a.freeTextAnswer,
             freeTextPoints: a.freeTextPoints,
+            freeTextLocked: a.freeTextLocked,
             userId: a.userId,
             teamId: a.teamId,
           }))
@@ -298,6 +299,7 @@ export async function quizRoutes(app: FastifyInstance) {
         myOptionId: myAnswer?.optionId ?? null,
         myFreeTextAnswer: q.isFreeText ? (myAnswer?.freeTextAnswer ?? null) : null,
         myFreeTextPoints: q.isFreeText ? (myAnswer?.freeTextPoints ?? null) : null,
+        myFreeTextLocked: q.isFreeText ? (myAnswer?.freeTextLocked ?? false) : null,
         answeredTeams,
         answeredUserIds,
         answerCounts,
@@ -338,7 +340,7 @@ export async function quizRoutes(app: FastifyInstance) {
     const body = z.object({
       challengeId: z.string(),
       text: z.string().min(1),
-      points: z.number().int().min(1).default(1),
+      points: z.number().int().min(1).default(3),
       timerSeconds: z.number().int().min(0).default(0),
       isFreeText: z.boolean().default(false),
     }).safeParse(request.body)
@@ -687,9 +689,21 @@ export async function quizRoutes(app: FastifyInstance) {
     const body = z.object({ points: z.number().int().min(0) }).safeParse(request.body)
     if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
 
-    const maxPoints = answer.question.points
-    const pts = Math.min(body.data.points, maxPoints)
-    await prisma.quizAnswer.update({ where: { id: answerId }, data: { freeTextPoints: pts } })
+    await prisma.quizAnswer.update({ where: { id: answerId }, data: { freeTextPoints: body.data.points } })
+    broadcast(ccId)
+    return { success: true }
+  })
+
+  // ── Toggle lock on a free text answer (QM only) ─────────────────────────────
+  app.put('/:ccId/answers/:answerId/lock', { preHandler: requireAuth }, async (request, reply) => {
+    const { ccId, answerId } = request.params as { ccId: string; answerId: string }
+    const me = request.user as { id: string; role: string }
+    if (!await isQM(me.id, ccId)) return reply.status(403).send({ error: 'QM or admin required' })
+
+    const answer = await prisma.quizAnswer.findUnique({ where: { id: answerId } })
+    if (!answer) return reply.status(404).send({ error: 'Answer not found' })
+
+    await prisma.quizAnswer.update({ where: { id: answerId }, data: { freeTextLocked: !answer.freeTextLocked } })
     broadcast(ccId)
     return { success: true }
   })

@@ -1,5 +1,6 @@
+import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Layout } from '../components/layout/Layout'
 import { Card } from '../components/ui/Card'
 import { StatusBadge } from '../components/ui/Badge'
@@ -10,6 +11,7 @@ import { formatDate } from '../utils'
 import { useTranslation } from 'react-i18next'
 
 export function CompetitionList() {
+  const navigate = useNavigate()
   const { data, isLoading } = useQuery({
     queryKey: ['competitions'],
     queryFn: () => api.competitions.list(),
@@ -17,6 +19,14 @@ export function CompetitionList() {
   const { t } = useTranslation()
 
   const competitions = (data?.competitions ?? []) as Competition[]
+  const activeComps = competitions.filter(c => c.status === 'ACTIVE')
+
+  // Auto-open the single live competition
+  useEffect(() => {
+    if (!isLoading && activeComps.length === 1) {
+      navigate(`/competitions/${activeComps[0].id}`, { replace: true })
+    }
+  }, [isLoading, activeComps.length])
 
   return (
     <Layout title={t('competitionList.title')}>

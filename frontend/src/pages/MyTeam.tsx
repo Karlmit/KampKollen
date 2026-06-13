@@ -136,7 +136,10 @@ export function MyTeamPage() {
       {/* Team image */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '24px', gap: '12px' }}>
         {!canManage && (
-          <Avatar src={team.imageUrl} name={team.name} size={80} style={{ borderRadius: '50%' }} />
+          <>
+            <Avatar src={team.imageUrl} name={team.name} size={80} style={{ borderRadius: '50%' }} />
+            <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px', textAlign: 'center' }}>{team.name}</p>
+          </>
         )}
         {canManage && (
           <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -151,6 +154,7 @@ export function MyTeamPage() {
               label={t('team.teamImage')}
             shape="circle"
             />
+            <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px', textAlign: 'center' }}>{team.name}</p>
             <Button variant="ghost" size="sm" onClick={() => { setNewName(team.name); setRenameOpen(true) }}>
               {t('team.renameTeam')}
             </Button>
