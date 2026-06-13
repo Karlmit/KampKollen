@@ -45,21 +45,51 @@ async function getUserGroupIds(userId: string): Promise<string[]> {
   return memberships.map(m => m.groupId)
 }
 
+// Competitions a member is automatically enrolled into (no manual join required).
+const AUTO_ENROLL_STATUSES = ['REGISTRATION', 'ACTIVE']
+
+// Ensure every member of a competition's group has a CompetitionPlayer row, i.e.
+// sits in the player pool as an unassigned player. Group membership *is* enrollment —
+// users no longer actively join. Idempotent and safe to call on every read.
+async function ensureGroupPlayers(competitionId: string, groupId: string | null, status: string): Promise<void> {
+  if (!groupId || !AUTO_ENROLL_STATUSES.includes(status)) return
+  const [members, existing] = await Promise.all([
+    prisma.userGroup.findMany({ where: { groupId }, select: { userId: true } }),
+    prisma.competitionPlayer.findMany({ where: { competitionId }, select: { userId: true } }),
+  ])
+  const existingIds = new Set(existing.map(e => e.userId))
+  const toAdd = members.filter(m => !existingIds.has(m.userId))
+  if (toAdd.length === 0) return
+  await prisma.competitionPlayer.createMany({
+    data: toAdd.map(m => ({ competitionId, userId: m.userId })),
+    skipDuplicates: true,
+  })
+}
+
 export async function competitionRoutes(app: FastifyInstance) {
   app.get('/', { preHandler: optionalAuth }, async (request) => {
     let where: any = {}
+    let callerId: string | null = null
     try {
       await request.jwtVerify()
       const me = request.user as { id: string }
+      callerId = me.id
       const groupIds = await getUserGroupIds(me.id)
       where = { groupId: { in: groupIds } }
     } catch {
       // Guest: only active competitions
       where = { status: 'ACTIVE' }
     }
-    // Get caller's userId if authenticated (already verified above)
-    let callerId: string | null = null
-    try { callerId = (request.user as { id: string }).id } catch { /* guest */ }
+
+    // Auto-enroll group members into the player pool before counting/returning,
+    // so the roster and myPlayer flag reflect membership without a manual join.
+    if (callerId) {
+      const eligible = await prisma.competition.findMany({
+        where: { ...where, status: { in: AUTO_ENROLL_STATUSES } },
+        select: { id: true, groupId: true, status: true },
+      })
+      await Promise.all(eligible.map(c => ensureGroupPlayers(c.id, c.groupId, c.status)))
+    }
 
     const competitions = await prisma.competition.findMany({
       where,
@@ -86,6 +116,13 @@ export async function competitionRoutes(app: FastifyInstance) {
 
   app.get('/:id', { preHandler: optionalAuth }, async (request, reply) => {
     const { id } = request.params as { id: string }
+
+    // Auto-enroll group members into the player pool before reading, so the
+    // viewer (and everyone in the group) appears as an unassigned player.
+    const meta = await prisma.competition.findUnique({ where: { id }, select: { groupId: true, status: true } })
+    if (!meta) return reply.status(404).send({ error: 'Competition not found' })
+    await ensureGroupPlayers(id, meta.groupId, meta.status)
+
     const competition = await prisma.competition.findUnique({
       where: { id },
       include: {

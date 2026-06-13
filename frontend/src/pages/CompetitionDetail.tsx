@@ -40,11 +40,6 @@ export function CompetitionDetail() {
     refetchInterval: 30_000,
   })
 
-  const joinMutation = useMutation({
-    mutationFn: () => api.competitions.join(id!),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['competition', id] }),
-  })
-
   const removeFromPoolMutation = useMutation({
     mutationFn: (userId: string) => api.competitions.removePlayer(id!, userId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['competition', id] }),
@@ -94,36 +89,6 @@ export function CompetitionDetail() {
         <div style={{ marginBottom: '16px' }}>
           <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>{formatDate(comp.date)}</span>
         </div>
-      )}
-
-      {/* Join CTA */}
-      {!isJoined && ['REGISTRATION', 'ACTIVE'].includes(comp.status) && (
-        <button
-          onClick={() => joinMutation.mutate()}
-          disabled={joinMutation.isPending}
-          style={{
-            width: '100%', marginBottom: '16px', padding: '18px 24px',
-            borderRadius: 'var(--radius-lg)', border: 'none', cursor: 'pointer',
-            background: 'linear-gradient(135deg, #f97316 0%, #ef4444 100%)',
-            color: '#fff', fontFamily: 'var(--font-ui)', fontWeight: 800,
-            fontSize: '18px', letterSpacing: '0.02em',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
-            boxShadow: '0 4px 20px rgba(249,115,22,0.45)',
-            animation: 'joinPulse 2s ease-in-out infinite',
-            opacity: joinMutation.isPending ? 0.7 : 1,
-            transition: 'opacity 150ms',
-          }}
-        >
-          {joinMutation.isPending ? (
-            <span style={{ fontSize: '16px' }}>{t('competition.joining')}</span>
-          ) : (
-            <>
-              <span style={{ fontSize: '22px', lineHeight: 1 }}>🏁</span>
-              {t('competition.joinCompetition')}
-              <span style={{ fontSize: '20px', lineHeight: 1 }}>→</span>
-            </>
-          )}
-        </button>
       )}
 
       {/* Waiting for team notice — only for team competitions */}
@@ -187,28 +152,42 @@ export function CompetitionDetail() {
 
       {tab === 'teams' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {comp.teams?.map((team: Team) => (
-            <Link to={`/competitions/${id}/team/${team.id}`} key={team.id} style={{ textDecoration: 'none' }}>
-              <Card>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <Avatar
-                    src={team.imageUrl}
-                    name={team.name}
-                    size={44}
-                    style={{ borderRadius: '50%' }}
-                  />
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px' }}>{team.name}</p>
-                    <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                      {team.players?.length ?? 0} {t('common.players')}
-                      {team.leader ? ` · ${t('competition.leaderPrefix', { name: team.leader.displayName ?? team.leader.username })}` : ''}
-                    </p>
+          {comp.teams?.map((team: Team) => {
+            const isMine = !!myPlayer?.teamId && team.id === myPlayer.teamId
+            return (
+              <Link to={`/competitions/${id}/team/${team.id}`} key={team.id} style={{ textDecoration: 'none' }}>
+                <Card style={isMine ? { background: 'var(--text-primary)', borderColor: 'var(--text-primary)', color: '#fff' } : undefined}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <Avatar
+                      src={team.imageUrl}
+                      name={team.name}
+                      size={44}
+                      style={{ borderRadius: '50%' }}
+                    />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px' }}>{team.name}</p>
+                        {isMine && (
+                          <span style={{
+                            fontSize: '9px', fontFamily: 'var(--font-ui)', fontWeight: 800,
+                            letterSpacing: '0.08em', padding: '2px 8px', borderRadius: '99px',
+                            background: 'rgba(255,255,255,0.18)', color: '#fff', flexShrink: 0,
+                          }}>
+                            {t('competition.yourTeam')}
+                          </span>
+                        )}
+                      </div>
+                      <p style={{ fontSize: '13px', color: isMine ? 'rgba(255,255,255,0.7)' : 'var(--text-muted)' }}>
+                        {team.players?.length ?? 0} {t('common.players')}
+                        {team.leader ? ` · ${t('competition.leaderPrefix', { name: team.leader.displayName ?? team.leader.username })}` : ''}
+                      </p>
+                    </div>
+                    <span style={{ fontSize: '18px', color: isMine ? 'rgba(255,255,255,0.7)' : 'var(--text-muted)', lineHeight: 1 }}>›</span>
                   </div>
-                  <span style={{ fontSize: '18px', color: 'var(--text-muted)', lineHeight: 1 }}>›</span>
-                </div>
-              </Card>
-            </Link>
-          ))}
+                </Card>
+              </Link>
+            )
+          })}
         </div>
       )}
 
