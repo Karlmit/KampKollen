@@ -23,9 +23,10 @@ export function MyTeamPage() {
   const [renameOpen, setRenameOpen] = useState(false)
   const [newName, setNewName] = useState('')
 
-  // Dummy player state
-  const [addGuestOpen, setAddGuestOpen] = useState(false)
-  const [guestName, setGuestName] = useState('')
+  // Create user state
+  const [createUserOpen, setCreateUserOpen] = useState(false)
+  const [createName, setCreateName] = useState('')
+  const [createUsername, setCreateUsername] = useState('')
   const [convertOpen, setConvertOpen] = useState(false)
   const [convertingDummy, setConvertingDummy] = useState<CompetitionPlayer | null>(null)
   const [selectedRealUserId, setSelectedRealUserId] = useState('')
@@ -83,12 +84,13 @@ export function MyTeamPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['competition', competitionId] }),
   })
 
-  const addGuestMutation = useMutation({
-    mutationFn: () => api.competitions.createDummyPlayer(competitionId!, { name: guestName.trim(), teamId: teamId! }),
+  const createUserMutation = useMutation({
+    mutationFn: () => api.competitions.createUser(competitionId!, { name: createName.trim(), username: createUsername.trim(), teamId: teamId! }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['competition', competitionId] })
-      setAddGuestOpen(false)
-      setGuestName('')
+      setCreateUserOpen(false)
+      setCreateName('')
+      setCreateUsername('')
     },
   })
 
@@ -169,8 +171,8 @@ export function MyTeamPage() {
             {t('team.playersCount', { count: teamPlayers.length })}
           </h2>
           {canManage && (
-            <Button size="sm" variant="ghost" onClick={() => { setGuestName(''); setAddGuestOpen(true) }} style={{ fontSize: '12px', padding: '4px 10px' }}>
-              {t('team.addGuest')}
+            <Button size="sm" variant="ghost" onClick={() => { setCreateName(''); setCreateUsername(''); createUserMutation.reset(); setCreateUserOpen(true) }} style={{ fontSize: '12px', padding: '4px 10px' }}>
+              {t('team.createUser')}
             </Button>
           )}
         </div>
@@ -350,34 +352,47 @@ export function MyTeamPage() {
         />
       </Modal>
 
-      {/* Add guest player modal */}
+      {/* Create user modal */}
       <Modal
-        open={addGuestOpen}
-        onClose={() => setAddGuestOpen(false)}
-        title={t('team.addGuestPlayer')}
+        open={createUserOpen}
+        onClose={() => setCreateUserOpen(false)}
+        title={t('team.createUserTitle')}
         footer={
           <>
-            <Button variant="ghost" onClick={() => setAddGuestOpen(false)}>{t('common.cancel')}</Button>
+            <Button variant="ghost" onClick={() => setCreateUserOpen(false)}>{t('common.cancel')}</Button>
             <Button
-              onClick={() => addGuestMutation.mutate()}
-              loading={addGuestMutation.isPending}
-              disabled={!guestName.trim()}
+              onClick={() => createUserMutation.mutate()}
+              loading={createUserMutation.isPending}
+              disabled={!createName.trim() || !createUsername.trim()}
             >
-              {t('common.add')}
+              {t('common.create')}
             </Button>
           </>
         }
       >
-        <Input
-          label={t('team.playerName')}
-          value={guestName}
-          onChange={e => setGuestName(e.target.value)}
-          autoFocus
-          placeholder={t('team.enterName')}
-        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <Input
+            label={t('team.playerName')}
+            value={createName}
+            onChange={e => setCreateName(e.target.value)}
+            autoFocus
+            placeholder={t('team.enterName')}
+          />
+          <Input
+            label={t('team.username')}
+            value={createUsername}
+            onChange={e => setCreateUsername(e.target.value)}
+            placeholder={t('team.enterUsername')}
+          />
+        </div>
         <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px', fontFamily: 'var(--font-ui)' }}>
-          {t('team.guestDescription')}
+          {t('team.createUserDescription')}
         </p>
+        {createUserMutation.isError && (
+          <p style={{ fontSize: '13px', color: 'var(--accent-warm)', marginTop: '8px', fontFamily: 'var(--font-ui)' }}>
+            {(createUserMutation.error as any)?.message ?? t('team.createUserFailed')}
+          </p>
+        )}
       </Modal>
 
       {/* Convert guest to real user modal */}

@@ -63,6 +63,8 @@ export const api = {
     removePlayer: (id: string, userId: string) => request(`/competitions/${id}/players/${userId}`, { method: 'DELETE' }),
     createDummyPlayer: (id: string, data: { name: string; teamId?: string }) =>
       request<{ player: any }>(`/competitions/${id}/players/dummy`, { method: 'POST', body: JSON.stringify(data) }),
+    createUser: (id: string, data: { name: string; username: string; teamId?: string }) =>
+      request<{ player: any }>(`/competitions/${id}/players/create-user`, { method: 'POST', body: JSON.stringify(data) }),
     convertDummyPlayer: (id: string, dummyUserId: string, data: { realUserId: string }) =>
       request<{ success: boolean }>(`/competitions/${id}/players/dummy/${dummyUserId}/convert`, { method: 'POST', body: JSON.stringify(data) }),
   },

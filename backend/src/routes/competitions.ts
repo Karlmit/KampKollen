@@ -3,7 +3,8 @@ import { z } from 'zod'
 import { GlobalRole } from '@prisma/client'
 import { prisma } from '../db.js'
 import { requireAuth, requireAdmin, optionalAuth } from '../middleware/auth.js'
-import { generateImage, DEFAULT_PROMPTS } from '../lib/imageGeneration.js'
+import { generateImage, DEFAULT_PROMPTS, generateRandomProfileImage } from '../lib/imageGeneration.js'
+import { hashPassword, validateUsername } from '../lib/auth.js'
 import { preGenerateTrophies, awardCompetitionTrophies } from '../lib/awardTrophies.js'
 
 const scoringModeEnum = z.enum(['raw_sum', 'placement_points'])
@@ -533,6 +534,72 @@ export async function competitionRoutes(app: FastifyInstance) {
         team: { select: { id: true, name: true } },
       },
     })
+
+    return { player }
+  })
+
+  // Create a real user (with a default PIN) and add them straight to a team.
+  // The new user automatically joins the competition's group, so admins/team
+  // leaders can onboard players without the convert dance.
+  app.post('/:id/players/create-user', { preHandler: requireAuth }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const me = request.user as { id: string; role: string }
+    const body = request.body as { name?: string; username?: string; teamId?: string }
+
+    if (!body.name?.trim()) return reply.status(400).send({ error: 'Name is required' })
+    if (!body.username?.trim()) return reply.status(400).send({ error: 'Username is required' })
+
+    const username = body.username.trim()
+    const usernameError = validateUsername(username)
+    if (usernameError) return reply.status(400).send({ error: usernameError })
+
+    // Permission: admin, or team leader in this competition
+    if (me.role !== 'ADMIN') {
+      const myPlayer = await prisma.competitionPlayer.findUnique({
+        where: { competitionId_userId: { competitionId: id, userId: me.id } },
+      })
+      if (!myPlayer?.isTeamLeader) {
+        return reply.status(403).send({ error: 'Only admins and team leaders can create users' })
+      }
+      // Team leaders can only add to their own team (or pool if no teamId)
+      if (body.teamId && myPlayer.teamId !== body.teamId) {
+        return reply.status(403).send({ error: 'You can only add players to your own team' })
+      }
+    }
+
+    const comp = await prisma.competition.findUnique({ where: { id } })
+    if (!comp) return reply.status(404).send({ error: 'Competition not found' })
+
+    const existing = await prisma.user.findUnique({ where: { username } })
+    if (existing) return reply.status(409).send({ error: 'Username already taken' })
+
+    // Real user with the default PIN. They auto-join the competition's group so
+    // they immediately have access to it.
+    const passwordHash = await hashPassword('1234')
+    const user = await prisma.user.create({
+      data: {
+        username,
+        passwordHash,
+        displayName: body.name.trim(),
+        globalRole: 'PLAYER',
+        ...(comp.groupId ? { groups: { create: { groupId: comp.groupId } } } : {}),
+      },
+    })
+
+    const player = await prisma.competitionPlayer.create({
+      data: {
+        competitionId: id,
+        userId: user.id,
+        teamId: body.teamId ?? null,
+      },
+      include: {
+        user: { select: { id: true, username: true, displayName: true, profileImageUrl: true, isDummy: true } },
+        team: { select: { id: true, name: true } },
+      },
+    })
+
+    // Fire-and-forget: generate a profile image in the background
+    generateRandomProfileImage(user.id).catch(() => {})
 
     return { player }
   })
