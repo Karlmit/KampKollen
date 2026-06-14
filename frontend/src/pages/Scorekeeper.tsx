@@ -313,26 +313,6 @@ export function ScorekeeperPage() {
 
       {selectedCc && (
         <>
-          <Card style={{ marginBottom: '16px', background: 'var(--surface-raised)' }} padding="12px">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              {selectedCc.challenge.logoUrl && (
-                <img
-                  src={selectedCc.challenge.logoUrl}
-                  alt=""
-                  style={{ width: 48, height: 48, borderRadius: 'var(--radius-sm)', objectFit: 'cover', flexShrink: 0 }}
-                />
-              )}
-              <div>
-                <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px', marginBottom: '2px' }}>
-                  {selectedCc.challenge.name}
-                </p>
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                  {t('scorekeeper.scoreTypeLabel')}<strong>{t(`scoreTypes.${scoreType}` as any)}</strong>
-                </p>
-              </div>
-            </div>
-          </Card>
-
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
             {groupedTeams.map(team => (
               <div key={team.id ?? 'pool'}>
