@@ -523,6 +523,9 @@ const en = {
       questionPlaceholder: 'Question text…',
       answerPlaceholder: 'Answer text…',
       markCorrect: 'Mark as correct',
+      uploadImage: 'Upload image',
+      generateImage: 'Generate image with AI',
+      generateImageNeedsText: 'Enter the question text first',
     },
 
     imageOptions: {

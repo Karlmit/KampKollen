@@ -521,6 +521,9 @@ const sv = {
       questionPlaceholder: 'Frågetext…',
       answerPlaceholder: 'Svarstext…',
       markCorrect: 'Markera som rätt',
+      uploadImage: 'Ladda upp bild',
+      generateImage: 'Generera bild med AI',
+      generateImageNeedsText: 'Skriv frågetexten först',
     },
 
     imageOptions: {

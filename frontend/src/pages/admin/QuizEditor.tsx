@@ -112,6 +112,11 @@ function QuizEditorInner({ challengeId }: { challengeId: string }) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz-full', challengeId] }),
   })
 
+  const genQImg = useMutation({
+    mutationFn: ({ id }: { id: string }) => api.quiz.generateQuestionImage(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz-full', challengeId] }),
+  })
+
   const uploadOptImg = useMutation({
     mutationFn: ({ id, file }: { id: string; file: File }) => api.quiz.uploadOptionImage(id, file),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz-full', challengeId] }),
@@ -150,11 +155,22 @@ function QuizEditorInner({ challengeId }: { challengeId: string }) {
                 {q.imageUrl && <img src={q.imageUrl} alt="" style={{ width: 120, height: 80, objectFit: 'cover', borderRadius: 'var(--radius-sm)', marginTop: 4 }} />}
               </div>
               <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
-                <label style={{ cursor: 'pointer', fontSize: '18px' }}>
+                <label title={t('admin.quizEditor.uploadImage')} style={{ cursor: 'pointer', fontSize: '18px' }}>
                   🖼
                   <input type="file" accept="image/*" style={{ display: 'none' }}
                     onChange={e => { if (e.target.files?.[0]) uploadQImg.mutate({ id: q.id, file: e.target.files[0] }) }} />
                 </label>
+                <button type="button"
+                  title={q.text?.trim() ? t('admin.quizEditor.generateImage') : t('admin.quizEditor.generateImageNeedsText')}
+                  disabled={!q.text?.trim() || (genQImg.isPending && genQImg.variables?.id === q.id)}
+                  onClick={() => genQImg.mutate({ id: q.id })}
+                  style={{
+                    background: 'none', border: 'none', fontSize: '18px',
+                    cursor: q.text?.trim() ? 'pointer' : 'not-allowed',
+                    opacity: q.text?.trim() ? 1 : 0.4,
+                  }}>
+                  {genQImg.isPending && genQImg.variables?.id === q.id ? '⏳' : '✨'}
+                </button>
                 {qi > 0 && (
                   <button type="button" onClick={() => {
                     const ids = questions.map((x: any) => x.id)

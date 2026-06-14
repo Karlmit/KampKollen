@@ -148,6 +148,8 @@ export const api = {
       return fetch(`api/quiz/questions/${id}/image`, { method: 'POST', credentials: 'include', body: form })
         .then(r => r.json()) as Promise<{ imageUrl: string }>
     },
+    generateQuestionImage: (id: string, prompt?: string) =>
+      request<{ imageUrl: string }>(`/quiz/questions/${id}/generate-image`, { method: 'POST', body: JSON.stringify(prompt ? { prompt } : {}) }),
     createOption: (questionId: string, data: { text: string; isCorrect?: boolean }) =>
       request<{ option: any }>(`/quiz/questions/${questionId}/options`, { method: 'POST', body: JSON.stringify(data) }),
     updateOption: (id: string, data: { text?: string; isCorrect?: boolean }) =>

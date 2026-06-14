@@ -6,6 +6,7 @@ import { requireAuth, requireAdmin, optionalAuth } from '../middleware/auth.js'
 import path from 'path'
 import fs from 'fs'
 import { config } from '../config.js'
+import { generateImage } from '../lib/imageGeneration.js'
 
 // ── SSE broadcast ─────────────────────────────────────────────────────────────
 const sseClients = new Map<string, Set<FastifyReply>>()
@@ -425,6 +426,26 @@ export async function quizRoutes(app: FastifyInstance) {
     const publicUrl = `/uploads/quiz/${filename}`
     await prisma.quizQuestion.update({ where: { id }, data: { imageUrl: publicUrl } })
     return { imageUrl: publicUrl }
+  })
+
+  // ── AI image generation for question ────────────────────────────────────────
+  app.post('/questions/:id/generate-image', { preHandler: requireAuth }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const me = request.user as { id: string; role: string }
+    const cid = await challengeIdFromQuestion(id)
+    if (!cid || !await canEditQuiz(me.id, me.role, cid)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
+    const question = await prisma.quizQuestion.findUnique({ where: { id } })
+    if (!question) return reply.status(404).send({ error: 'Question not found' })
+    const body = (request.body ?? {}) as { prompt?: string }
+    const prompt = body.prompt?.trim()
+      || `An illustration for a quiz question: "${question.text}". Relevant to the question, no text or letters in the image.`
+    const result = await generateImage({ prompt }, 'quiz')
+    // generateImage returns a slashless "uploads/quiz/…" path (or a full http URL
+    // for the placeholder fallback). Match the upload route's leading-slash form
+    // so it renders the same way in the editor and the live quiz.
+    const imageUrl = result.publicUrl.startsWith('uploads/') ? `/${result.publicUrl}` : result.publicUrl
+    await prisma.quizQuestion.update({ where: { id }, data: { imageUrl } })
+    return { imageUrl }
   })
 
   // ── Option CRUD ─────────────────────────────────────────────────────────────
