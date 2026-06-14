@@ -26,11 +26,12 @@ const GRIP = '⠿'
 // Drag handle props from dnd-kit, passed to the grip element only.
 type HandleProps = Record<string, unknown>
 
-function SortableOptionRow({ option, onUpdate, onDelete, onImageUpload }: {
+function SortableOptionRow({ option, onUpdate, onDelete, onImageUpload, onImageRemove }: {
   option: any
   onUpdate: (data: { text?: string; isCorrect?: boolean }) => void
   onDelete: () => void
   onImageUpload: (file: File) => void
+  onImageRemove: () => void
 }) {
   const { t } = useTranslation()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: option.id })
@@ -64,7 +65,13 @@ function SortableOptionRow({ option, onUpdate, onDelete, onImageUpload }: {
         {option.isCorrect ? '✓' : ''}
       </button>
       {option.imageUrl && (
-        <img src={option.imageUrl} alt="" style={{ width: 34, height: 34, borderRadius: 'var(--radius-sm)', objectFit: 'cover', flexShrink: 0, border: '1px solid var(--border-light)' }} />
+        <span style={{ position: 'relative', flexShrink: 0, lineHeight: 0 }}>
+          <img src={option.imageUrl} alt="" style={{ width: 34, height: 34, borderRadius: 'var(--radius-sm)', objectFit: 'cover', border: '1px solid var(--border-light)', display: 'block' }} />
+          <button type="button" title={t('admin.quizEditor.removeImage')} onClick={onImageRemove}
+            style={{ position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: '50%', background: 'var(--accent-warm)', color: '#fff', border: '2px solid var(--surface)', fontSize: 11, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0 }}>
+            ×
+          </button>
+        </span>
       )}
       <input
         defaultValue={option.text}
@@ -165,8 +172,16 @@ export function QuizEditorPage() {
     mutationFn: ({ id }: { id: string }) => api.quiz.generateQuestionImage(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz-full', challengeId] }),
   })
+  const removeQImg = useMutation({
+    mutationFn: ({ id }: { id: string }) => api.quiz.removeQuestionImage(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz-full', challengeId] }),
+  })
   const uploadOptImg = useMutation({
     mutationFn: ({ id, file }: { id: string; file: File }) => api.quiz.uploadOptionImage(id, file),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz-full', challengeId] }),
+  })
+  const removeOptImg = useMutation({
+    mutationFn: ({ id }: { id: string }) => api.quiz.removeOptionImage(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz-full', challengeId] }),
   })
   const reorder = useMutation({
@@ -236,7 +251,17 @@ export function QuizEditorPage() {
 
                           {/* Image preview */}
                           {q.imageUrl && (
-                            <img src={q.imageUrl} alt="" style={{ width: '100%', maxWidth: 240, height: 150, objectFit: 'cover', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)', marginBottom: 12 }} />
+                            <div style={{ position: 'relative', display: 'inline-block', width: '100%', maxWidth: 240, marginBottom: 12 }}>
+                              <img src={q.imageUrl} alt="" style={{ width: '100%', height: 150, objectFit: 'cover', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)', display: 'block' }} />
+                              <button type="button" title={t('admin.quizEditor.removeImage')}
+                                disabled={removeQImg.isPending && removeQImg.variables?.id === q.id}
+                                onClick={() => removeQImg.mutate({ id: q.id })}
+                                style={{ position: 'absolute', top: 8, right: 8, width: 30, height: 30, borderRadius: 'var(--radius-full)', background: 'rgba(0,0,0,0.55)', color: '#fff', border: 'none', fontSize: 16, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'background-color 150ms var(--ease-out)' }}
+                                onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent-warm)' }}
+                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.55)' }}>
+                                ×
+                              </button>
+                            </div>
                           )}
 
                           {/* Image actions */}
@@ -313,6 +338,7 @@ export function QuizEditorPage() {
                                         onUpdate={d => updateOpt.mutate({ id: opt.id, ...d })}
                                         onDelete={() => deleteOpt.mutate(opt.id)}
                                         onImageUpload={file => uploadOptImg.mutate({ id: opt.id, file })}
+                                        onImageRemove={() => removeOptImg.mutate({ id: opt.id })}
                                       />
                                     ))}
                                   </div>

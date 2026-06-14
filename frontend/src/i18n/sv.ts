@@ -525,6 +525,7 @@ const sv = {
       generateImage: 'Generera bild med AI',
       generateImageBtn: 'Generera med AI',
       generateImageNeedsText: 'Skriv frågetexten först',
+      removeImage: 'Ta bort bild',
       editTitle: 'Redigera: {{name}}',
       reorderHint: 'Dra i handtaget (⠿) för att ändra ordning.',
       freeTextInfo: 'Deltagarna skriver ett fritt svar som quizvärden poängsätter.',

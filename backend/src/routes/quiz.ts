@@ -72,6 +72,16 @@ async function challengeIdFromQuestion(questionId: string): Promise<string | nul
   return q?.challengeId ?? null
 }
 
+// Best-effort delete of a stored upload from disk. Handles both the upload
+// ("/uploads/quiz/…") and generated ("uploads/quiz/…") forms; ignores remote
+// placeholder URLs and missing files.
+function removeStoredImage(imageUrl: string | null | undefined) {
+  if (!imageUrl) return
+  const rel = imageUrl.replace(/^\/?uploads\//, '')
+  if (rel === imageUrl) return // not an uploads/ path (e.g. https placeholder)
+  try { fs.unlinkSync(path.join(config.uploadsDir, rel)) } catch { /* already gone */ }
+}
+
 async function computeAndSaveScores(ccId: string, actorId: string) {
   const cc = await prisma.competitionChallenge.findUnique({
     where: { id: ccId },
@@ -448,6 +458,19 @@ export async function quizRoutes(app: FastifyInstance) {
     return { imageUrl }
   })
 
+  // ── Remove image from question ──────────────────────────────────────────────
+  app.delete('/questions/:id/image', { preHandler: requireAuth }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const me = request.user as { id: string; role: string }
+    const cid = await challengeIdFromQuestion(id)
+    if (!cid || !await canEditQuiz(me.id, me.role, cid)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
+    const question = await prisma.quizQuestion.findUnique({ where: { id }, select: { imageUrl: true } })
+    if (!question) return reply.status(404).send({ error: 'Question not found' })
+    removeStoredImage(question.imageUrl)
+    await prisma.quizQuestion.update({ where: { id }, data: { imageUrl: null } })
+    return { success: true }
+  })
+
   // ── Option CRUD ─────────────────────────────────────────────────────────────
   app.post('/questions/:questionId/options', { preHandler: requireAuth }, async (request, reply) => {
     const { questionId } = request.params as { questionId: string }
@@ -509,6 +532,19 @@ export async function quizRoutes(app: FastifyInstance) {
     const publicUrl = `/uploads/quiz/${filename}`
     await prisma.quizOption.update({ where: { id }, data: { imageUrl: publicUrl } })
     return { imageUrl: publicUrl }
+  })
+
+  // ── Remove image from option ────────────────────────────────────────────────
+  app.delete('/options/:id/image', { preHandler: requireAuth }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const me = request.user as { id: string; role: string }
+    const cid = await challengeIdFromOption(id)
+    if (!cid || !await canEditQuiz(me.id, me.role, cid)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
+    const option = await prisma.quizOption.findUnique({ where: { id }, select: { imageUrl: true } })
+    if (!option) return reply.status(404).send({ error: 'Option not found' })
+    removeStoredImage(option.imageUrl)
+    await prisma.quizOption.update({ where: { id }, data: { imageUrl: null } })
+    return { success: true }
   })
 
   // ── Session control ─────────────────────────────────────────────────────────

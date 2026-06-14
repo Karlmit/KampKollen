@@ -527,6 +527,7 @@ const en = {
       generateImage: 'Generate image with AI',
       generateImageBtn: 'Generate with AI',
       generateImageNeedsText: 'Enter the question text first',
+      removeImage: 'Remove image',
       editTitle: 'Edit: {{name}}',
       reorderHint: 'Drag the handle (⠿) to reorder.',
       freeTextInfo: 'Players write a free answer that the quiz master scores.',
