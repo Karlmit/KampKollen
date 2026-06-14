@@ -99,9 +99,21 @@ export async function teamRoutes(app: FastifyInstance) {
     return { team }
   })
 
-  app.delete('/:id', { preHandler: requireAdmin }, async (request) => {
+  app.delete('/:id', { preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
-    await prisma.team.delete({ where: { id } })
+    const team = await prisma.team.findUnique({ where: { id } })
+    if (!team) return reply.status(404).send({ error: 'Team not found' })
+
+    // Send any members back to the player pool (keeping them in the competition
+    // and keeping their scores, which are tied to the user, not the team) before
+    // removing the team.
+    await prisma.$transaction([
+      prisma.competitionPlayer.updateMany({
+        where: { teamId: id },
+        data: { teamId: null, isTeamLeader: false },
+      }),
+      prisma.team.delete({ where: { id } }),
+    ])
     return { success: true }
   })
 

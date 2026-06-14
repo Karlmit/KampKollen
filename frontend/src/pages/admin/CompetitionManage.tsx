@@ -81,6 +81,9 @@ export function AdminCompetitionManage() {
   const [assignTeamPlayer, setAssignTeamPlayer] = useState<any>(null)
   const [renamingTeam, setRenamingTeam] = useState<any>(null)
   const [newTeamName, setNewTeamName] = useState('')
+  const [addTeamOpen, setAddTeamOpen] = useState(false)
+  const [addTeamName, setAddTeamName] = useState('')
+  const [removingTeam, setRemovingTeam] = useState<any>(null)
   const [imageTeam, setImageTeam] = useState<any>(null)
   const [removingChallenge, setRemovingChallenge] = useState<any>(null)
   const [localChallenges, setLocalChallenges] = useState<any[]>([])
@@ -172,6 +175,16 @@ export function AdminCompetitionManage() {
   const renameTeamMutation = useMutation({
     mutationFn: () => api.teams.update(renamingTeam.id, { name: newTeamName }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['competition', id] }); setRenamingTeam(null) },
+  })
+
+  const addTeamMutation = useMutation({
+    mutationFn: (name: string) => api.teams.create(id!, { name }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['competition', id] }); setAddTeamOpen(false); setAddTeamName('') },
+  })
+
+  const removeTeamMutation = useMutation({
+    mutationFn: (teamId: string) => api.teams.delete(teamId),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['competition', id] }); setRemovingTeam(null) },
   })
 
   const updateStatusMutation = useMutation({
@@ -328,31 +341,41 @@ export function AdminCompetitionManage() {
 
       {/* Teams tab */}
       {tab === 'teams' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {comp.teams?.map((team: any) => (
-            <Card key={team.id}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                <Avatar src={team.imageUrl} name={team.name} size={44} style={{ borderRadius: '50%' }} />
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700 }}>{team.name}</p>
-                  <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                    {comp.players?.filter((p: any) => p.teamId === team.id).length ?? 0} {t('common.players')}
-                  </p>
+        <>
+          <Button size="sm" style={{ marginBottom: '12px' }}
+            onClick={() => { setAddTeamName(`Team ${(comp.teams?.length ?? 0) + 1}`); setAddTeamOpen(true) }}>
+            {t('admin.manage.addTeam')}
+          </Button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {comp.teams?.map((team: any) => (
+              <Card key={team.id}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                  <Avatar src={team.imageUrl} name={team.name} size={44} style={{ borderRadius: '50%' }} />
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700 }}>{team.name}</p>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                      {comp.players?.filter((p: any) => p.teamId === team.id).length ?? 0} {t('common.players')}
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <div style={{ display: 'flex', gap: '6px' }}>
-                <Button size="sm" variant="ghost" style={{ fontSize: '12px' }}
-                  onClick={() => { setRenamingTeam(team); setNewTeamName(team.name) }}>
-                  {t('common.rename')}
-                </Button>
-                <Button size="sm" variant="ghost" style={{ fontSize: '12px' }}
-                  onClick={() => setImageTeam(team)}>
-                  {t('common.image')}
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <Button size="sm" variant="ghost" style={{ fontSize: '12px' }}
+                    onClick={() => { setRenamingTeam(team); setNewTeamName(team.name) }}>
+                    {t('common.rename')}
+                  </Button>
+                  <Button size="sm" variant="ghost" style={{ fontSize: '12px' }}
+                    onClick={() => setImageTeam(team)}>
+                    {t('common.image')}
+                  </Button>
+                  <Button size="sm" variant="danger" style={{ fontSize: '12px', marginLeft: 'auto' }}
+                    onClick={() => setRemovingTeam(team)}>
+                    {t('common.remove')}
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </>
       )}
 
       {/* Challenges tab */}
@@ -579,6 +602,47 @@ export function AdminCompetitionManage() {
             </button>
           ))}
         </div>
+      </Modal>
+
+      {/* Add team modal */}
+      <Modal open={addTeamOpen} onClose={() => setAddTeamOpen(false)} title={t('admin.manage.addTeamModal')}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setAddTeamOpen(false)}>{t('common.cancel')}</Button>
+            <Button onClick={() => addTeamMutation.mutate(addTeamName.trim())} disabled={!addTeamName.trim()} loading={addTeamMutation.isPending}>{t('common.add')}</Button>
+          </>
+        }
+      >
+        <Input label={t('admin.manage.teamName')} value={addTeamName}
+          onChange={e => setAddTeamName(e.target.value)}
+          onKeyDown={(e: any) => { if (e.key === 'Enter' && addTeamName.trim()) addTeamMutation.mutate(addTeamName.trim()) }}
+          autoFocus />
+      </Modal>
+
+      {/* Remove team confirm modal */}
+      <Modal open={!!removingTeam} onClose={() => setRemovingTeam(null)} title={t('admin.manage.removeTeam')}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setRemovingTeam(null)}>{t('common.cancel')}</Button>
+            <Button variant="danger" onClick={() => removeTeamMutation.mutate(removingTeam.id)} loading={removeTeamMutation.isPending}>
+              {t('common.remove')}
+            </Button>
+          </>
+        }
+      >
+        {(() => {
+          const memberCount = removingTeam ? (comp.players?.filter((p: any) => p.teamId === removingTeam.id).length ?? 0) : 0
+          return (
+            <>
+              <p style={{ fontSize: '15px' }}>
+                {memberCount > 0
+                  ? t('admin.manage.removeTeamConfirmWithPlayers', { name: removingTeam?.name, count: memberCount })
+                  : t('admin.manage.removeTeamConfirm', { name: removingTeam?.name })}
+              </p>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px' }}>{t('admin.manage.removeTeamDesc')}</p>
+            </>
+          )
+        })()}
       </Modal>
 
       {/* Rename team modal */}
