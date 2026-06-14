@@ -531,6 +531,22 @@ const sv = {
       freeTextInfo: 'Deltagarna skriver ett fritt svar som quizvärden poängsätter.',
       deleteQuestion: 'Ta bort fråga',
       deleteOption: 'Ta bort alternativ',
+      // Image prompt dialog
+      imagePromptLabel: 'Beskriv bilden',
+      imagePromptPlaceholder: 'T.ex. en glad känguru som hoppar framför Sydneys operahus',
+      imagePromptHint: 'AI:n skapar en bild utifrån din beskrivning. Ju tydligare beskrivning, desto bättre resultat.',
+      generateQuestionImageTitle: 'Generera bild för frågan',
+      generateAnswerImageTitle: 'Generera bild för svaret',
+      generateQuizImageTitle: 'Generera quizbild',
+      promptSeedQuestion: 'En illustration som passar frågan: {{text}}',
+      promptSeedAnswer: 'En illustration som passar svaret: {{text}}',
+      promptSeedQuiz: 'En omslagsbild för quizet {{name}}',
+      // Quiz cover image
+      quizImageHeading: 'Quizbild',
+      quizImageHint: 'Visas i tävlingens utmaningslista och i quizlobbyn.',
+      generateQuizImage: 'Generera quizbild',
+      generateAnswerImage: 'Generera bild för svaret',
+      noQuizImage: 'Ingen quizbild ännu',
     },
 
     imageOptions: {

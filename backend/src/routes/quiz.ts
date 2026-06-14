@@ -6,7 +6,7 @@ import { requireAuth, requireAdmin, optionalAuth } from '../middleware/auth.js'
 import path from 'path'
 import fs from 'fs'
 import { config } from '../config.js'
-import { generateImage } from '../lib/imageGeneration.js'
+import { generateImage, DEFAULT_PROMPTS } from '../lib/imageGeneration.js'
 
 // ── SSE broadcast ─────────────────────────────────────────────────────────────
 const sseClients = new Map<string, Set<FastifyReply>>()
@@ -173,6 +173,32 @@ export async function quizRoutes(app: FastifyInstance) {
     return { challenge, questions }
   })
 
+  // ── Quiz cover image (challenge logo) — shown in the challenge list & lobby ──
+  app.post('/challenge/:challengeId/generate-image', { preHandler: requireAuth }, async (request, reply) => {
+    const { challengeId } = request.params as { challengeId: string }
+    const me = request.user as { id: string; role: string }
+    if (!await canEditQuiz(me.id, me.role, challengeId)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
+    const challenge = await prisma.challenge.findUnique({ where: { id: challengeId } })
+    if (!challenge) return reply.status(404).send({ error: 'Not found' })
+    const body = (request.body ?? {}) as { prompt?: string }
+    const prompt = body.prompt?.trim() || DEFAULT_PROMPTS.challenge(challenge.name)
+    // Store under 'challenges' so it matches every other challenge logo.
+    const result = await generateImage({ prompt }, 'challenges')
+    await prisma.challenge.update({ where: { id: challengeId }, data: { logoUrl: result.publicUrl } })
+    return { logoUrl: result.publicUrl }
+  })
+
+  app.delete('/challenge/:challengeId/image', { preHandler: requireAuth }, async (request, reply) => {
+    const { challengeId } = request.params as { challengeId: string }
+    const me = request.user as { id: string; role: string }
+    if (!await canEditQuiz(me.id, me.role, challengeId)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
+    const challenge = await prisma.challenge.findUnique({ where: { id: challengeId }, select: { logoUrl: true } })
+    if (!challenge) return reply.status(404).send({ error: 'Not found' })
+    removeStoredImage(challenge.logoUrl)
+    await prisma.challenge.update({ where: { id: challengeId }, data: { logoUrl: null } })
+    return { success: true }
+  })
+
   // ── SSE stream ──────────────────────────────────────────────────────────────
   app.get('/:ccId/stream', { preHandler: optionalAuth }, async (request, reply) => {
     const { ccId } = request.params as { ccId: string }
@@ -337,6 +363,8 @@ export async function quizRoutes(app: FastifyInstance) {
       myIsTeamLeader: myPlayer?.isTeamLeader ?? false,
       myIsScorekeeper: myPlayer?.isScorekeeper ?? false,
       challengeId: cc.challenge.id,
+      challengeName: cc.challenge.name,
+      challengeLogoUrl: cc.challenge.logoUrl,
       competition: {
         id: cc.competition.id,
         teams: cc.competition.teams,
@@ -545,6 +573,23 @@ export async function quizRoutes(app: FastifyInstance) {
     removeStoredImage(option.imageUrl)
     await prisma.quizOption.update({ where: { id }, data: { imageUrl: null } })
     return { success: true }
+  })
+
+  // ── AI image generation for option ──────────────────────────────────────────
+  app.post('/options/:id/generate-image', { preHandler: requireAuth }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const me = request.user as { id: string; role: string }
+    const cid = await challengeIdFromOption(id)
+    if (!cid || !await canEditQuiz(me.id, me.role, cid)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
+    const option = await prisma.quizOption.findUnique({ where: { id }, include: { question: { select: { text: true } } } })
+    if (!option) return reply.status(404).send({ error: 'Option not found' })
+    const body = (request.body ?? {}) as { prompt?: string }
+    const prompt = body.prompt?.trim()
+      || `An illustration for the quiz answer "${option.text}"${option.question?.text ? ` to the question "${option.question.text}"` : ''}. Relevant to the answer, no text or letters in the image.`
+    const result = await generateImage({ prompt }, 'quiz')
+    const imageUrl = result.publicUrl.startsWith('uploads/') ? `/${result.publicUrl}` : result.publicUrl
+    await prisma.quizOption.update({ where: { id }, data: { imageUrl } })
+    return { imageUrl }
   })
 
   // ── Session control ─────────────────────────────────────────────────────────

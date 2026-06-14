@@ -533,6 +533,22 @@ const en = {
       freeTextInfo: 'Players write a free answer that the quiz master scores.',
       deleteQuestion: 'Delete question',
       deleteOption: 'Delete option',
+      // Image prompt dialog
+      imagePromptLabel: 'Describe the image',
+      imagePromptPlaceholder: 'E.g. a happy kangaroo hopping in front of the Sydney Opera House',
+      imagePromptHint: 'The AI creates an image from your description. The clearer the description, the better the result.',
+      generateQuestionImageTitle: 'Generate question image',
+      generateAnswerImageTitle: 'Generate answer image',
+      generateQuizImageTitle: 'Generate quiz image',
+      promptSeedQuestion: 'An illustration that fits the question: {{text}}',
+      promptSeedAnswer: 'An illustration that fits the answer: {{text}}',
+      promptSeedQuiz: 'A cover image for the quiz {{name}}',
+      // Quiz cover image
+      quizImageHeading: 'Quiz image',
+      quizImageHint: 'Shown in the competition challenge list and the quiz lobby.',
+      generateQuizImage: 'Generate quiz image',
+      generateAnswerImage: 'Generate answer image',
+      noQuizImage: 'No quiz image yet',
     },
 
     imageOptions: {

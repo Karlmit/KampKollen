@@ -151,6 +151,9 @@ export const api = {
     generateQuestionImage: (id: string, prompt?: string) =>
       request<{ imageUrl: string }>(`/quiz/questions/${id}/generate-image`, { method: 'POST', body: JSON.stringify(prompt ? { prompt } : {}) }),
     removeQuestionImage: (id: string) => request(`/quiz/questions/${id}/image`, { method: 'DELETE' }),
+    generateQuizImage: (challengeId: string, prompt?: string) =>
+      request<{ logoUrl: string }>(`/quiz/challenge/${challengeId}/generate-image`, { method: 'POST', body: JSON.stringify(prompt ? { prompt } : {}) }),
+    removeQuizImage: (challengeId: string) => request(`/quiz/challenge/${challengeId}/image`, { method: 'DELETE' }),
     createOption: (questionId: string, data: { text: string; isCorrect?: boolean }) =>
       request<{ option: any }>(`/quiz/questions/${questionId}/options`, { method: 'POST', body: JSON.stringify(data) }),
     updateOption: (id: string, data: { text?: string; isCorrect?: boolean }) =>
@@ -162,6 +165,8 @@ export const api = {
         .then(r => r.json()) as Promise<{ imageUrl: string }>
     },
     removeOptionImage: (id: string) => request(`/quiz/options/${id}/image`, { method: 'DELETE' }),
+    generateOptionImage: (id: string, prompt?: string) =>
+      request<{ imageUrl: string }>(`/quiz/options/${id}/generate-image`, { method: 'POST', body: JSON.stringify(prompt ? { prompt } : {}) }),
     markReady: (ccId: string, teamId?: string) =>
       request(`/quiz/${ccId}/session/ready`, { method: 'POST', body: JSON.stringify({ teamId }) }),
     start: (ccId: string) => request(`/quiz/${ccId}/session/start`, { method: 'POST', body: '{}' }),

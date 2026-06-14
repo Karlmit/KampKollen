@@ -8,8 +8,14 @@ import { Input } from '../../components/ui/Input'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { api } from '../../api/client'
 import { IconButton } from '../../components/quiz/IconButton'
+import { GenerateImageDialog } from '../../components/quiz/GenerateImageDialog'
 import { useTranslation } from 'react-i18next'
 import type { CSSProperties } from 'react'
+
+type GenTarget =
+  | { kind: 'quiz' }
+  | { kind: 'question'; id: string; seed: string }
+  | { kind: 'option'; id: string; seed: string }
 
 // Ghost "pill" button shared by the image actions (upload / generate).
 const pillStyle: CSSProperties = {
@@ -20,12 +26,14 @@ const pillStyle: CSSProperties = {
   cursor: 'pointer', transition: 'opacity 150ms var(--ease-out), transform 120ms var(--ease-out)',
 }
 
-function OptionRow({ option, onUpdate, onDelete, onImageUpload, onImageRemove }: {
+function OptionRow({ option, onUpdate, onDelete, onImageUpload, onImageRemove, onGenerate, generating }: {
   option: any
   onUpdate: (data: { text?: string; isCorrect?: boolean }) => void
   onDelete: () => void
   onImageUpload: (file: File) => void
   onImageRemove: () => void
+  onGenerate: () => void
+  generating: boolean
 }) {
   const { t } = useTranslation()
   return (
@@ -70,6 +78,7 @@ function OptionRow({ option, onUpdate, onDelete, onImageUpload, onImageRemove }:
         🖼
         <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { if (e.target.files?.[0]) onImageUpload(e.target.files[0]) }} />
       </label>
+      <IconButton size="sm" title={t('admin.quizEditor.generateAnswerImage')} disabled={generating} onClick={onGenerate}>✨</IconButton>
       <IconButton size="sm" tone="danger" title={t('admin.quizEditor.deleteOption')} onClick={onDelete}>×</IconButton>
     </div>
   )
@@ -134,7 +143,7 @@ function QuizEditorInner({ challengeId }: { challengeId: string }) {
   })
 
   const genQImg = useMutation({
-    mutationFn: ({ id }: { id: string }) => api.quiz.generateQuestionImage(id),
+    mutationFn: ({ id, prompt }: { id: string; prompt?: string }) => api.quiz.generateQuestionImage(id, prompt),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz-full', challengeId] }),
   })
 
@@ -148,10 +157,44 @@ function QuizEditorInner({ challengeId }: { challengeId: string }) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz-full', challengeId] }),
   })
 
+  const genOptImg = useMutation({
+    mutationFn: ({ id, prompt }: { id: string; prompt?: string }) => api.quiz.generateOptionImage(id, prompt),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz-full', challengeId] }),
+  })
+
   const removeOptImg = useMutation({
     mutationFn: ({ id }: { id: string }) => api.quiz.removeOptionImage(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz-full', challengeId] }),
   })
+
+  const genQuizImg = useMutation({
+    mutationFn: ({ prompt }: { prompt?: string }) => api.quiz.generateQuizImage(challengeId, prompt),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['quiz-full', challengeId] }); qc.invalidateQueries({ queryKey: ['competitions'] }) },
+  })
+
+  const removeQuizImg = useMutation({
+    mutationFn: () => api.quiz.removeQuizImage(challengeId),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['quiz-full', challengeId] }); qc.invalidateQueries({ queryKey: ['competitions'] }) },
+  })
+
+  const [genTarget, setGenTarget] = useState<GenTarget | null>(null)
+  const generating = genQImg.isPending || genOptImg.isPending || genQuizImg.isPending
+
+  async function runGenerate(prompt: string) {
+    if (!genTarget) return
+    try {
+      if (genTarget.kind === 'quiz') await genQuizImg.mutateAsync({ prompt })
+      else if (genTarget.kind === 'question') await genQImg.mutateAsync({ id: genTarget.id, prompt })
+      else await genOptImg.mutateAsync({ id: genTarget.id, prompt })
+      setGenTarget(null)
+    } catch { /* keep the dialog open so the user can retry */ }
+  }
+
+  function dialogTitle(target: GenTarget): string {
+    if (target.kind === 'quiz') return t('admin.quizEditor.generateQuizImageTitle')
+    if (target.kind === 'question') return t('admin.quizEditor.generateQuestionImageTitle')
+    return t('admin.quizEditor.generateAnswerImageTitle')
+  }
 
   const reorder = useMutation({
     mutationFn: (order: string[]) => api.quiz.reorderQuestions(order),
@@ -162,9 +205,42 @@ function QuizEditorInner({ challengeId }: { challengeId: string }) {
 
   const questions: any[] = data?.questions ?? []
   const challengeName = data?.challenge?.name ?? 'Quiz'
+  const quizImageUrl: string | null = data?.challenge?.logoUrl ?? null
 
   return (
     <AdminLayout title={`Quiz: ${challengeName}`}>
+      {/* Quiz cover image — shown in the challenge list and the lobby */}
+      <Card padding="14px" style={{ marginBottom: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          {quizImageUrl ? (
+            <div style={{ position: 'relative', flexShrink: 0, lineHeight: 0 }}>
+              <img src={quizImageUrl} alt="" style={{ width: 84, height: 84, objectFit: 'cover', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', display: 'block' }} />
+              <button type="button" title={t('admin.quizEditor.removeImage')} disabled={removeQuizImg.isPending}
+                onClick={() => removeQuizImg.mutate()}
+                style={{ position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: '50%', background: 'var(--accent-warm)', color: '#fff', border: '2px solid var(--surface)', fontSize: 13, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0 }}>
+                ×
+              </button>
+            </div>
+          ) : (
+            <div style={{ width: 84, height: 84, flexShrink: 0, borderRadius: 'var(--radius)', border: '1px dashed var(--border-light)', background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, color: 'var(--text-muted)' }}>
+              🖼
+            </div>
+          )}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px', marginBottom: 2 }}>{t('admin.quizEditor.quizImageHeading')}</p>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 10 }}>{t('admin.quizEditor.quizImageHint')}</p>
+            <button type="button"
+              disabled={genQuizImg.isPending}
+              onClick={() => setGenTarget({ kind: 'quiz' })}
+              style={{ ...pillStyle, opacity: genQuizImg.isPending ? 0.45 : 1, cursor: genQuizImg.isPending ? 'not-allowed' : 'pointer' }}
+              onMouseEnter={e => { if (!genQuizImg.isPending) e.currentTarget.style.opacity = '0.85' }}
+              onMouseLeave={e => { if (!genQuizImg.isPending) e.currentTarget.style.opacity = '1' }}>
+              {genQuizImg.isPending ? <span className="loading-dots"><span /><span /><span /></span> : <>✨ {t('admin.quizEditor.generateQuizImage')}</>}
+            </button>
+          </div>
+        </div>
+      </Card>
+
       <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
         {t('admin.quizEditor.questionsCount', { count: questions.length })}
       </p>
@@ -233,12 +309,12 @@ function QuizEditorInner({ challengeId }: { challengeId: string }) {
                   onChange={e => { if (e.target.files?.[0]) uploadQImg.mutate({ id: q.id, file: e.target.files[0] }) }} />
               </label>
               <button type="button"
-                title={hasText ? t('admin.quizEditor.generateImage') : t('admin.quizEditor.generateImageNeedsText')}
-                disabled={!hasText || genPending}
-                onClick={() => genQImg.mutate({ id: q.id })}
-                style={{ ...pillStyle, opacity: (!hasText || genPending) ? 0.45 : 1, cursor: (!hasText || genPending) ? 'not-allowed' : 'pointer' }}
-                onMouseEnter={e => { if (hasText && !genPending) e.currentTarget.style.opacity = '0.85' }}
-                onMouseLeave={e => { if (hasText && !genPending) e.currentTarget.style.opacity = '1' }}>
+                title={t('admin.quizEditor.generateImage')}
+                disabled={genPending}
+                onClick={() => setGenTarget({ kind: 'question', id: q.id, seed: hasText ? t('admin.quizEditor.promptSeedQuestion', { text: q.text }) : '' })}
+                style={{ ...pillStyle, opacity: genPending ? 0.45 : 1, cursor: genPending ? 'not-allowed' : 'pointer' }}
+                onMouseEnter={e => { if (!genPending) e.currentTarget.style.opacity = '0.85' }}
+                onMouseLeave={e => { if (!genPending) e.currentTarget.style.opacity = '1' }}>
                 {genPending ? <span className="loading-dots"><span /><span /><span /></span> : <>✨ {t('admin.quizEditor.generateImageBtn')}</>}
               </button>
             </div>
@@ -275,6 +351,8 @@ function QuizEditorInner({ challengeId }: { challengeId: string }) {
                   onDelete={() => deleteOpt.mutate(opt.id)}
                   onImageUpload={file => uploadOptImg.mutate({ id: opt.id, file })}
                   onImageRemove={() => removeOptImg.mutate({ id: opt.id })}
+                  onGenerate={() => setGenTarget({ kind: 'option', id: opt.id, seed: t('admin.quizEditor.promptSeedAnswer', { text: opt.text }) })}
+                  generating={generating}
                 />
               ))}
             </div>
@@ -321,6 +399,19 @@ function QuizEditorInner({ challengeId }: { challengeId: string }) {
           </div>
         </Card>
       </div>
+
+      <GenerateImageDialog
+        open={!!genTarget}
+        title={genTarget ? dialogTitle(genTarget) : ''}
+        defaultPrompt={
+          genTarget?.kind === 'quiz'
+            ? t('admin.quizEditor.promptSeedQuiz', { name: challengeName })
+            : genTarget?.seed ?? ''
+        }
+        submitting={generating}
+        onSubmit={runGenerate}
+        onClose={() => { if (!generating) setGenTarget(null) }}
+      />
     </AdminLayout>
   )
 }

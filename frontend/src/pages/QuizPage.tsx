@@ -175,7 +175,7 @@ export function QuizPage() {
   if (isLoading) return <Layout title={t('quiz.title')} back={`/competitions/${competitionId}`}><LoadingSpinner /></Layout>
   if (!data) return <Layout title={t('quiz.title')} back={`/competitions/${competitionId}`}><p>{t('quiz.notFound')}</p></Layout>
 
-  const { session, isQM, isTeamComp, myTeamId, myIsTeamLeader, myIsScorekeeper, competition, questions, challengeId } = data
+  const { session, isQM, isTeamComp, myTeamId, myIsTeamLeader, myIsScorekeeper, competition, questions, challengeId, challengeLogoUrl } = data
   const isGuest = !user
   // In team mode: leaders, scorekeepers, and non-QM admins can act; individual mode: everyone (guests never act)
   const canAct = !isGuest && (!isTeamComp || myIsTeamLeader || myIsScorekeeper || (isAdmin && !isQM))
@@ -212,7 +212,11 @@ export function QuizPage() {
       {session.status === 'LOBBY' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <Card className="qz-pop-in" style={{ textAlign: 'center', padding: '32px 16px' }}>
-            <p className="qz-float" style={{ fontSize: '40px', marginBottom: '8px' }}>🎯</p>
+            {challengeLogoUrl ? (
+              <img src={challengeLogoUrl} alt="" className="qz-pop-in" style={{ width: 96, height: 96, objectFit: 'cover', borderRadius: 'var(--radius-lg)', margin: '0 auto 12px', boxShadow: 'var(--shadow-md)' }} />
+            ) : (
+              <p className="qz-float" style={{ fontSize: '40px', marginBottom: '8px' }}>🎯</p>
+            )}
             <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '20px', marginBottom: '4px' }}>{t('quiz.lobbyTitle')}</p>
             <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
               {t('quiz.lobbyDesc', { count: questions.length })}
