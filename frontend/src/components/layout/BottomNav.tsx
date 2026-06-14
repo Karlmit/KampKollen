@@ -3,6 +3,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../contexts/AuthContext'
 import { useTranslation } from 'react-i18next'
+import { api } from '../../api/client'
 
 function matchItem(to: string, pathname: string) {
   if (to === '/') return pathname === '/'
@@ -26,9 +27,25 @@ export function BottomNav() {
     { to: '/login',        icon: '👤', label: t('nav.signIn'),  onClick: undefined as ((e: { preventDefault(): void }) => void) | undefined },
   ]
 
-  function handleScoreNav() {
-    const cached = qc.getQueryData<{ competitions: any[] }>(['competitions'])
-    const active = (cached?.competitions ?? []).filter(
+  // Resolve the competitions list from cache, falling back to a fetch when the
+  // cache is empty (e.g. right after a hard page refresh, before any page has
+  // populated the ['competitions'] query). Without this the handlers always saw
+  // an empty list and bounced to /competitions instead of the active comp.
+  async function getCompetitions(): Promise<any[]> {
+    try {
+      const data = await qc.ensureQueryData<{ competitions: any[] }>({
+        queryKey: ['competitions'],
+        queryFn: () => api.competitions.list(),
+      })
+      return data?.competitions ?? []
+    } catch {
+      return qc.getQueryData<{ competitions: any[] }>(['competitions'])?.competitions ?? []
+    }
+  }
+
+  async function handleScoreNav() {
+    const competitions = await getCompetitions()
+    const active = competitions.filter(
       (c: any) => c.status === 'ACTIVE' || c.status === 'REGISTRATION'
     )
     if (active.length === 1) {
@@ -38,10 +55,10 @@ export function BottomNav() {
     }
   }
 
-  function handleCompeteNav(e: { preventDefault(): void }) {
+  async function handleCompeteNav(e: { preventDefault(): void }) {
     e.preventDefault()
-    const cached = qc.getQueryData<{ competitions: any[] }>(['competitions'])
-    const active = (cached?.competitions ?? []).filter((c: any) => c.status === 'ACTIVE')
+    const competitions = await getCompetitions()
+    const active = competitions.filter((c: any) => c.status === 'ACTIVE')
     if (active.length === 1) {
       navigate(`/competitions/${active[0].id}`)
     } else {
