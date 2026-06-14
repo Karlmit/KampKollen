@@ -523,7 +523,13 @@ const sv = {
       markCorrect: 'Markera som rätt',
       uploadImage: 'Ladda upp bild',
       generateImage: 'Generera bild med AI',
+      generateImageBtn: 'Generera med AI',
       generateImageNeedsText: 'Skriv frågetexten först',
+      editTitle: 'Redigera: {{name}}',
+      reorderHint: 'Dra i handtaget (⠿) för att ändra ordning.',
+      freeTextInfo: 'Deltagarna skriver ett fritt svar som quizvärden poängsätter.',
+      deleteQuestion: 'Ta bort fråga',
+      deleteOption: 'Ta bort alternativ',
     },
 
     imageOptions: {

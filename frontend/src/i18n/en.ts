@@ -525,7 +525,13 @@ const en = {
       markCorrect: 'Mark as correct',
       uploadImage: 'Upload image',
       generateImage: 'Generate image with AI',
+      generateImageBtn: 'Generate with AI',
       generateImageNeedsText: 'Enter the question text first',
+      editTitle: 'Edit: {{name}}',
+      reorderHint: 'Drag the handle (⠿) to reorder.',
+      freeTextInfo: 'Players write a free answer that the quiz master scores.',
+      deleteQuestion: 'Delete question',
+      deleteOption: 'Delete option',
     },
 
     imageOptions: {
