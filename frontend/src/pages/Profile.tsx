@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Lottie from 'lottie-react'
 import giftAnimation from '../assets/giftAnimation.json'
@@ -193,6 +193,21 @@ export function Profile() {
   return (
     <Layout
       title={isSelf ? t('profile.myProfile') : (user.displayName ?? user.username)}
+      action={isAdmin ? (
+        <Link
+          to="/admin"
+          aria-label={t('nav.admin')}
+          title={t('nav.admin')}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: 34, height: 34, borderRadius: '50%',
+            background: 'var(--surface)', border: '1px solid var(--border-light)',
+            fontSize: '18px', lineHeight: 1, textDecoration: 'none', flexShrink: 0,
+          }}
+        >
+          ⚙️
+        </Link>
+      ) : undefined}
     >
       {/* Profile header */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '24px', gap: '12px' }}>

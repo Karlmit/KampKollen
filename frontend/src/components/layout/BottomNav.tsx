@@ -20,7 +20,6 @@ export function BottomNav() {
     { to: '/competitions', icon: '🏆', label: t('nav.compete'), onClick: handleCompeteNav },
     { to: '/leaderboard',  icon: '📊', label: t('nav.scores'),  onClick: undefined as ((e: { preventDefault(): void }) => void) | undefined },
   ]
-  const ADMIN_ITEM = { to: '/admin', icon: '⚙️', label: t('nav.admin'), onClick: undefined as ((e: { preventDefault(): void }) => void) | undefined }
   const GUEST_NAV_ITEMS = [
     { to: '/competitions', icon: '🏆', label: t('nav.compete'), onClick: handleCompeteNav },
     { to: '/leaderboard',  icon: '📊', label: t('nav.scores'),  onClick: undefined as ((e: { preventDefault(): void }) => void) | undefined },
@@ -65,7 +64,7 @@ export function BottomNav() {
   const [ind, setInd] = useState({ left: 0, width: 0, animate: false })
   const mounted = useRef(false)
 
-  const items = !user ? GUEST_NAV_ITEMS : isAdmin ? [...NAV_ITEMS, ADMIN_ITEM] : NAV_ITEMS
+  const items = !user ? GUEST_NAV_ITEMS : NAV_ITEMS
   const activeItem = items.find(item => matchItem(item.to, location.pathname))
 
   // Snap to initial position before first paint — no transition, no flash
