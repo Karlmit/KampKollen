@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Layout } from '../components/layout/Layout'
 import { Card } from '../components/ui/Card'
@@ -211,6 +211,9 @@ export function ScorekeeperPage() {
     )
   }
 
+  // Quizzes are auto-scored from the quiz flow, so they don't belong in manual
+  // score entry — showing them here only confuses scorekeepers.
+  const scorableChallenges: any[] = (comp.challenges ?? []).filter((cc: any) => !cc.challenge.isQuiz)
   const selectedCc = comp.challenges?.find((c: any) => c.id === selectedCcId)
   const scoreType: ScoreType = selectedCc?.scoreTypeOverride ?? selectedCc?.challenge.scoreType
   const existingScores = scoresData?.scores ?? []
@@ -282,30 +285,30 @@ export function ScorekeeperPage() {
         <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '10px' }}>
           {t('scorekeeper.selectChallenge')}
         </h2>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {comp.challenges?.map((cc: any) => (
-            <button
-              key={cc.id}
-              onClick={() => setSelectedCcId(cc.id)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '6px',
-                padding: cc.challenge.logoUrl ? '6px 12px 6px 6px' : '8px 14px',
-                borderRadius: 'var(--radius)',
-                background: selectedCcId === cc.id ? 'var(--text-primary)' : 'var(--surface)',
-                color: selectedCcId === cc.id ? '#fff' : 'var(--text-primary)',
-                border: '1px solid var(--border-light)',
-                fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700,
-                cursor: 'pointer',
-                transition: 'background 180ms var(--ease-out), color 180ms var(--ease-out), transform 80ms var(--ease-out)',
-              }}
-            >
-              {cc.challenge.logoUrl && (
-                <img src={cc.challenge.logoUrl} alt="" style={{ width: 24, height: 24, borderRadius: '4px', objectFit: 'cover', flexShrink: 0 }} />
-              )}
-              {cc.challenge.name}
-            </button>
-          ))}
-        </div>
+        {scorableChallenges.length === 0 ? (
+          <p style={{ fontSize: '14px', color: 'var(--text-muted)', padding: '8px 0' }}>
+            {t('scorekeeper.noChallenges')}
+          </p>
+        ) : (
+          <div className="challenge-grid">
+            {scorableChallenges.map((cc: any) => (
+              <button
+                key={cc.id}
+                type="button"
+                onClick={() => setSelectedCcId(cc.id)}
+                aria-pressed={selectedCcId === cc.id}
+                className={`challenge-chip${selectedCcId === cc.id ? ' is-active' : ''}`}
+              >
+                {cc.challenge.logoUrl ? (
+                  <img src={cc.challenge.logoUrl} alt="" className="challenge-chip__logo" />
+                ) : (
+                  <span className="challenge-chip__logo challenge-chip__logo--placeholder" aria-hidden="true">🏅</span>
+                )}
+                <span className="challenge-chip__name">{cc.challenge.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </section>
 
       {selectedCc && (
@@ -324,31 +327,13 @@ export function ScorekeeperPage() {
                   {selectedCc.challenge.name}
                 </p>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                  {selectedCc.challenge.isQuiz
-                    ? t('scorekeeper.quizChallenge')
-                    : <>{t('scorekeeper.scoreTypeLabel')}<strong>{t(`scoreTypes.${scoreType}` as any)}</strong></>
-                  }
+                  {t('scorekeeper.scoreTypeLabel')}<strong>{t(`scoreTypes.${scoreType}` as any)}</strong>
                 </p>
               </div>
             </div>
           </Card>
 
-          {selectedCc.challenge.isQuiz && (
-            <Card padding="16px" style={{ textAlign: 'center', marginBottom: '20px' }}>
-              <p style={{ fontSize: '22px', marginBottom: '8px' }}>🎯</p>
-              <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px', marginBottom: '6px' }}>
-                {t('scorekeeper.quizScoresAutomatic')}
-              </p>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '14px', lineHeight: 1.5 }}>
-                {t('scorekeeper.quizScoresDesc')}
-              </p>
-              <Link to={`/competitions/${competitionId}/quiz/${selectedCc.id}`} style={{ textDecoration: 'none' }}>
-                <Button size="sm">{t('scorekeeper.openQuiz')}</Button>
-              </Link>
-            </Card>
-          )}
-
-          {!selectedCc.challenge.isQuiz && <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
             {groupedTeams.map(team => (
               <div key={team.id ?? 'pool'}>
                 {showTeamHeaders && (
@@ -400,7 +385,7 @@ export function ScorekeeperPage() {
                 </div>
               </div>
             ))}
-          </div>}
+          </div>
 
         </>
       )}

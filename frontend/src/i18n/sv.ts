@@ -184,6 +184,7 @@ const sv = {
   scorekeeper: {
     enterScores: 'Ange poäng',
     selectChallenge: 'VÄLJ UTMANING',
+    noChallenges: 'Inga utmaningar att registrera poäng för.',
     timeInSeconds: 'Tid i sekunder',
     allTeams: '🔓 Alla lag',
     myTeam: '🔒 Mitt lag',

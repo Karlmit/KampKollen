@@ -283,6 +283,83 @@ img {
   .tabbar__item:active { transform: none; }
 }
 
+/* ─── Challenge selector ─── */
+/* Larger, fully-legible selectable challenge buttons for score entry.
+   Responsive grid of equal-height chips: logo + name, comfortable tap target. */
+.challenge-grid {
+  display: grid;
+  /* Wide floor so phones get one full-width, fully-legible chip per row;
+     tablets/desktop fit two or three. */
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+  gap: 10px;
+}
+.challenge-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 60px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1.5px solid var(--border-light);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.2;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 180ms var(--ease-out),
+              border-color 180ms var(--ease-out),
+              color 180ms var(--ease-out),
+              transform 120ms var(--ease-out),
+              box-shadow 180ms var(--ease-out);
+}
+.challenge-chip.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+}
+.challenge-chip:active { transform: scale(0.97); }
+.challenge-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .challenge-chip:not(.is-active):hover {
+    border-color: var(--accent);
+    background: rgba(12, 68, 51, 0.06);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .challenge-chip {
+    transition: background-color 180ms var(--ease-out), color 180ms var(--ease-out);
+  }
+  .challenge-chip:active { transform: none; }
+}
+.challenge-chip__logo {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.challenge-chip__logo--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-raised);
+  font-size: 20px;
+  line-height: 1;
+}
+.challenge-chip__name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
 /* ─── Live indicator ─── */
 @keyframes joinPulse {
   0%, 100% { box-shadow: 0 4px 20px rgba(249,115,22,0.45); }

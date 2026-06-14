@@ -184,6 +184,7 @@ const en = {
   scorekeeper: {
     enterScores: 'Enter Scores',
     selectChallenge: 'SELECT CHALLENGE',
+    noChallenges: 'No challenges to score yet.',
     timeInSeconds: 'Time in seconds',
     allTeams: '🔓 All teams',
     myTeam: '🔒 My team',
