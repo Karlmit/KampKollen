@@ -22,7 +22,7 @@ export function AdminChallenges() {
   const [deleteConfirm, setDeleteConfirm] = useState<any>(null)
   const [form, setForm] = useState({
     name: '', description: '', scoreType: 'number_highest_wins' as ScoreType,
-    defaultTeamScoreMode: 'sum_all_players' as TeamScoreMode,
+    defaultTeamScoreMode: 'average_score' as TeamScoreMode,
     bestNPlayers: '', isGlobalTemplate: true,
   })
 
@@ -34,9 +34,9 @@ export function AdminChallenges() {
   ]
 
   const TEAM_MODE_OPTIONS: { value: TeamScoreMode; label: string; desc: string }[] = [
+    { value: 'average_score', label: t('admin.challenges.averageScore'), desc: t('admin.challenges.averageScoreDesc') },
     { value: 'sum_all_players', label: t('admin.challenges.sumAllPlayers'), desc: t('admin.challenges.sumAllPlayersDesc') },
     { value: 'best_n_players', label: t('admin.challenges.bestNPlayers'), desc: t('admin.challenges.bestNPlayersDesc') },
-    { value: 'average_score', label: t('admin.challenges.averageScore'), desc: t('admin.challenges.averageScoreDesc') },
     { value: 'manual_team_score', label: t('admin.challenges.manualTeamScore'), desc: t('admin.challenges.manualTeamScoreDesc') },
   ]
 
@@ -44,7 +44,7 @@ export function AdminChallenges() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ name: '', description: '', scoreType: 'number_highest_wins', defaultTeamScoreMode: 'sum_all_players', bestNPlayers: '', isGlobalTemplate: true })
+    setForm({ name: '', description: '', scoreType: 'number_highest_wins', defaultTeamScoreMode: 'average_score', bestNPlayers: '', isGlobalTemplate: true })
     setOpen(true)
   }
 
