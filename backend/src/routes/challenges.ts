@@ -20,6 +20,7 @@ const challengeSchema = z.object({
   attemptsPerPlayer: z.number().int().min(1).nullable().optional(),
   sumAllAttempts: z.boolean().optional(),
   useTeamScoreMode: z.boolean().optional(),
+  attemptLabel: z.string().min(1).max(32).optional(),
   isGlobalTemplate: z.boolean().optional(),
   isQuiz: z.boolean().optional(),
 })

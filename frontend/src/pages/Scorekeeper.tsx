@@ -49,10 +49,11 @@ function formatDiffSeconds(sec: number): string {
   return Number.isInteger(sec) ? String(sec) : sec.toFixed(1)
 }
 
-function TimeWalkModal({ open, onClose, teamName, time1Ms, time2Ms, onSave, onDelete }: {
+function TimeWalkModal({ open, onClose, teamName, attemptLabel, time1Ms, time2Ms, onSave, onDelete }: {
   open: boolean
   onClose: () => void
   teamName: string
+  attemptLabel: string
   time1Ms: number | null
   time2Ms: number | null
   onSave: (t1: number | null, t2: number | null) => void
@@ -172,11 +173,11 @@ function TimeWalkModal({ open, onClose, teamName, time1Ms, time2Ms, onSave, onDe
     >
       {/* Two walks share one keypad; the gap between them is the verdict. */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '6px' }}>
-        {walkRow('a', t('scorekeeper.timeWalkWalk', { n: 1 }), d1)}
+        {walkRow('a', t('scorekeeper.timeWalkWalk', { label: attemptLabel, n: 1 }), d1)}
         <div style={{ display: 'flex', justifyContent: 'center', minHeight: '40px', alignItems: 'center' }}>
           {verdict}
         </div>
-        {walkRow('b', t('scorekeeper.timeWalkWalk', { n: 2 }), d2)}
+        {walkRow('b', t('scorekeeper.timeWalkWalk', { label: attemptLabel, n: 2 }), d2)}
       </div>
 
       <p style={{
@@ -936,6 +937,7 @@ export function ScorekeeperPage() {
         open={!!timeWalkTeam}
         onClose={() => setTimeWalkTeam(null)}
         teamName={timeWalkTeam?.name ?? ''}
+        attemptLabel={selectedCc?.challenge?.attemptLabel || 'attempt'}
         time1Ms={timeWalkTeam?.ts?.time1Ms ?? null}
         time2Ms={timeWalkTeam?.ts?.time2Ms ?? null}
         onSave={(t1, t2) => {

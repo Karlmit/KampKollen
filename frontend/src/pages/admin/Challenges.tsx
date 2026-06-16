@@ -26,6 +26,7 @@ export function AdminChallenges() {
     bestNPlayers: '', isGlobalTemplate: true,
     shotsPerTeam: '20', minShotsPerPlayer: '3', maxScorePerShot: '10', shootingLowerIsBetter: false,
     valueUnit: 'pts', allowDecimals: false, attemptsPerPlayer: '', sumAllAttempts: false, useTeamScoreMode: false,
+    attemptLabel: 'attempt',
   })
 
   const SCORE_TYPES: [ScoreType, string][] = [
@@ -51,13 +52,13 @@ export function AdminChallenges() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ name: '', description: '', scoreType: 'number_highest_wins', defaultTeamScoreMode: 'average_score', bestNPlayers: '', isGlobalTemplate: true, shotsPerTeam: '20', minShotsPerPlayer: '3', maxScorePerShot: '10', shootingLowerIsBetter: false, valueUnit: 'pts', allowDecimals: false, attemptsPerPlayer: '', sumAllAttempts: false, useTeamScoreMode: false })
+    setForm({ name: '', description: '', scoreType: 'number_highest_wins', defaultTeamScoreMode: 'average_score', bestNPlayers: '', isGlobalTemplate: true, shotsPerTeam: '20', minShotsPerPlayer: '3', maxScorePerShot: '10', shootingLowerIsBetter: false, valueUnit: 'pts', allowDecimals: false, attemptsPerPlayer: '', sumAllAttempts: false, useTeamScoreMode: false, attemptLabel: 'attempt' })
     setOpen(true)
   }
 
   const openEdit = (c: any) => {
     setEditing(c)
-    setForm({ name: c.name, description: c.description ?? '', scoreType: c.scoreType, defaultTeamScoreMode: c.defaultTeamScoreMode, bestNPlayers: c.bestNPlayers?.toString() ?? '', isGlobalTemplate: c.isGlobalTemplate, shotsPerTeam: (c.shotsPerTeam ?? 20).toString(), minShotsPerPlayer: (c.minShotsPerPlayer ?? 3).toString(), maxScorePerShot: (c.maxScorePerShot ?? 10).toString(), shootingLowerIsBetter: !!c.shootingLowerIsBetter, valueUnit: c.valueUnit ?? 'pts', allowDecimals: !!c.allowDecimals, attemptsPerPlayer: c.attemptsPerPlayer != null ? String(c.attemptsPerPlayer) : '', sumAllAttempts: !!c.sumAllAttempts, useTeamScoreMode: !!c.useTeamScoreMode })
+    setForm({ name: c.name, description: c.description ?? '', scoreType: c.scoreType, defaultTeamScoreMode: c.defaultTeamScoreMode, bestNPlayers: c.bestNPlayers?.toString() ?? '', isGlobalTemplate: c.isGlobalTemplate, shotsPerTeam: (c.shotsPerTeam ?? 20).toString(), minShotsPerPlayer: (c.minShotsPerPlayer ?? 3).toString(), maxScorePerShot: (c.maxScorePerShot ?? 10).toString(), shootingLowerIsBetter: !!c.shootingLowerIsBetter, valueUnit: c.valueUnit ?? 'pts', allowDecimals: !!c.allowDecimals, attemptsPerPlayer: c.attemptsPerPlayer != null ? String(c.attemptsPerPlayer) : '', sumAllAttempts: !!c.sumAllAttempts, useTeamScoreMode: !!c.useTeamScoreMode, attemptLabel: c.attemptLabel ?? 'attempt' })
     setOpen(true)
   }
 
@@ -74,9 +75,15 @@ export function AdminChallenges() {
         data.attemptsPerPlayer = form.attemptsPerPlayer ? parseInt(form.attemptsPerPlayer) : null
         data.sumAllAttempts = form.sumAllAttempts
         data.useTeamScoreMode = form.useTeamScoreMode
+        delete data.attemptLabel
+      } else if (form.scoreType === 'least_time_difference') {
+        delete data.shotsPerTeam; delete data.minShotsPerPlayer; delete data.maxScorePerShot; delete data.shootingLowerIsBetter
+        delete data.valueUnit; delete data.allowDecimals; delete data.attemptsPerPlayer; delete data.sumAllAttempts; delete data.useTeamScoreMode
+        data.attemptLabel = form.attemptLabel?.trim() || 'attempt'
       } else {
         delete data.shotsPerTeam; delete data.minShotsPerPlayer; delete data.maxScorePerShot; delete data.shootingLowerIsBetter
         delete data.valueUnit; delete data.allowDecimals; delete data.attemptsPerPlayer; delete data.sumAllAttempts; delete data.useTeamScoreMode
+        delete data.attemptLabel
       }
       return editing ? api.challenges.update(editing.id, data) : api.challenges.create(data)
     },
@@ -301,17 +308,28 @@ export function AdminChallenges() {
               </div>
             </div>
           ) : isTimeDiff ? (
-            <div style={{
-              display: 'flex', gap: '10px', alignItems: 'flex-start',
-              background: 'var(--surface)', border: '1px solid var(--border-light)',
-              borderRadius: 'var(--radius)', padding: '12px 14px',
-            }}>
-              <span aria-hidden="true" style={{
-                flexShrink: 0, width: '20px', height: '20px', borderRadius: '6px',
-                background: 'var(--accent)', marginTop: '1px',
-              }} />
-              <p style={{ fontSize: '12.5px', color: 'var(--text-muted)', lineHeight: 1.45 }}>
-                {t('admin.challenges.leastTimeDifferenceNote')}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{
+                display: 'flex', gap: '10px', alignItems: 'flex-start',
+                background: 'var(--surface)', border: '1px solid var(--border-light)',
+                borderRadius: 'var(--radius)', padding: '12px 14px',
+              }}>
+                <span aria-hidden="true" style={{
+                  flexShrink: 0, width: '20px', height: '20px', borderRadius: '6px',
+                  background: 'var(--accent)', marginTop: '1px',
+                }} />
+                <p style={{ fontSize: '12.5px', color: 'var(--text-muted)', lineHeight: 1.45 }}>
+                  {t('admin.challenges.leastTimeDifferenceNote')}
+                </p>
+              </div>
+              <Input
+                label={t('admin.challenges.attemptLabel')}
+                value={form.attemptLabel}
+                onChange={set('attemptLabel')}
+                placeholder={t('admin.challenges.attemptLabelPlaceholder')}
+              />
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                {t('admin.challenges.attemptLabelHint')}
               </p>
             </div>
           ) : (
