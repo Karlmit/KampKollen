@@ -335,7 +335,11 @@ export function GuestCompetitionView({ id }: { id: string }) {
                           <span style={{ fontSize: '13px', fontFamily: 'var(--font-ui)', fontWeight: 700, flexShrink: 0 }}>
                             {isPlacementMode && team.placementPoints != null
                               ? `${team.placementPoints} ${t('common.pts')}`
-                              : (team.score != null ? team.score.toFixed(1) : '—')}
+                              : (team.score != null
+                                  ? (cl.scoreType === 'least_time_difference'
+                                      ? `${Number.isInteger(team.score) ? team.score : team.score.toFixed(1)}s`
+                                      : team.score.toFixed(1))
+                                  : '—')}
                           </span>
                         </div>
                       ))}

@@ -33,9 +33,11 @@ export function AdminChallenges() {
     ['time_fastest_wins', t('scoreTypes.time_fastest_wins')],
     ['manual_points', t('scoreTypes.manual_points')],
     ['shooting', t('scoreTypes.shooting')],
+    ['least_time_difference', t('scoreTypes.least_time_difference')],
   ]
 
   const isShooting = form.scoreType === 'shooting'
+  const isTimeDiff = form.scoreType === 'least_time_difference'
 
   const TEAM_MODE_OPTIONS: { value: TeamScoreMode; label: string; desc: string }[] = [
     { value: 'average_score', label: t('admin.challenges.averageScore'), desc: t('admin.challenges.averageScoreDesc') },
@@ -196,6 +198,20 @@ export function AdminChallenges() {
                   </button>
                 ))}
               </div>
+            </div>
+          ) : isTimeDiff ? (
+            <div style={{
+              display: 'flex', gap: '10px', alignItems: 'flex-start',
+              background: 'var(--surface)', border: '1px solid var(--border-light)',
+              borderRadius: 'var(--radius)', padding: '12px 14px',
+            }}>
+              <span aria-hidden="true" style={{
+                flexShrink: 0, width: '20px', height: '20px', borderRadius: '6px',
+                background: 'var(--accent)', marginTop: '1px',
+              }} />
+              <p style={{ fontSize: '12.5px', color: 'var(--text-muted)', lineHeight: 1.45 }}>
+                {t('admin.challenges.leastTimeDifferenceNote')}
+              </p>
             </div>
           ) : (
             <>

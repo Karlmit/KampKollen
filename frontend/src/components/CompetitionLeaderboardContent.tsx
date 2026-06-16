@@ -30,7 +30,14 @@ export function CompetitionLeaderboardContent({
   const toggleChallenge = (ccId: string) =>
     setExpandedChallenge(prev => prev === ccId ? null : ccId)
 
-  const renderScore = (score: number, placementPoints?: number) => {
+  const fmtRaw = (score: number, scoreType?: string) => {
+    if (scoreType === 'least_time_difference') {
+      const s = score ?? 0
+      return `${Number.isInteger(s) ? s : s.toFixed(1)}s`
+    }
+    return score?.toFixed(1) ?? '0'
+  }
+  const renderScore = (score: number, placementPoints?: number, scoreType?: string) => {
     if (isPlacementMode) {
       return (
         <div style={{ textAlign: 'right' }}>
@@ -38,14 +45,14 @@ export function CompetitionLeaderboardContent({
             {placementPoints != null ? `${placementPoints} ${t('leaderboardContent.pts')}` : '—'}
           </span>
           <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '6px' }}>
-            ({score?.toFixed(1) ?? '0'})
+            ({fmtRaw(score, scoreType)})
           </span>
         </div>
       )
     }
     return (
       <span style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>
-        {score?.toFixed(1) ?? '0'}
+        {fmtRaw(score, scoreType)}
       </span>
     )
   }
@@ -223,7 +230,7 @@ export function CompetitionLeaderboardContent({
                               {isPlayer && item.teamName && <p style={{ fontSize: '11px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.teamName}</p>}
                             </div>
                           </div>
-                          {renderScore(item.score, item.placementPoints)}
+                          {renderScore(item.score, item.placementPoints, cl.scoreType)}
                         </div>
                       )
                     })}

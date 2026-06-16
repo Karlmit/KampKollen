@@ -102,6 +102,11 @@ export const api = {
       request<{ score: any }>(`/scores/competition/${competitionId}/challenge/${ccId}`, { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) => request<{ score: any }>(`/scores/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) => request(`/scores/${id}`, { method: 'DELETE' }),
+    teamForChallenge: (competitionId: string, ccId: string) =>
+      request<{ teamScores: any[] }>(`/scores/team/competition/${competitionId}/challenge/${ccId}`),
+    upsertTeam: (competitionId: string, ccId: string, data: { teamId: string; time1Ms?: number | null; time2Ms?: number | null; note?: string }) =>
+      request<{ teamScore: any }>(`/scores/team/competition/${competitionId}/challenge/${ccId}`, { method: 'POST', body: JSON.stringify(data) }),
+    deleteTeam: (id: string) => request(`/scores/team/${id}`, { method: 'DELETE' }),
   },
 
   shots: {

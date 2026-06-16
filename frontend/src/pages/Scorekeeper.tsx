@@ -12,6 +12,118 @@ import { api } from '../api/client'
 import { ScoreType } from '../types'
 import { useTranslation } from 'react-i18next'
 
+// ── Time Walk (least_time_difference) helpers ────────────────────────────────
+function hmsToMs(h: string, m: string, s: string): number | null {
+  if (!h && !m && !s) return null
+  const hh = parseInt(h || '0', 10)
+  const mm = parseInt(m || '0', 10)
+  const ss = parseInt(s || '0', 10)
+  if ([hh, mm, ss].some(n => isNaN(n) || n < 0)) return null
+  return ((hh * 3600) + (mm * 60) + ss) * 1000
+}
+function msToHmsParts(ms: number | null | undefined): { h: string; m: string; s: string } {
+  if (ms == null) return { h: '', m: '', s: '' }
+  const total = Math.round(ms / 1000)
+  return { h: String(Math.floor(total / 3600)), m: String(Math.floor((total % 3600) / 60)), s: String(total % 60) }
+}
+function formatClock(ms: number | null | undefined): string {
+  if (ms == null) return '–'
+  const total = Math.round(ms / 1000)
+  const h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60), s = total % 60
+  const mm = String(m).padStart(2, '0'), ss = String(s).padStart(2, '0')
+  return h > 0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`
+}
+function formatDiffSeconds(sec: number): string {
+  return Number.isInteger(sec) ? String(sec) : sec.toFixed(1)
+}
+
+function TimeWalkModal({ open, onClose, teamName, time1Ms, time2Ms, onSave, onDelete }: {
+  open: boolean
+  onClose: () => void
+  teamName: string
+  time1Ms: number | null
+  time2Ms: number | null
+  onSave: (t1: number | null, t2: number | null) => void
+  onDelete?: () => void
+}) {
+  const { t } = useTranslation()
+  const [t1, setT1] = useState({ h: '', m: '', s: '' })
+  const [t2, setT2] = useState({ h: '', m: '', s: '' })
+
+  useEffect(() => {
+    if (open) { setT1(msToHmsParts(time1Ms)); setT2(msToHmsParts(time2Ms)) }
+  }, [open, time1Ms, time2Ms])
+
+  const ms1 = hmsToMs(t1.h, t1.m, t1.s)
+  const ms2 = hmsToMs(t2.h, t2.m, t2.s)
+  const diffSec = ms1 != null && ms2 != null ? Math.abs(ms1 - ms2) / 1000 : null
+
+  const renderTimeFields = (
+    value: { h: string; m: string; s: string },
+    setValue: (v: { h: string; m: string; s: string }) => void
+  ) => (
+    <div style={{ display: 'flex', gap: '8px' }}>
+      {([['h', t('scorekeeper.timeWalkHours')], ['m', t('scorekeeper.timeWalkMinutes')], ['s', t('scorekeeper.timeWalkSeconds')]] as const).map(([unit, label]) => (
+        <div key={unit} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <input
+            type="number" min="0" inputMode="numeric" placeholder="0"
+            value={value[unit]}
+            onChange={e => setValue({ ...value, [unit]: e.target.value })}
+            style={{ padding: '10px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', fontSize: '20px', fontFamily: 'var(--font-ui)', fontWeight: 700, textAlign: 'center', width: '100%' }}
+          />
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center' }}>{label}</span>
+        </div>
+      ))}
+    </div>
+  )
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={teamName}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
+          {onDelete && (
+            <Button variant="ghost" onClick={() => { onDelete(); onClose() }} style={{ color: 'var(--accent-warm)' }}>
+              {t('scorekeeper.clear')}
+            </Button>
+          )}
+          <Button onClick={() => { onSave(ms1, ms2); onClose() }} disabled={ms1 == null && ms2 == null}>
+            {t('scorekeeper.save')}
+          </Button>
+        </>
+      }
+    >
+      <p style={{ fontSize: '12.5px', color: 'var(--text-muted)', lineHeight: 1.45, marginBottom: '16px' }}>
+        {t('scorekeeper.timeWalkInfo')}
+      </p>
+      <div style={{ marginBottom: '14px' }}>
+        <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, display: 'block', marginBottom: '6px' }}>
+          {t('scorekeeper.timeWalkFirst')}
+        </label>
+        {renderTimeFields(t1, setT1)}
+      </div>
+      <div style={{ marginBottom: '18px' }}>
+        <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, display: 'block', marginBottom: '6px' }}>
+          {t('scorekeeper.timeWalkSecond')}
+        </label>
+        {renderTimeFields(t2, setT2)}
+      </div>
+      <div style={{
+        background: 'var(--surface)', borderRadius: 'var(--radius)', padding: '14px 20px',
+        textAlign: 'center',
+      }}>
+        <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>{t('scorekeeper.timeWalkDiff')}</p>
+        <p style={{ fontSize: '40px', fontFamily: 'var(--font-ui)', fontWeight: 700, lineHeight: 1, color: diffSec === 0 ? 'var(--accent-green)' : 'var(--text-primary)' }}>
+          {diffSec != null ? t('scorekeeper.timeWalkDiffSeconds', { seconds: formatDiffSeconds(diffSec) }) : '—'}
+        </p>
+      </div>
+    </Modal>
+  )
+}
+
 function NumpadModal({ open, onClose, playerName, currentValue, scoreLabel, onSave, onDelete }: {
   open: boolean
   onClose: () => void
@@ -235,6 +347,7 @@ export function ScorekeeperPage() {
   const [selectedCcId, setSelectedCcId] = useState<string | null>(null)
   const [editingPlayer, setEditingPlayer] = useState<any>(null)
   const [shotModal, setShotModal] = useState<{ player: any; shot: any | null } | null>(null)
+  const [timeWalkTeam, setTimeWalkTeam] = useState<{ id: string; name: string; ts: any | null } | null>(null)
   const [adminAllTeams, setAdminAllTeams] = useState(false)
 
   const { data: compData, isLoading } = useQuery({
@@ -256,6 +369,14 @@ export function ScorekeeperPage() {
     queryKey: ['shots', competitionId, selectedCcId],
     queryFn: () => api.shots.forChallenge(competitionId!, selectedCcId!),
     enabled: !!competitionId && !!selectedCcId && isShootingSel,
+  })
+
+  const isTimeDiffSel = (selectedCcEarly?.scoreTypeOverride ?? selectedCcEarly?.challenge?.scoreType) === 'least_time_difference'
+
+  const { data: teamScoresData } = useQuery({
+    queryKey: ['teamScores', competitionId, selectedCcId],
+    queryFn: () => api.scores.teamForChallenge(competitionId!, selectedCcId!),
+    enabled: !!competitionId && !!selectedCcId && isTimeDiffSel,
   })
 
   const deleteMutation = useMutation({
@@ -306,6 +427,20 @@ export function ScorekeeperPage() {
     onSuccess: invalidateShots,
   })
 
+  const invalidateTeamScores = () => {
+    qc.invalidateQueries({ queryKey: ['teamScores', competitionId, selectedCcId] })
+    qc.invalidateQueries({ queryKey: ['leaderboard', competitionId] })
+  }
+  const upsertTeamScoreMutation = useMutation({
+    mutationFn: ({ teamId, time1Ms, time2Ms }: { teamId: string; time1Ms: number | null; time2Ms: number | null }) =>
+      api.scores.upsertTeam(competitionId!, selectedCcId!, { teamId, time1Ms, time2Ms }),
+    onSuccess: invalidateTeamScores,
+  })
+  const deleteTeamScoreMutation = useMutation({
+    mutationFn: (id: string) => api.scores.deleteTeam(id),
+    onSuccess: invalidateTeamScores,
+  })
+
   if (isLoading) return <Layout title={t('scorekeeper.enterScores')} back={`/competitions/${competitionId}`}><LoadingSpinner /></Layout>
 
   const comp = compData?.competition
@@ -330,6 +465,9 @@ export function ScorekeeperPage() {
   const selectedCc = comp.challenges?.find((c: any) => c.id === selectedCcId)
   const scoreType: ScoreType = selectedCc?.scoreTypeOverride ?? selectedCc?.challenge.scoreType
   const isShooting = scoreType === 'shooting'
+  const isTimeDiff = scoreType === 'least_time_difference'
+  const teamScoreByTeam: Record<string, any> = {}
+  for (const ts of (teamScoresData?.teamScores ?? [])) teamScoreByTeam[ts.teamId] = ts
   const existingScores = scoresData?.scores ?? []
   const shotConfig = shotsData?.config ?? {
     maxScorePerShot: selectedCc?.challenge?.maxScorePerShot ?? 10,
@@ -468,7 +606,7 @@ export function ScorekeeperPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
             {groupedTeams.map(team => (
               <div key={team.id ?? 'pool'}>
-                {(showTeamHeaders || (isShooting && team.id)) && (
+                {(showTeamHeaders || (isShooting && team.id) || (isTimeDiff && team.id)) && (
                   <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '8px', gap: '8px' }}>
                     <h3 style={{
                       fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 700,
@@ -493,6 +631,47 @@ export function ScorekeeperPage() {
                     })()}
                   </div>
                 )}
+                {isTimeDiff ? (team.id && (() => {
+                  const ts = teamScoreByTeam[team.id]
+                  const hasTimes = ts && (ts.time1Ms != null || ts.time2Ms != null)
+                  const diffSec = ts && ts.time1Ms != null && ts.time2Ms != null
+                    ? Math.abs(ts.time1Ms - ts.time2Ms) / 1000
+                    : null
+                  return (
+                    <Card
+                      padding="16px"
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => setTimeWalkTeam({ id: team.id, name: team.name, ts: ts ?? null })}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                        <div style={{ minWidth: 0 }}>
+                          {hasTimes ? (
+                            <p style={{ fontSize: '14px', fontFamily: 'var(--font-ui)', fontWeight: 700 }}>
+                              {formatClock(ts.time1Ms)} · {formatClock(ts.time2Ms)}
+                            </p>
+                          ) : (
+                            <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{t('scorekeeper.timeWalkAwaiting')}</p>
+                          )}
+                          <p style={{ fontSize: '12px', color: 'var(--accent)', fontWeight: 700, marginTop: '4px' }}>
+                            {t('scorekeeper.timeWalkSetTimes')}
+                          </p>
+                        </div>
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          {diffSec != null ? (
+                            <>
+                              <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '28px', lineHeight: 1, color: diffSec === 0 ? 'var(--accent-green)' : 'var(--text-primary)' }}>
+                                {t('scorekeeper.timeWalkDiffSeconds', { seconds: formatDiffSeconds(diffSec) })}
+                              </p>
+                              <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{t('scorekeeper.timeWalkDiff')}</p>
+                            </>
+                          ) : (
+                            <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{t('scorekeeper.tap')}</p>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  )
+                })()) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {team.players.map((p: any) => {
                     if (isShooting) {
@@ -599,6 +778,7 @@ export function ScorekeeperPage() {
                     )
                   })}
                 </div>
+                )}
               </div>
             ))}
           </div>
@@ -635,6 +815,18 @@ export function ScorekeeperPage() {
           else addShotMutation.mutate({ userId: shotModal.player.userId, value: val })
         }}
         onDelete={shotModal?.shot ? (() => deleteShotMutation.mutate(shotModal.shot.id)) : undefined}
+      />
+
+      <TimeWalkModal
+        open={!!timeWalkTeam}
+        onClose={() => setTimeWalkTeam(null)}
+        teamName={timeWalkTeam?.name ?? ''}
+        time1Ms={timeWalkTeam?.ts?.time1Ms ?? null}
+        time2Ms={timeWalkTeam?.ts?.time2Ms ?? null}
+        onSave={(t1, t2) => {
+          if (timeWalkTeam) upsertTeamScoreMutation.mutate({ teamId: timeWalkTeam.id, time1Ms: t1, time2Ms: t2 })
+        }}
+        onDelete={timeWalkTeam?.ts ? (() => deleteTeamScoreMutation.mutate(timeWalkTeam.ts.id)) : undefined}
       />
     </Layout>
   )

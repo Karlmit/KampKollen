@@ -213,6 +213,16 @@ const sv = {
     shotCounted: 'Räknas i lagets poäng',
     shotNotCounted: 'Räknas inte i lagets poäng',
     shootingInfo: 'Alla spelare skjuter och hamnar på den individuella listan. Lagets poäng räknas på lagets {{shots}} bästa skott (minst {{min}} per spelare räknas alltid). De gröna skotten är de som räknas till laget.',
+    timeWalkInfo: 'Varje lag går sträckan två gånger. Ange båda tiderna — lagets poäng är skillnaden i sekunder mellan dem. Närmast 0 vinner.',
+    timeWalkFirst: 'Första tiden',
+    timeWalkSecond: 'Andra tiden',
+    timeWalkDiff: 'Skillnad',
+    timeWalkDiffSeconds: '{{seconds}} s',
+    timeWalkSetTimes: 'Ange tider',
+    timeWalkAwaiting: 'Inga tider angivna',
+    timeWalkHours: 't',
+    timeWalkMinutes: 'm',
+    timeWalkSeconds: 's',
   },
 
   leaderboard: {
@@ -267,6 +277,7 @@ const sv = {
     manual_points: 'Manuella poäng',
     win_loss: 'Vinst / Förlust',
     shooting: 'Skytte',
+    least_time_difference: 'Minsta tidsskillnad',
   },
 
   admin: {
@@ -347,6 +358,7 @@ const sv = {
       averageScoreDesc: 'Summa delat med antal spelare. Rättvist när lag har olika storlek.',
       manualTeamScore: 'Manuell lagsumma',
       manualTeamScoreDesc: 'Ange ett poäng per lag direkt. Använd för stafetter eller grupputmaningar.',
+      leastTimeDifferenceNote: 'Endast lagtävlingar. Laget går sträckan två gånger; du anger båda tiderna och lagets poäng är skillnaden i sekunder. Närmast 0 vinner. Räknas inte på den individuella listan.',
       shotsPerTeam: 'Antal skott per lag',
       minShotsPerPlayer: 'Minst antal skott per spelare',
       maxScorePerShot: 'Max poäng per skott',

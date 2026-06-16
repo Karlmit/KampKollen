@@ -213,6 +213,16 @@ const en = {
     shotCounted: 'Counts toward team score',
     shotNotCounted: 'Not counted toward team score',
     shootingInfo: 'Every player shoots and appears on the individual leaderboard. The team score uses the team\'s best {{shots}} shots (each player\'s first {{min}} always count). The green shots are the ones counting toward the team.',
+    timeWalkInfo: 'Each team walks the distance twice. Enter both times — the team score is the difference in seconds between them. Closest to 0 wins.',
+    timeWalkFirst: 'First time',
+    timeWalkSecond: 'Second time',
+    timeWalkDiff: 'Difference',
+    timeWalkDiffSeconds: '{{seconds}}s',
+    timeWalkSetTimes: 'Set times',
+    timeWalkAwaiting: 'No times entered',
+    timeWalkHours: 'h',
+    timeWalkMinutes: 'm',
+    timeWalkSeconds: 's',
   },
 
   leaderboard: {
@@ -269,6 +279,7 @@ const en = {
     manual_points: 'Manual Points',
     win_loss: 'Win / Loss',
     shooting: 'Shooting',
+    least_time_difference: 'Least Time Difference',
   },
 
   admin: {
@@ -349,6 +360,7 @@ const en = {
       averageScoreDesc: "Total divided by number of players. Fair when teams have different sizes.",
       manualTeamScore: 'Manual team score',
       manualTeamScoreDesc: "Enter one score per team directly. Use for relay races or group challenges.",
+      leastTimeDifferenceNote: 'Team competitions only. The team walks the distance twice; you enter both times and the team score is the difference in seconds. Closest to 0 wins. Not counted on the individual leaderboard.',
       shotsPerTeam: 'Shots per team',
       minShotsPerPlayer: 'Minimum shots per player',
       maxScorePerShot: 'Max score per shot',

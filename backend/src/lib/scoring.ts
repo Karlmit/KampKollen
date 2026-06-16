@@ -58,6 +58,18 @@ export function isLowerBetter(scoreType: ScoreType): boolean {
   return scoreType === 'placement_lowest_wins'
     || scoreType === 'number_lowest_wins'
     || scoreType === 'time_fastest_wins'
+    || scoreType === 'least_time_difference'
+}
+
+// "Least time difference" (Time Walk): a team walks the same distance twice and
+// the score is how many seconds the two times differ — closest to zero wins.
+// Returns null until both times have been recorded so the team stays unranked.
+export function computeTimeDifferenceSeconds(
+  time1Ms: number | null | undefined,
+  time2Ms: number | null | undefined
+): number | null {
+  if (time1Ms == null || time2Ms == null) return null
+  return Math.abs(time1Ms - time2Ms) / 1000
 }
 
 // ── Shooting mode ────────────────────────────────────────────────────────────

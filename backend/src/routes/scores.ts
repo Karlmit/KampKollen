@@ -14,6 +14,14 @@ const upsertScoreSchema = z.object({
   note: z.string().max(256).optional(),
 })
 
+// Team-level "least time difference" entry: two recorded times per team.
+const upsertTeamScoreSchema = z.object({
+  teamId: z.string(),
+  time1Ms: z.number().int().min(0).optional().nullable(),
+  time2Ms: z.number().int().min(0).optional().nullable(),
+  note: z.string().max(256).optional(),
+})
+
 async function canEnterScore(
   competitionId: string,
   userId: string,
@@ -171,6 +179,55 @@ export async function scoreRoutes(app: FastifyInstance) {
     }
 
     await prisma.score.delete({ where: { id } })
+    return { success: true }
+  })
+
+  // ── Team scores (least_time_difference / Time Walk) ──────────────────────────
+  // One entry per team holding the two recorded times; the team's challenge
+  // score is the absolute difference between them.
+  app.get('/team/competition/:competitionId/challenge/:ccId', { preHandler: requireAuth }, async (request) => {
+    const { competitionId, ccId } = request.params as { competitionId: string; ccId: string }
+    const teamScores = await prisma.teamScore.findMany({
+      where: { competitionId, competitionChallengeId: ccId },
+      include: { enteredByUser: { select: { id: true, username: true } } },
+    })
+    return { teamScores }
+  })
+
+  app.post('/team/competition/:competitionId/challenge/:ccId', { preHandler: requireAuth }, async (request, reply) => {
+    const { competitionId, ccId } = request.params as { competitionId: string; ccId: string }
+    const me = request.user as { id: string; role: GlobalRole }
+    const body = upsertTeamScoreSchema.safeParse(request.body)
+    if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
+
+    if (!(await canEnterScore(competitionId, me.id, me.role))) {
+      return reply.status(403).send({ error: 'Not authorized to enter scores' })
+    }
+
+    const cc = await prisma.competitionChallenge.findUnique({ where: { id: ccId } })
+    if (!cc) return reply.status(404).send({ error: 'Competition challenge not found' })
+
+    const { teamId, ...data } = body.data
+    const teamScore = await prisma.teamScore.upsert({
+      where: { competitionChallengeId_teamId: { competitionChallengeId: ccId, teamId } },
+      create: { competitionId, competitionChallengeId: ccId, teamId, ...data, enteredByUserId: me.id },
+      update: { ...data, enteredByUserId: me.id },
+    })
+    return reply.status(201).send({ teamScore })
+  })
+
+  app.delete('/team/:id', { preHandler: requireAuth }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const me = request.user as { id: string; role: GlobalRole }
+
+    const existing = await prisma.teamScore.findUnique({ where: { id } })
+    if (!existing) return reply.status(404).send({ error: 'Team score not found' })
+
+    if (!(await canEnterScore(existing.competitionId, me.id, me.role))) {
+      return reply.status(403).send({ error: 'Not authorized' })
+    }
+
+    await prisma.teamScore.delete({ where: { id } })
     return { success: true }
   })
 }

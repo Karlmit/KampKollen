@@ -30,6 +30,7 @@ enum ScoreType {
   manual_points
   win_loss
   shooting
+  least_time_difference
 }
 
 enum TeamScoreMode {
@@ -66,6 +67,7 @@ model User {
   competitionPlayers  CompetitionPlayer[]
   scores              Score[]             @relation("ScorePlayer")
   enteredScores       Score[]             @relation("ScoreEnteredBy")
+  enteredTeamScores   TeamScore[]         @relation("TeamScoreEnteredBy")
   shots               Shot[]              @relation("ShotPlayer")
   enteredShots        Shot[]              @relation("ShotEnteredBy")
   teamLeaderships     Team[]              @relation("TeamLeader")
@@ -112,6 +114,7 @@ model Competition {
   players          CompetitionPlayer[]
   scores           Score[]
   shots            Shot[]
+  teamScores       TeamScore[]
   reservedTrophies Trophy[]               @relation("TrophyReservation")
 }
 
@@ -149,6 +152,7 @@ model CompetitionChallenge {
 
   scores      Score[]
   shots       Shot[]
+  teamScores  TeamScore[]
   quizSession QuizSession?
 
   @@unique([competitionId, challengeId])
@@ -165,7 +169,8 @@ model Team {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  players CompetitionPlayer[]
+  players    CompetitionPlayer[]
+  teamScores TeamScore[]
 }
 
 model CompetitionPlayer {
@@ -210,6 +215,31 @@ model Score {
   updatedAt              DateTime             @updatedAt
 
   @@unique([competitionChallengeId, userId])
+}
+
+// A single team-level result for "least time difference" (Time Walk) challenges.
+// The team walks the same distance twice; the admin records both times and the
+// team's score is the absolute difference between them (in seconds) — closest
+// to zero wins. There is no per-player component, so this never touches the
+// individual leaderboard.
+model TeamScore {
+  id                     String               @id @default(cuid())
+  competitionId          String
+  competition            Competition          @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  competitionChallengeId String
+  competitionChallenge   CompetitionChallenge @relation(fields: [competitionChallengeId], references: [id], onDelete: Cascade)
+  teamId                 String
+  team                   Team                 @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  time1Ms                Int?
+  time2Ms                Int?
+  enteredByUserId        String
+  enteredByUser          User                 @relation("TeamScoreEnteredBy", fields: [enteredByUserId], references: [id])
+  note                   String?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+
+  @@unique([competitionChallengeId, teamId])
+  @@index([competitionChallengeId])
 }
 
 model Shot {

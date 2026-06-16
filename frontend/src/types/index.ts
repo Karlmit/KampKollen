@@ -12,7 +12,7 @@ export interface UserGroup {
   group: Pick<Group, 'id' | 'name'>
 }
 export type CompetitionStatus = 'DRAFT' | 'REGISTRATION' | 'ACTIVE' | 'COMPLETED' | 'ARCHIVED'
-export type ScoreType = 'number_highest_wins' | 'number_lowest_wins' | 'time_fastest_wins' | 'ranked_points' | 'placement_lowest_wins' | 'manual_points' | 'win_loss' | 'shooting'
+export type ScoreType = 'number_highest_wins' | 'number_lowest_wins' | 'time_fastest_wins' | 'ranked_points' | 'placement_lowest_wins' | 'manual_points' | 'win_loss' | 'shooting' | 'least_time_difference'
 export type TeamScoreMode = 'sum_all_players' | 'best_n_players' | 'average_score' | 'manual_team_score'
 export type CompetitionScoringMode = 'raw_sum' | 'placement_points'
 
@@ -170,6 +170,7 @@ export const SCORE_TYPE_LABELS: Record<ScoreType, string> = {
   manual_points: 'Manual Points',
   win_loss: 'Win / Loss',
   shooting: 'Shooting',
+  least_time_difference: 'Least Time Difference',
 }
 
 export const TEAM_SCORE_MODE_LABELS: Record<TeamScoreMode, string> = {

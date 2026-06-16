@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify'
 import { ScoreType, TeamScoreMode, TieBreakingMode } from '@prisma/client'
 import { prisma } from '../db.js'
 import { optionalAuth } from '../middleware/auth.js'
-import { computeCalculatedPoints, computeTeamScore, isLowerBetter, bestNSum, computeShootingCounted } from '../lib/scoring.js'
+import { computeCalculatedPoints, computeTeamScore, isLowerBetter, bestNSum, computeShootingCounted, computeTimeDifferenceSeconds } from '../lib/scoring.js'
 
 async function getUserGroupIds(userId: string): Promise<string[]> {
   const memberships = await prisma.userGroup.findMany({ where: { userId }, select: { groupId: true } })
@@ -75,7 +75,7 @@ export async function leaderboardRoutes(app: FastifyInstance) {
           include: { user: { select: { id: true, username: true, displayName: true, profileImageUrl: true } } },
         },
         challenges: {
-          include: { challenge: true, scores: true, shots: true },
+          include: { challenge: true, scores: true, shots: true, teamScores: true },
           orderBy: { order: 'asc' },
         },
       },
@@ -126,6 +126,9 @@ export async function leaderboardRoutes(app: FastifyInstance) {
       const teamScoreMode: TeamScoreMode = (cc.teamScoreModeOverride ?? cc.challenge.defaultTeamScoreMode) as TeamScoreMode
       const bestN = cc.bestNPlayersOverride ?? cc.challenge.bestNPlayers
       const isShooting = scoreType === 'shooting'
+      // "Least time difference" is scored at the team level only — two recorded
+      // times per team, never any per-player rows.
+      const isTimeDiff = scoreType === 'least_time_difference'
       const lowerBetter = isShooting ? cc.challenge.shootingLowerIsBetter : isLowerBetter(scoreType)
 
       // Shooting challenges keep multiple shots per player (cc.shots) rather than a
@@ -221,6 +224,16 @@ export async function leaderboardRoutes(app: FastifyInstance) {
         }
       }
 
+      // Least time difference: one team-level entry holds both recorded times;
+      // the team score is the seconds between them (null until both are entered).
+      const teamTimeDiffs: Record<string, number> = {}
+      if (isTimeDiff) {
+        for (const ts of cc.teamScores) {
+          const diff = computeTimeDifferenceSeconds(ts.time1Ms, ts.time2Ms)
+          if (diff !== null) teamTimeDiffs[ts.teamId] = diff
+        }
+      }
+
       // Calculate and rank team scores for this challenge
       const teamChallengeScores: Array<{ teamId: string; teamName: string; score: number }> = []
       for (const team of competition.teams) {
@@ -230,6 +243,12 @@ export async function leaderboardRoutes(app: FastifyInstance) {
             cc.challenge.shotsPerTeam, cc.challenge.minShotsPerPlayer, lowerBetter
           )
           teamChallengeScores.push({ teamId: team.id, teamName: team.name, score: res.teamTotal })
+          continue
+        }
+        if (isTimeDiff) {
+          // Only rank teams that have both times recorded; a perfect 0 is valid.
+          if (!(team.id in teamTimeDiffs)) continue
+          teamChallengeScores.push({ teamId: team.id, teamName: team.name, score: teamTimeDiffs[team.id] })
           continue
         }
         if (teamScoreMode === 'manual_team_score') continue
@@ -247,7 +266,9 @@ export async function leaderboardRoutes(app: FastifyInstance) {
           const rankSizes: Record<number, number> = {}
           for (const item of withRanks) rankSizes[item.rank] = (rankSizes[item.rank] ?? 0) + 1
           for (const item of withRanks) {
-            if (item.score === 0) continue
+            // 0 means "no score" for most types, but is a valid (perfect) result
+            // for least time difference, so those teams still earn placement points.
+            if (item.score === 0 && !isTimeDiff) continue
             if (teamPoints[item.teamId]) {
               const pts = calcPlacementPts(item.rank, maxPts, rankSizes[item.rank], tbm)
               teamPoints[item.teamId].challengeBreakdown[cc.id] = pts
@@ -256,7 +277,7 @@ export async function leaderboardRoutes(app: FastifyInstance) {
           }
         } else {
           rankedTeams.forEach((t, i) => {
-            if (t.score === 0) return
+            if (t.score === 0 && !isTimeDiff) return
             const pts = Math.max(0, maxPts - i * 10)
             if (teamPoints[t.teamId]) {
               teamPoints[t.teamId].challengeBreakdown[cc.id] = pts
@@ -323,7 +344,7 @@ export async function leaderboardRoutes(app: FastifyInstance) {
         lowerIsBetter: lowerBetter,
         teams: rankedTeamsWithRanks.map(t => ({
           ...t,
-          ...(competition.scoringMode === 'placement_points' && t.score > 0
+          ...(competition.scoringMode === 'placement_points' && (t.score > 0 || isTimeDiff)
             ? { placementPoints: tbm
                 ? calcPlacementPts(t.rank, maxPtsTeam, teamRankSizes[t.rank], tbm)
                 : Math.max(0, maxPtsTeam - (t.rank - 1) * 10) }
