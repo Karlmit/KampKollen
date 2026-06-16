@@ -210,6 +210,9 @@ const sv = {
     teamTotal: '{{total}} / {{max}} p',
     shotsUsed: '{{used}}/{{max}} skott',
     belowMinShots: 'Behöver minst {{min}} skott',
+    shotCounted: 'Räknas i lagets poäng',
+    shotNotCounted: 'Räknas inte i lagets poäng',
+    shootingInfo: 'Alla spelare skjuter och hamnar på den individuella listan. Lagets poäng räknas på lagets {{shots}} bästa skott (minst {{min}} per spelare räknas alltid). De gröna skotten är de som räknas till laget.',
   },
 
   leaderboard: {

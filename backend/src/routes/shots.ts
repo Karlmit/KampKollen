@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { GlobalRole } from '@prisma/client'
 import { prisma } from '../db.js'
 import { requireAuth } from '../middleware/auth.js'
-import { sumShots } from '../lib/scoring.js'
+import { computeShootingCounted } from '../lib/scoring.js'
 
 const addShotSchema = z.object({
   userId: z.string(),
@@ -55,12 +55,29 @@ export async function shotRoutes(app: FastifyInstance) {
 
     const teamByUser = new Map(players.map(p => [p.userId, p.teamId ?? null]))
 
-    const teamTotals: Record<string, number> = {}
-    const teamShotCounts: Record<string, number> = {}
+    // Group shots by team, then compute which shots count toward each team
+    // (best shotsPerTeam with each player's minimum guaranteed).
+    const shotsByTeam = new Map<string, typeof shots>()
     for (const s of shots) {
       const teamId = teamByUser.get(s.userId) ?? '__none__'
-      teamTotals[teamId] = (teamTotals[teamId] ?? 0) + s.value
-      teamShotCounts[teamId] = (teamShotCounts[teamId] ?? 0) + 1
+      const arr = shotsByTeam.get(teamId)
+      if (arr) arr.push(s)
+      else shotsByTeam.set(teamId, [s])
+    }
+
+    const countedIds = new Set<string>()
+    const teamTotals: Record<string, number> = {}
+    const teamShotCounts: Record<string, number> = {}
+    for (const [teamId, teamShots] of shotsByTeam.entries()) {
+      const res = computeShootingCounted(
+        teamShots.map(s => ({ id: s.id, userId: s.userId, value: s.value })),
+        cc.challenge.shotsPerTeam,
+        cc.challenge.minShotsPerPlayer,
+        cc.challenge.shootingLowerIsBetter
+      )
+      res.countedIds.forEach(id => countedIds.add(id))
+      teamTotals[teamId] = res.teamTotal
+      teamShotCounts[teamId] = teamShots.length
     }
 
     return {
@@ -70,7 +87,7 @@ export async function shotRoutes(app: FastifyInstance) {
         maxScorePerShot: cc.challenge.maxScorePerShot,
         lowerIsBetter: cc.challenge.shootingLowerIsBetter,
       },
-      shots,
+      shots: shots.map(s => ({ ...s, counted: countedIds.has(s.id) })),
       teamTotals,
       teamShotCounts,
     }
@@ -97,6 +114,9 @@ export async function shotRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: `Shot value exceeds max of ${cc.challenge.maxScorePerShot}` })
     }
 
+    // No cap on how many shots a player/team may take — everyone shoots so they
+    // all appear on the individual leaderboard. The team score only counts the
+    // best `shotsPerTeam` shots (see GET / leaderboard).
     const count = await prisma.shot.count({
       where: { competitionChallengeId: ccId, userId: body.data.userId },
     })

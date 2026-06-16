@@ -210,6 +210,9 @@ const en = {
     teamTotal: '{{total}} / {{max}} pts',
     shotsUsed: '{{used}}/{{max}} shots',
     belowMinShots: 'Needs at least {{min}} shots',
+    shotCounted: 'Counts toward team score',
+    shotNotCounted: 'Not counted toward team score',
+    shootingInfo: 'Every player shoots and appears on the individual leaderboard. The team score uses the team\'s best {{shots}} shots (each player\'s first {{min}} always count). The green shots are the ones counting toward the team.',
   },
 
   leaderboard: {

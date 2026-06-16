@@ -295,6 +295,7 @@ export function ScorekeeperPage() {
     mutationFn: ({ userId, value }: { userId: string; value: number }) =>
       api.shots.add(competitionId!, selectedCcId!, { userId, value }),
     onSuccess: invalidateShots,
+    onError: invalidateShots, // resync counts if a concurrent add hit the team cap
   })
   const updateShotMutation = useMutation({
     mutationFn: ({ id, value }: { id: string; value: number }) => api.shots.update(id, { value }),
@@ -436,6 +437,25 @@ export function ScorekeeperPage() {
         )}
       </section>
 
+      {selectedCc && isShooting && (
+        <div style={{
+          display: 'flex', gap: '10px', alignItems: 'flex-start',
+          background: 'var(--surface)', border: '1px solid var(--border-light)',
+          borderRadius: 'var(--radius)', padding: '12px 14px', marginBottom: '16px',
+        }}>
+          <span aria-hidden="true" style={{
+            flexShrink: 0, width: '20px', height: '20px', borderRadius: '6px',
+            background: 'var(--accent)', marginTop: '1px',
+          }} />
+          <p style={{ fontSize: '12.5px', color: 'var(--text-muted)', lineHeight: 1.45 }}>
+            {t('scorekeeper.shootingInfo', {
+              shots: shotConfig.shotsPerTeam,
+              min: shotConfig.minShotsPerPlayer,
+            })}
+          </p>
+        </div>
+      )}
+
       {selectedCc && (
         <>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
@@ -452,13 +472,13 @@ export function ScorekeeperPage() {
                     {isShooting && team.id && (() => {
                       const used = teamShotCounts[team.id] ?? 0
                       const total = teamShotTotals[team.id] ?? 0
-                      const over = used > shotConfig.shotsPerTeam
+                      const atCap = used >= shotConfig.shotsPerTeam
                       return (
                         <span style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 700, whiteSpace: 'nowrap' }}>
                           <span style={{ color: 'var(--text-primary)' }}>
                             {t('scorekeeper.teamTotal', { total, max: shotConfig.shotsPerTeam * shotConfig.maxScorePerShot })}
                           </span>
-                          <span style={{ color: over ? 'var(--accent-warm)' : 'var(--text-muted)', marginLeft: '8px' }}>
+                          <span style={{ color: atCap ? 'var(--accent-green)' : 'var(--text-muted)', marginLeft: '8px' }}>
                             {t('scorekeeper.shotsUsed', { used, max: shotConfig.shotsPerTeam })}
                           </span>
                         </span>
@@ -502,12 +522,15 @@ export function ScorekeeperPage() {
                                 type="button"
                                 onClick={() => setShotModal({ player: p, shot: sh })}
                                 className="shot-chip"
+                                title={sh.counted ? t('scorekeeper.shotCounted') : t('scorekeeper.shotNotCounted')}
                                 style={{
                                   minWidth: '44px', minHeight: '44px', padding: '0 10px',
                                   borderRadius: 'var(--radius)', cursor: 'pointer',
                                   fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px',
-                                  border: '1.5px solid var(--border-light)',
-                                  background: 'var(--surface)', color: 'var(--text-primary)',
+                                  border: sh.counted ? '2px solid var(--accent)' : '1.5px solid var(--border-light)',
+                                  background: sh.counted ? 'var(--accent)' : 'var(--surface)',
+                                  color: sh.counted ? '#fff' : 'var(--text-muted)',
+                                  transition: 'background 160ms var(--ease-out), border-color 160ms var(--ease-out), color 160ms var(--ease-out)',
                                 }}
                               >
                                 {sh.value}
@@ -517,6 +540,7 @@ export function ScorekeeperPage() {
                               type="button"
                               onClick={() => setShotModal({ player: p, shot: null })}
                               aria-label={t('scorekeeper.addShot')}
+                              title={t('scorekeeper.addShot')}
                               style={{
                                 minWidth: '44px', minHeight: '44px',
                                 borderRadius: 'var(--radius)', cursor: 'pointer',

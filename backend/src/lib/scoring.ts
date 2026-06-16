@@ -66,8 +66,73 @@ export function isLowerBetter(scoreType: ScoreType): boolean {
 // Team score = the plain sum of every shot. Individual score = the sum of a
 // player's own shots. Nothing is dropped — there is no "best N" selection.
 
-export function sumShots(values: number[]): number {
-  return values.reduce((a, b) => a + b, 0)
+// A player's individual shooting score: the sum of their best `n` shots (where
+// n = minShotsPerPlayer). Capping at n keeps players who took extra shots from
+// out-scoring everyone on the individual leaderboard. "Best" = highest, unless
+// lower is better.
+export function bestNSum(values: number[], n: number, lowerBetter: boolean): number {
+  return [...values]
+    .sort((a, b) => (lowerBetter ? a - b : b - a))
+    .slice(0, Math.max(0, n))
+    .reduce((a, b) => a + b, 0)
+}
+
+export interface ShootingShotInput {
+  id: string
+  userId: string
+  value: number
+}
+
+// Which of a team's shots count toward its team score, and their sum.
+//   1. Every player's best min(minShotsPerPlayer, n) shots are locked in first
+//      (honours "each member must shoot N"), so no one is shut out of the team
+//      score.
+//   2. Remaining slots up to `shotsPerTeam` are filled with the best shots left
+//      over across the whole team.
+//   3. The counted set never exceeds `shotsPerTeam`, so every team has the same
+//      ceiling (shotsPerTeam × maxScorePerShot) regardless of roster size.
+// Players still take all their shots — this only decides what counts for the
+// team; individual scores use bestNSum independently. "Best" = highest unless
+// lower is better.
+export function computeShootingCounted(
+  shots: ShootingShotInput[],
+  shotsPerTeam: number,
+  minShotsPerPlayer: number,
+  lowerBetter: boolean
+): { countedIds: Set<string>; teamTotal: number } {
+  const X = Math.max(0, shotsPerTeam)
+  const Y = Math.max(0, minShotsPerPlayer)
+  const bestFirst = (arr: ShootingShotInput[]) =>
+    [...arr].sort((a, b) => (lowerBetter ? a.value - b.value : b.value - a.value))
+
+  const byPlayer = new Map<string, ShootingShotInput[]>()
+  for (const s of shots) {
+    const arr = byPlayer.get(s.userId)
+    if (arr) arr.push(s)
+    else byPlayer.set(s.userId, [s])
+  }
+
+  const guaranteed: ShootingShotInput[] = []
+  const rest: ShootingShotInput[] = []
+  for (const playerShots of byPlayer.values()) {
+    const sorted = bestFirst(playerShots)
+    guaranteed.push(...sorted.slice(0, Y))
+    rest.push(...sorted.slice(Y))
+  }
+
+  let counted: ShootingShotInput[]
+  if (guaranteed.length >= X) {
+    // More guaranteed shots than the team budget (very large roster): keep the
+    // best X of them so the ceiling still holds.
+    counted = bestFirst(guaranteed).slice(0, X)
+  } else {
+    counted = [...guaranteed, ...bestFirst(rest).slice(0, X - guaranteed.length)]
+  }
+
+  return {
+    countedIds: new Set(counted.map(s => s.id)),
+    teamTotal: counted.reduce((a, b) => a + b.value, 0),
+  }
 }
 
 export function computeTeamScore(

@@ -120,6 +120,7 @@ export interface Shot {
   player?: Pick<User, 'id' | 'username' | 'displayName' | 'profileImageUrl'>
   value: number
   order: number
+  counted?: boolean
   createdAt: string
 }
 
