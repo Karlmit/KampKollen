@@ -30,14 +30,15 @@ export function CompetitionLeaderboardContent({
   const toggleChallenge = (ccId: string) =>
     setExpandedChallenge(prev => prev === ccId ? null : ccId)
 
-  const fmtRaw = (score: number, scoreType?: string) => {
+  const fmtRaw = (score: number, scoreType?: string, unit?: string | null) => {
     if (scoreType === 'least_time_difference') {
       const s = score ?? 0
       return `${Number.isInteger(s) ? s : s.toFixed(1)}s`
     }
-    return score?.toFixed(1) ?? '0'
+    const base = score?.toFixed(1) ?? '0'
+    return unit ? `${base} ${unit}` : base
   }
-  const renderScore = (score: number, placementPoints?: number, scoreType?: string) => {
+  const renderScore = (score: number, placementPoints?: number, scoreType?: string, unit?: string | null) => {
     if (isPlacementMode) {
       return (
         <div style={{ textAlign: 'right' }}>
@@ -45,14 +46,14 @@ export function CompetitionLeaderboardContent({
             {placementPoints != null ? `${placementPoints} ${t('leaderboardContent.pts')}` : '—'}
           </span>
           <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '6px' }}>
-            ({fmtRaw(score, scoreType)})
+            ({fmtRaw(score, scoreType, unit)})
           </span>
         </div>
       )
     }
     return (
       <span style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>
-        {fmtRaw(score, scoreType)}
+        {fmtRaw(score, scoreType, unit)}
       </span>
     )
   }
@@ -230,7 +231,7 @@ export function CompetitionLeaderboardContent({
                               {isPlayer && item.teamName && <p style={{ fontSize: '11px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.teamName}</p>}
                             </div>
                           </div>
-                          {renderScore(item.score, item.placementPoints, cl.scoreType)}
+                          {renderScore(item.score, item.placementPoints, cl.scoreType, cl.valueUnit)}
                         </div>
                       )
                     })}

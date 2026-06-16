@@ -3,15 +3,16 @@ import { z } from 'zod'
 import { GlobalRole } from '@prisma/client'
 import { prisma } from '../db.js'
 import { requireAuth } from '../middleware/auth.js'
-import { computeShootingCounted } from '../lib/scoring.js'
+import { TeamScoreMode } from '@prisma/client'
+import { computeShootingCounted, computeTeamScore, playerAttemptTotal } from '../lib/scoring.js'
 
 const addShotSchema = z.object({
   userId: z.string(),
-  value: z.number().int().min(0),
+  value: z.number().min(0),
 })
 
 const updateShotSchema = z.object({
-  value: z.number().int().min(0),
+  value: z.number().min(0),
 })
 
 async function canEnterScore(
@@ -54,9 +55,10 @@ export async function shotRoutes(app: FastifyInstance) {
     ])
 
     const teamByUser = new Map(players.map(p => [p.userId, p.teamId ?? null]))
+    const ch = cc.challenge
+    const lowerBetter = ch.shootingLowerIsBetter
 
-    // Group shots by team, then compute which shots count toward each team
-    // (best shotsPerTeam with each player's minimum guaranteed).
+    // Group shots by team.
     const shotsByTeam = new Map<string, typeof shots>()
     for (const s of shots) {
       const teamId = teamByUser.get(s.userId) ?? '__none__'
@@ -65,27 +67,51 @@ export async function shotRoutes(app: FastifyInstance) {
       else shotsByTeam.set(teamId, [s])
     }
 
+    const teamScoreMode: TeamScoreMode = (cc.teamScoreModeOverride ?? ch.defaultTeamScoreMode) as TeamScoreMode
+    const bestN = cc.bestNPlayersOverride ?? ch.bestNPlayers
+
     const countedIds = new Set<string>()
     const teamTotals: Record<string, number> = {}
     const teamShotCounts: Record<string, number> = {}
     for (const [teamId, teamShots] of shotsByTeam.entries()) {
-      const res = computeShootingCounted(
-        teamShots.map(s => ({ id: s.id, userId: s.userId, value: s.value })),
-        cc.challenge.shotsPerTeam,
-        cc.challenge.minShotsPerPlayer,
-        cc.challenge.shootingLowerIsBetter
-      )
-      res.countedIds.forEach(id => countedIds.add(id))
-      teamTotals[teamId] = res.teamTotal
       teamShotCounts[teamId] = teamShots.length
+      if (ch.useTeamScoreMode) {
+        // Spike-style: each player's total (sum-all or best-N) is aggregated into the
+        // team score via the selected team-score mode. Every attempt "counts".
+        const byPlayer: Record<string, number[]> = {}
+        for (const s of teamShots) (byPlayer[s.userId] ??= []).push(s.value)
+        const playerTotals = Object.values(byPlayer).map(vals =>
+          playerAttemptTotal(vals, ch.sumAllAttempts, ch.minShotsPerPlayer, lowerBetter)
+        )
+        teamTotals[teamId] = computeTeamScore(playerTotals, teamScoreMode, bestN)
+        teamShots.forEach(s => countedIds.add(s.id))
+      } else {
+        // Classic shooting: the team's best `shotsPerTeam` shots count (with each
+        // player's minimum guaranteed).
+        const res = computeShootingCounted(
+          teamShots.map(s => ({ id: s.id, userId: s.userId, value: s.value })),
+          ch.shotsPerTeam,
+          ch.minShotsPerPlayer,
+          lowerBetter
+        )
+        res.countedIds.forEach(id => countedIds.add(id))
+        teamTotals[teamId] = res.teamTotal
+      }
     }
 
     return {
       config: {
-        shotsPerTeam: cc.challenge.shotsPerTeam,
-        minShotsPerPlayer: cc.challenge.minShotsPerPlayer,
-        maxScorePerShot: cc.challenge.maxScorePerShot,
-        lowerIsBetter: cc.challenge.shootingLowerIsBetter,
+        shotsPerTeam: ch.shotsPerTeam,
+        minShotsPerPlayer: ch.minShotsPerPlayer,
+        maxScorePerShot: ch.maxScorePerShot,
+        lowerIsBetter: lowerBetter,
+        valueUnit: ch.valueUnit,
+        allowDecimals: ch.allowDecimals,
+        attemptsPerPlayer: ch.attemptsPerPlayer,
+        sumAllAttempts: ch.sumAllAttempts,
+        useTeamScoreMode: ch.useTeamScoreMode,
+        teamScoreMode,
+        bestNPlayers: bestN,
       },
       shots: shots.map(s => ({ ...s, counted: countedIds.has(s.id) })),
       teamTotals,
@@ -110,16 +136,21 @@ export async function shotRoutes(app: FastifyInstance) {
     })
     if (!cc) return reply.status(404).send({ error: 'Competition challenge not found' })
 
-    if (body.data.value > cc.challenge.maxScorePerShot) {
+    // maxScorePerShot of 0 means "no per-attempt cap" (e.g. cm measurements).
+    if (cc.challenge.maxScorePerShot > 0 && body.data.value > cc.challenge.maxScorePerShot) {
       return reply.status(400).send({ error: `Shot value exceeds max of ${cc.challenge.maxScorePerShot}` })
     }
 
-    // No cap on how many shots a player/team may take — everyone shoots so they
-    // all appear on the individual leaderboard. The team score only counts the
-    // best `shotsPerTeam` shots (see GET / leaderboard).
+    // Count existing attempts for this player. Classic shooting leaves this uncapped
+    // (everyone shoots, the team score only counts the best `shotsPerTeam`), but the
+    // Spike-style config sets `attemptsPerPlayer` as a hard limit per player.
     const count = await prisma.shot.count({
       where: { competitionChallengeId: ccId, userId: body.data.userId },
     })
+
+    if (cc.challenge.attemptsPerPlayer != null && count >= cc.challenge.attemptsPerPlayer) {
+      return reply.status(400).send({ error: `Player already has the maximum of ${cc.challenge.attemptsPerPlayer} attempts` })
+    }
 
     const shot = await prisma.shot.create({
       data: {
@@ -151,8 +182,9 @@ export async function shotRoutes(app: FastifyInstance) {
       return reply.status(403).send({ error: 'Not authorized' })
     }
 
-    if (body.data.value > existing.competitionChallenge.challenge.maxScorePerShot) {
-      return reply.status(400).send({ error: `Shot value exceeds max of ${existing.competitionChallenge.challenge.maxScorePerShot}` })
+    const maxPerShot = existing.competitionChallenge.challenge.maxScorePerShot
+    if (maxPerShot > 0 && body.data.value > maxPerShot) {
+      return reply.status(400).send({ error: `Shot value exceeds max of ${maxPerShot}` })
     }
 
     const shot = await prisma.shot.update({

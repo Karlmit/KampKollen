@@ -111,7 +111,7 @@ export const api = {
 
   shots: {
     forChallenge: (competitionId: string, ccId: string) =>
-      request<{ config: { shotsPerTeam: number; minShotsPerPlayer: number; maxScorePerShot: number; lowerIsBetter: boolean }; shots: any[]; teamTotals: Record<string, number>; teamShotCounts: Record<string, number> }>(`/shots/competition/${competitionId}/challenge/${ccId}`),
+      request<{ config: { shotsPerTeam: number; minShotsPerPlayer: number; maxScorePerShot: number; lowerIsBetter: boolean; valueUnit: string; allowDecimals: boolean; attemptsPerPlayer: number | null; sumAllAttempts: boolean; useTeamScoreMode: boolean; teamScoreMode: string; bestNPlayers: number | null }; shots: any[]; teamTotals: Record<string, number>; teamShotCounts: Record<string, number> }>(`/shots/competition/${competitionId}/challenge/${ccId}`),
     add: (competitionId: string, ccId: string, data: { userId: string; value: number }) =>
       request<{ shot: any }>(`/shots/competition/${competitionId}/challenge/${ccId}`, { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: { value: number }) => request<{ shot: any }>(`/shots/${id}`, { method: 'PUT', body: JSON.stringify(data) }),

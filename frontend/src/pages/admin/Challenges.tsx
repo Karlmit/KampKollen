@@ -25,6 +25,7 @@ export function AdminChallenges() {
     defaultTeamScoreMode: 'average_score' as TeamScoreMode,
     bestNPlayers: '', isGlobalTemplate: true,
     shotsPerTeam: '20', minShotsPerPlayer: '3', maxScorePerShot: '10', shootingLowerIsBetter: false,
+    valueUnit: 'pts', allowDecimals: false, attemptsPerPlayer: '', sumAllAttempts: false, useTeamScoreMode: false,
   })
 
   const SCORE_TYPES: [ScoreType, string][] = [
@@ -50,13 +51,13 @@ export function AdminChallenges() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ name: '', description: '', scoreType: 'number_highest_wins', defaultTeamScoreMode: 'average_score', bestNPlayers: '', isGlobalTemplate: true, shotsPerTeam: '20', minShotsPerPlayer: '3', maxScorePerShot: '10', shootingLowerIsBetter: false })
+    setForm({ name: '', description: '', scoreType: 'number_highest_wins', defaultTeamScoreMode: 'average_score', bestNPlayers: '', isGlobalTemplate: true, shotsPerTeam: '20', minShotsPerPlayer: '3', maxScorePerShot: '10', shootingLowerIsBetter: false, valueUnit: 'pts', allowDecimals: false, attemptsPerPlayer: '', sumAllAttempts: false, useTeamScoreMode: false })
     setOpen(true)
   }
 
   const openEdit = (c: any) => {
     setEditing(c)
-    setForm({ name: c.name, description: c.description ?? '', scoreType: c.scoreType, defaultTeamScoreMode: c.defaultTeamScoreMode, bestNPlayers: c.bestNPlayers?.toString() ?? '', isGlobalTemplate: c.isGlobalTemplate, shotsPerTeam: (c.shotsPerTeam ?? 20).toString(), minShotsPerPlayer: (c.minShotsPerPlayer ?? 3).toString(), maxScorePerShot: (c.maxScorePerShot ?? 10).toString(), shootingLowerIsBetter: !!c.shootingLowerIsBetter })
+    setForm({ name: c.name, description: c.description ?? '', scoreType: c.scoreType, defaultTeamScoreMode: c.defaultTeamScoreMode, bestNPlayers: c.bestNPlayers?.toString() ?? '', isGlobalTemplate: c.isGlobalTemplate, shotsPerTeam: (c.shotsPerTeam ?? 20).toString(), minShotsPerPlayer: (c.minShotsPerPlayer ?? 3).toString(), maxScorePerShot: (c.maxScorePerShot ?? 10).toString(), shootingLowerIsBetter: !!c.shootingLowerIsBetter, valueUnit: c.valueUnit ?? 'pts', allowDecimals: !!c.allowDecimals, attemptsPerPlayer: c.attemptsPerPlayer != null ? String(c.attemptsPerPlayer) : '', sumAllAttempts: !!c.sumAllAttempts, useTeamScoreMode: !!c.useTeamScoreMode })
     setOpen(true)
   }
 
@@ -66,10 +67,16 @@ export function AdminChallenges() {
       if (form.scoreType === 'shooting') {
         data.shotsPerTeam = form.shotsPerTeam ? parseInt(form.shotsPerTeam) : 20
         data.minShotsPerPlayer = form.minShotsPerPlayer ? parseInt(form.minShotsPerPlayer) : 3
-        data.maxScorePerShot = form.maxScorePerShot ? parseInt(form.maxScorePerShot) : 10
+        data.maxScorePerShot = form.maxScorePerShot !== '' ? parseInt(form.maxScorePerShot) : 0
         data.shootingLowerIsBetter = form.shootingLowerIsBetter
+        data.valueUnit = form.valueUnit?.trim() || 'pts'
+        data.allowDecimals = form.allowDecimals
+        data.attemptsPerPlayer = form.attemptsPerPlayer ? parseInt(form.attemptsPerPlayer) : null
+        data.sumAllAttempts = form.sumAllAttempts
+        data.useTeamScoreMode = form.useTeamScoreMode
       } else {
         delete data.shotsPerTeam; delete data.minShotsPerPlayer; delete data.maxScorePerShot; delete data.shootingLowerIsBetter
+        delete data.valueUnit; delete data.allowDecimals; delete data.attemptsPerPlayer; delete data.sumAllAttempts; delete data.useTeamScoreMode
       }
       return editing ? api.challenges.update(editing.id, data) : api.challenges.create(data)
     },
@@ -83,6 +90,28 @@ export function AdminChallenges() {
 
   const set = (key: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm(f => ({ ...f, [key]: e.target.value }))
+
+  // Presets pre-fill the granular Attempts settings; every field stays editable
+  // afterwards, so the admin can also build a fully custom challenge.
+  const applyPreset = (kind: 'shooting' | 'spike') => {
+    if (kind === 'shooting') {
+      setForm(f => ({ ...f, valueUnit: 'pts', allowDecimals: false, attemptsPerPlayer: '', sumAllAttempts: false, useTeamScoreMode: false, shotsPerTeam: '20', minShotsPerPlayer: '3', maxScorePerShot: '10' }))
+    } else {
+      setForm(f => ({ ...f, valueUnit: 'cm', allowDecimals: true, attemptsPerPlayer: '3', sumAllAttempts: true, useTeamScoreMode: true, defaultTeamScoreMode: 'average_score', maxScorePerShot: '' }))
+    }
+  }
+
+  // Which preset (if any) the current settings match, for the indicator.
+  const activePreset =
+    !form.allowDecimals && !form.sumAllAttempts && !form.useTeamScoreMode && form.attemptsPerPlayer === '' && form.valueUnit === 'pts' ? 'shooting'
+    : form.allowDecimals && form.sumAllAttempts && form.useTeamScoreMode && form.attemptsPerPlayer !== '' ? 'spike'
+    : 'custom'
+
+  const toggleBtnStyle = (active: boolean): React.CSSProperties => ({
+    padding: '10px 12px', borderRadius: 'var(--radius)', cursor: 'pointer', textAlign: 'left',
+    border: active ? '2px solid var(--accent)' : '1.5px solid var(--border-light)',
+    background: active ? 'var(--surface)' : 'var(--background)', width: '100%',
+  })
 
   return (
     <AdminLayout title={t('admin.challenges.title')}>
@@ -173,26 +202,98 @@ export function AdminChallenges() {
           </div>
           {isShooting ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <Input label={t('admin.challenges.shotsPerTeam')} type="number" value={form.shotsPerTeam} onChange={set('shotsPerTeam')} placeholder="20" />
-              <Input label={t('admin.challenges.minShotsPerPlayer')} type="number" value={form.minShotsPerPlayer} onChange={set('minShotsPerPlayer')} placeholder="3" />
-              <Input label={t('admin.challenges.maxScorePerShot')} type="number" value={form.maxScorePerShot} onChange={set('maxScorePerShot')} placeholder="10" />
+              {/* Presets: one tap pre-fills the settings below; all fields stay editable. */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>{t('admin.challenges.preset')}</label>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  {([
+                    { key: 'shooting', label: t('admin.challenges.presetShooting'), onClick: () => applyPreset('shooting') },
+                    { key: 'spike', label: t('admin.challenges.presetSpike'), onClick: () => applyPreset('spike') },
+                    { key: 'custom', label: t('admin.challenges.presetCustom'), onClick: undefined },
+                  ] as const).map(p => (
+                    <button key={p.key} type="button" disabled={!p.onClick} onClick={p.onClick}
+                      style={{ ...toggleBtnStyle(activePreset === p.key), flex: 1, textAlign: 'center', cursor: p.onClick ? 'pointer' : 'default', opacity: p.onClick ? 1 : (activePreset === 'custom' ? 1 : 0.6) }}>
+                      <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px' }}>{p.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.4 }}>{t('admin.challenges.presetHint')}</p>
+              </div>
+
+              <Input label={t('admin.challenges.valueUnit')} value={form.valueUnit} onChange={set('valueUnit')} placeholder="pts" />
+
+              {/* Integer vs decimal entry */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>{t('admin.challenges.valueFormat')}</label>
+                {[
+                  { value: false, label: t('admin.challenges.formatInteger'), desc: t('admin.challenges.formatIntegerDesc') },
+                  { value: true, label: t('admin.challenges.formatDecimal'), desc: t('admin.challenges.formatDecimalDesc') },
+                ].map(opt => (
+                  <button key={String(opt.value)} type="button" onClick={() => setForm(f => ({ ...f, allowDecimals: opt.value }))} style={toggleBtnStyle(form.allowDecimals === opt.value)}>
+                    <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', marginBottom: '2px' }}>{opt.label}</p>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.4 }}>{opt.desc}</p>
+                  </button>
+                ))}
+              </div>
+
+              <Input label={t('admin.challenges.attemptsPerPlayer')} type="number" value={form.attemptsPerPlayer} onChange={set('attemptsPerPlayer')} placeholder={t('admin.challenges.attemptsPerPlayerPlaceholder')} />
+              <Input label={t('admin.challenges.maxScorePerShot')} type="number" value={form.maxScorePerShot} onChange={set('maxScorePerShot')} placeholder={t('admin.challenges.maxScorePerShotPlaceholder')} />
+
+              {/* Individual aggregation: best-N vs sum-all */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>{t('admin.challenges.individualAgg')}</label>
+                {[
+                  { value: false, label: t('admin.challenges.aggBestN'), desc: t('admin.challenges.aggBestNDesc') },
+                  { value: true, label: t('admin.challenges.aggSumAll'), desc: t('admin.challenges.aggSumAllDesc') },
+                ].map(opt => (
+                  <button key={String(opt.value)} type="button" onClick={() => setForm(f => ({ ...f, sumAllAttempts: opt.value }))} style={toggleBtnStyle(form.sumAllAttempts === opt.value)}>
+                    <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', marginBottom: '2px' }}>{opt.label}</p>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.4 }}>{opt.desc}</p>
+                  </button>
+                ))}
+                {!form.sumAllAttempts && (
+                  <Input label={t('admin.challenges.minShotsPerPlayer')} type="number" value={form.minShotsPerPlayer} onChange={set('minShotsPerPlayer')} placeholder="3" />
+                )}
+              </div>
+
+              {/* Team scoring: counted-shots cap vs team-score mode over player totals */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>{t('admin.challenges.teamScoreCalc')}</label>
+                {[
+                  { value: false, label: t('admin.challenges.teamCountedShots'), desc: t('admin.challenges.teamCountedShotsDesc') },
+                  { value: true, label: t('admin.challenges.teamPlayerTotals'), desc: t('admin.challenges.teamPlayerTotalsDesc') },
+                ].map(opt => (
+                  <button key={String(opt.value)} type="button" onClick={() => setForm(f => ({ ...f, useTeamScoreMode: opt.value }))} style={toggleBtnStyle(form.useTeamScoreMode === opt.value)}>
+                    <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', marginBottom: '2px' }}>{opt.label}</p>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.4 }}>{opt.desc}</p>
+                  </button>
+                ))}
+              </div>
+
+              {form.useTeamScoreMode ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {TEAM_MODE_OPTIONS.filter(o => o.value !== 'manual_team_score').map(opt => (
+                    <button key={opt.value} type="button" onClick={() => setForm(f => ({ ...f, defaultTeamScoreMode: opt.value as TeamScoreMode }))} style={toggleBtnStyle(form.defaultTeamScoreMode === opt.value)}>
+                      <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', marginBottom: '2px' }}>{opt.label}</p>
+                      <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.4 }}>{opt.desc}</p>
+                    </button>
+                  ))}
+                  {form.defaultTeamScoreMode === 'best_n_players' && (
+                    <Input label={t('admin.challenges.topPlayersCount')} type="number" value={form.bestNPlayers} onChange={set('bestNPlayers')} placeholder={t('admin.challenges.topPlayersPlaceholder')} />
+                  )}
+                </div>
+              ) : (
+                <Input label={t('admin.challenges.shotsPerTeam')} type="number" value={form.shotsPerTeam} onChange={set('shotsPerTeam')} placeholder="20" />
+              )}
+
+              {/* Direction */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>{t('admin.challenges.shootingDirection')}</label>
                 {[
                   { value: false, label: t('admin.challenges.higherIsBetter'), desc: t('admin.challenges.higherIsBetterDesc') },
                   { value: true, label: t('admin.challenges.lowerIsBetter'), desc: t('admin.challenges.lowerIsBetterDesc') },
                 ].map(opt => (
-                  <button
-                    key={String(opt.value)}
-                    type="button"
-                    onClick={() => setForm(f => ({ ...f, shootingLowerIsBetter: opt.value }))}
-                    style={{
-                      padding: '10px 12px', borderRadius: 'var(--radius)', cursor: 'pointer', textAlign: 'left',
-                      border: form.shootingLowerIsBetter === opt.value ? '2px solid var(--accent)' : '1.5px solid var(--border-light)',
-                      background: form.shootingLowerIsBetter === opt.value ? 'var(--surface)' : 'var(--background)',
-                      width: '100%',
-                    }}
-                  >
+                  <button key={String(opt.value)} type="button" onClick={() => setForm(f => ({ ...f, shootingLowerIsBetter: opt.value }))} style={toggleBtnStyle(form.shootingLowerIsBetter === opt.value)}>
                     <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', marginBottom: '2px' }}>{opt.label}</p>
                     <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.4 }}>{opt.desc}</p>
                   </button>

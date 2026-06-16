@@ -89,6 +89,18 @@ export function bestNSum(values: number[], n: number, lowerBetter: boolean): num
     .reduce((a, b) => a + b, 0)
 }
 
+// A player's individual total for the unified Attempts mode. When `sumAll` is set
+// (Spike-style) every attempt counts; otherwise only the player's best `n` attempts
+// count (classic shooting, where players may take more than the guaranteed minimum).
+export function playerAttemptTotal(
+  values: number[],
+  sumAll: boolean,
+  n: number,
+  lowerBetter: boolean
+): number {
+  return sumAll ? values.reduce((a, b) => a + b, 0) : bestNSum(values, n, lowerBetter)
+}
+
 export interface ShootingShotInput {
   id: string
   userId: string

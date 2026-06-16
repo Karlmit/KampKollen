@@ -56,6 +56,11 @@ export interface Challenge {
   minShotsPerPlayer?: number
   maxScorePerShot?: number
   shootingLowerIsBetter?: boolean
+  valueUnit?: string
+  allowDecimals?: boolean
+  attemptsPerPlayer?: number | null
+  sumAllAttempts?: boolean
+  useTeamScoreMode?: boolean
   isGlobalTemplate: boolean
   createdAt: string
 }

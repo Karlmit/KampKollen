@@ -130,6 +130,14 @@ model Challenge {
   minShotsPerPlayer    Int           @default(3)
   maxScorePerShot      Int           @default(10)
   shootingLowerIsBetter Boolean      @default(false)
+  // Unified "Attempts/Försök" mode config (scoreType = shooting). Defaults preserve
+  // classic shooting behaviour; tweak these to get the Spike (cm, decimals, fixed
+  // attempts, averaged team score) or any custom combination.
+  valueUnit            String        @default("pts")
+  allowDecimals        Boolean       @default(false)
+  attemptsPerPlayer    Int?
+  sumAllAttempts       Boolean       @default(false)
+  useTeamScoreMode     Boolean       @default(false)
   isGlobalTemplate     Boolean       @default(false)
   isQuiz               Boolean       @default(false)
   createdAt            DateTime      @default(now())
@@ -250,7 +258,7 @@ model Shot {
   competitionChallenge   CompetitionChallenge @relation(fields: [competitionChallengeId], references: [id], onDelete: Cascade)
   userId                 String
   player                 User                 @relation("ShotPlayer", fields: [userId], references: [id])
-  value                  Int
+  value                  Float
   order                  Int                  @default(0)
   enteredByUserId        String
   enteredByUser          User                 @relation("ShotEnteredBy", fields: [enteredByUserId], references: [id])

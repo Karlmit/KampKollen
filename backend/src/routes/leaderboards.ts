@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify'
 import { ScoreType, TeamScoreMode, TieBreakingMode } from '@prisma/client'
 import { prisma } from '../db.js'
 import { optionalAuth } from '../middleware/auth.js'
-import { computeCalculatedPoints, computeTeamScore, isLowerBetter, bestNSum, computeShootingCounted, computeTimeDifferenceSeconds } from '../lib/scoring.js'
+import { computeCalculatedPoints, computeTeamScore, isLowerBetter, bestNSum, playerAttemptTotal, computeShootingCounted, computeTimeDifferenceSeconds } from '../lib/scoring.js'
 
 async function getUserGroupIds(userId: string): Promise<string[]> {
   const memberships = await prisma.userGroup.findMany({ where: { userId }, select: { groupId: true } })
@@ -21,7 +21,7 @@ function getScoreValue(score: any, st: ScoreType): number | null {
 // bestPerPlayer.
 function foldShootingShots(
   shots: any[],
-  challenge: { shootingLowerIsBetter: boolean; minShotsPerPlayer: number },
+  challenge: { shootingLowerIsBetter: boolean; minShotsPerPlayer: number; sumAllAttempts?: boolean },
   bestPerPlayer: Record<string, any>
 ) {
   const lowerBetter = challenge.shootingLowerIsBetter
@@ -29,7 +29,7 @@ function foldShootingShots(
   for (const sh of shots) (byUser[sh.userId] ??= []).push(sh)
   for (const userShots of Object.values(byUser)) {
     if (userShots.length === 0) continue
-    const val = bestNSum(userShots.map((s: any) => s.value), challenge.minShotsPerPlayer, lowerBetter)
+    const val = playerAttemptTotal(userShots.map((s: any) => s.value), !!challenge.sumAllAttempts, challenge.minShotsPerPlayer, lowerBetter)
     const ref = userShots[0]
     const existing = bestPerPlayer[ref.userId]
     if (!existing || (lowerBetter ? val < existing.score : val > existing.score)) {
@@ -149,12 +149,13 @@ export async function leaderboardRoutes(app: FastifyInstance) {
       // Compute raw calculated points per player for this challenge
       const playerChallengePoints: Record<string, number> = {}
       if (isShooting) {
-        // Individual score = sum of a player's best `minShotsPerPlayer` shots,
-        // so a player who took extra shots doesn't out-rank everyone else.
+        // Individual score = sum of a player's best `minShotsPerPlayer` shots (classic
+        // shooting), or the sum of all their attempts when `sumAllAttempts` is set
+        // (Spike-style), so a player who took extra shots doesn't out-rank everyone else.
         const shotsByUser: Record<string, number[]> = {}
         for (const s of shootingShots) (shotsByUser[s.userId] ??= []).push(s.value)
         for (const [userId, values] of Object.entries(shotsByUser)) {
-          playerChallengePoints[userId] = bestNSum(values, cc.challenge.minShotsPerPlayer, lowerBetter)
+          playerChallengePoints[userId] = playerAttemptTotal(values, cc.challenge.sumAllAttempts, cc.challenge.minShotsPerPlayer, lowerBetter)
         }
       } else {
         for (const s of scores) {
@@ -237,7 +238,10 @@ export async function leaderboardRoutes(app: FastifyInstance) {
       // Calculate and rank team scores for this challenge
       const teamChallengeScores: Array<{ teamId: string; teamName: string; score: number }> = []
       for (const team of competition.teams) {
-        if (isShooting) {
+        // Classic shooting: team score is the sum of the team's best `shotsPerTeam`
+        // shots. When `useTeamScoreMode` is set (Spike-style) we instead fall through
+        // to the generic team-score mode over each player's total.
+        if (isShooting && !cc.challenge.useTeamScoreMode) {
           const res = computeShootingCounted(
             (teamShots[team.id] ?? []).map(s => ({ id: s.id, userId: s.userId, value: s.value })),
             cc.challenge.shotsPerTeam, cc.challenge.minShotsPerPlayer, lowerBetter
@@ -342,6 +346,7 @@ export async function leaderboardRoutes(app: FastifyInstance) {
         scoreType,
         teamScoreMode,
         lowerIsBetter: lowerBetter,
+        valueUnit: isShooting ? cc.challenge.valueUnit : null,
         teams: rankedTeamsWithRanks.map(t => ({
           ...t,
           ...(competition.scoringMode === 'placement_points' && (t.score > 0 || isTimeDiff)

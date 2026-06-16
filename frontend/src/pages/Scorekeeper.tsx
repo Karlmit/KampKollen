@@ -330,12 +330,14 @@ function NumpadModal({ open, onClose, playerName, currentValue, scoreLabel, onSa
   )
 }
 
-function ShotModal({ open, onClose, playerName, currentValue, maxScore, onSave, onDelete }: {
+function ShotModal({ open, onClose, playerName, currentValue, maxScore, allowDecimals = false, unit, onSave, onDelete }: {
   open: boolean
   onClose: () => void
   playerName: string
   currentValue: number | null
   maxScore: number
+  allowDecimals?: boolean
+  unit?: string
   onSave: (val: number) => void
   onDelete?: () => void
 }) {
@@ -346,9 +348,12 @@ function ShotModal({ open, onClose, playerName, currentValue, maxScore, onSave, 
     if (open) setInput(currentValue !== null ? String(currentValue) : '')
   }, [open, currentValue])
 
-  const useButtons = maxScore <= 10
-  const num = input === '' ? NaN : parseInt(input)
-  const valid = !isNaN(num) && num >= 0 && num <= maxScore
+  // maxScore 0 = no per-attempt cap. Decimal entry always uses the numpad (the
+  // button grid can't express e.g. 3.1).
+  const noCap = maxScore <= 0
+  const useButtons = !allowDecimals && !noCap && maxScore <= 10
+  const num = input === '' ? NaN : (allowDecimals ? parseFloat(input) : parseInt(input))
+  const valid = !isNaN(num) && num >= 0 && (noCap || num <= maxScore)
 
   const commit = (val: number) => { onSave(val); onClose() }
 
@@ -372,7 +377,9 @@ function ShotModal({ open, onClose, playerName, currentValue, maxScore, onSave, 
       }
     >
       <p style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', marginBottom: '14px' }}>
-        {t('scorekeeper.shotValue', { max: maxScore })}
+        {noCap
+          ? t('scorekeeper.attemptValue', { unit: unit ?? '' })
+          : t('scorekeeper.shotValue', { max: maxScore })}
       </p>
       {useButtons ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
@@ -398,12 +405,19 @@ function ShotModal({ open, onClose, playerName, currentValue, maxScore, onSave, 
             <span style={{ fontSize: '44px', fontFamily: 'var(--font-ui)', fontWeight: 700, lineHeight: 1 }}>
               {input || '—'}
             </span>
+            {unit && input && (
+              <span style={{ fontSize: '18px', fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--text-muted)', marginLeft: '8px', alignSelf: 'flex-end', marginBottom: '6px' }}>{unit}</span>
+            )}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
             {['7', '8', '9', '4', '5', '6', '1', '2', '3'].map(d => (
               <button key={d} className="numpad-btn" onClick={() => setInput(s => s + d)}>{d}</button>
             ))}
-            <button className="numpad-btn numpad-btn--action" onClick={() => setInput('')} style={{ color: 'var(--accent-warm)' }}>C</button>
+            {allowDecimals ? (
+              <button className="numpad-btn" onClick={() => setInput(s => s.includes('.') ? s : (s === '' ? '0.' : s + '.'))}>.</button>
+            ) : (
+              <button className="numpad-btn numpad-btn--action" onClick={() => setInput('')} style={{ color: 'var(--accent-warm)' }}>C</button>
+            )}
             <button className="numpad-btn" onClick={() => setInput(s => s + '0')}>0</button>
             <button className="numpad-btn numpad-btn--action" onClick={() => setInput(s => s.slice(0, -1))} style={{ color: 'var(--accent-warm)' }}>⌫</button>
           </div>
@@ -548,20 +562,32 @@ export function ScorekeeperPage() {
     minShotsPerPlayer: selectedCc?.challenge?.minShotsPerPlayer ?? 3,
     shotsPerTeam: selectedCc?.challenge?.shotsPerTeam ?? 20,
     lowerIsBetter: selectedCc?.challenge?.shootingLowerIsBetter ?? false,
+    valueUnit: selectedCc?.challenge?.valueUnit ?? 'pts',
+    allowDecimals: selectedCc?.challenge?.allowDecimals ?? false,
+    attemptsPerPlayer: selectedCc?.challenge?.attemptsPerPlayer ?? null,
+    sumAllAttempts: selectedCc?.challenge?.sumAllAttempts ?? false,
+    useTeamScoreMode: selectedCc?.challenge?.useTeamScoreMode ?? false,
   }
+  const shotUnit: string = (shotConfig as any).valueUnit ?? 'pts'
+  const attemptsCap: number | null = (shotConfig as any).attemptsPerPlayer ?? null
+  // Round away float noise (e.g. 3.1 + 4.0 + 2.7) when showing sums of decimal values.
+  const fmtNum = (n: number) => String(Math.round(n * 100) / 100)
   const shotsByPlayer: Record<string, any[]> = {}
   for (const s of (shotsData?.shots ?? [])) (shotsByPlayer[s.userId] ??= []).push(s)
   // Team-level shot totals/counts across ALL players on a team (the API returns
   // every team's shots, so these stay correct even when viewing one team).
   const teamShotTotals: Record<string, number> = shotsData?.teamTotals ?? {}
   const teamShotCounts: Record<string, number> = shotsData?.teamShotCounts ?? {}
-  // A player's individual score = the sum of their best `minShotsPerPlayer`
-  // shots (matches the individual leaderboard), not the sum of every shot.
+  // A player's individual score: the sum of all their attempts when `sumAllAttempts`
+  // is set (Spike-style), otherwise the sum of their best `minShotsPerPlayer` shots
+  // (classic shooting). Matches the individual leaderboard.
   const playerIndividualScore = (shots: any[]) =>
-    [...shots]
-      .sort((a, b) => (shotConfig.lowerIsBetter ? a.value - b.value : b.value - a.value))
-      .slice(0, Math.max(0, shotConfig.minShotsPerPlayer))
-      .reduce((a, s) => a + s.value, 0)
+    (shotConfig as any).sumAllAttempts
+      ? shots.reduce((a, s) => a + s.value, 0)
+      : [...shots]
+          .sort((a, b) => (shotConfig.lowerIsBetter ? a.value - b.value : b.value - a.value))
+          .slice(0, Math.max(0, shotConfig.minShotsPerPlayer))
+          .reduce((a, s) => a + s.value, 0)
 
   const getExistingScore = (userId: string) => {
     const s = existingScores.find((s: any) => s.userId === userId)
@@ -667,10 +693,9 @@ export function ScorekeeperPage() {
             background: 'var(--accent)', marginTop: '1px',
           }} />
           <p style={{ fontSize: '12.5px', color: 'var(--text-muted)', lineHeight: 1.45 }}>
-            {t('scorekeeper.shootingInfo', {
-              shots: shotConfig.shotsPerTeam,
-              min: shotConfig.minShotsPerPlayer,
-            })}
+            {(shotConfig as any).useTeamScoreMode
+              ? t('scorekeeper.attemptsInfo', { unit: shotUnit })
+              : t('scorekeeper.shootingInfo', { shots: shotConfig.shotsPerTeam, min: shotConfig.minShotsPerPlayer })}
           </p>
         </div>
       )}
@@ -691,11 +716,20 @@ export function ScorekeeperPage() {
                     {isShooting && team.id && (() => {
                       const used = teamShotCounts[team.id] ?? 0
                       const total = teamShotTotals[team.id] ?? 0
+                      // Spike-style (player totals): no team-shot cap; show the team
+                      // score (e.g. average) with its unit.
+                      if ((shotConfig as any).useTeamScoreMode) {
+                        return (
+                          <span style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 700, whiteSpace: 'nowrap', color: 'var(--text-primary)' }}>
+                            {t('scorekeeper.teamScoreLabel', { score: fmtNum(total), unit: shotUnit })}
+                          </span>
+                        )
+                      }
                       const atCap = used >= shotConfig.shotsPerTeam
                       return (
                         <span style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 700, whiteSpace: 'nowrap' }}>
                           <span style={{ color: 'var(--text-primary)' }}>
-                            {t('scorekeeper.teamTotal', { total, max: shotConfig.shotsPerTeam * shotConfig.maxScorePerShot })}
+                            {t('scorekeeper.teamTotal', { total: fmtNum(total), max: shotConfig.shotsPerTeam * shotConfig.maxScorePerShot })}
                           </span>
                           <span style={{ color: atCap ? 'var(--accent-green)' : 'var(--text-muted)', marginLeft: '8px' }}>
                             {t('scorekeeper.shotsUsed', { used, max: shotConfig.shotsPerTeam })}
@@ -751,7 +785,8 @@ export function ScorekeeperPage() {
                     if (isShooting) {
                       const playerShots = shotsByPlayer[p.userId] ?? []
                       const playerTotal = playerIndividualScore(playerShots)
-                      const belowMin = playerShots.length < shotConfig.minShotsPerPlayer
+                      const belowMin = !(shotConfig as any).sumAllAttempts && playerShots.length < shotConfig.minShotsPerPlayer
+                      const capReached = attemptsCap != null && playerShots.length >= attemptsCap
                       return (
                         <Card key={p.userId} padding="14px 16px">
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
@@ -768,10 +803,12 @@ export function ScorekeeperPage() {
                             </div>
                             <div style={{ textAlign: 'right' }}>
                               <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '22px', lineHeight: 1 }}>
-                                {playerTotal}
+                                {fmtNum(playerTotal)} <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{shotUnit}</span>
                               </p>
                               <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                                {t('scorekeeper.shotCount', { count: playerShots.length })}
+                                {attemptsCap != null
+                                  ? t('scorekeeper.attemptCount', { count: playerShots.length, max: attemptsCap })
+                                  : t('scorekeeper.shotCount', { count: playerShots.length })}
                               </p>
                             </div>
                           </div>
@@ -793,24 +830,26 @@ export function ScorekeeperPage() {
                                   transition: 'background 160ms var(--ease-out), border-color 160ms var(--ease-out), color 160ms var(--ease-out)',
                                 }}
                               >
-                                {sh.value}
+                                {fmtNum(sh.value)}
                               </button>
                             ))}
-                            <button
-                              type="button"
-                              onClick={() => setShotModal({ player: p, shot: null })}
-                              aria-label={t('scorekeeper.addShot')}
-                              title={t('scorekeeper.addShot')}
-                              style={{
-                                minWidth: '44px', minHeight: '44px',
-                                borderRadius: 'var(--radius)', cursor: 'pointer',
-                                fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '22px',
-                                border: '1.5px dashed var(--accent)', background: 'var(--surface)',
-                                color: 'var(--accent)', lineHeight: 1,
-                              }}
-                            >
-                              +
-                            </button>
+                            {!capReached && (
+                              <button
+                                type="button"
+                                onClick={() => setShotModal({ player: p, shot: null })}
+                                aria-label={t('scorekeeper.addShot')}
+                                title={t('scorekeeper.addShot')}
+                                style={{
+                                  minWidth: '44px', minHeight: '44px',
+                                  borderRadius: 'var(--radius)', cursor: 'pointer',
+                                  fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '22px',
+                                  border: '1.5px dashed var(--accent)', background: 'var(--surface)',
+                                  color: 'var(--accent)', lineHeight: 1,
+                                }}
+                              >
+                                +
+                              </button>
+                            )}
                           </div>
                         </Card>
                       )
@@ -883,6 +922,8 @@ export function ScorekeeperPage() {
         playerName={shotModal?.player?.user?.displayName ?? shotModal?.player?.user?.username ?? ''}
         currentValue={shotModal?.shot ? shotModal.shot.value : null}
         maxScore={shotConfig.maxScorePerShot}
+        allowDecimals={(shotConfig as any).allowDecimals ?? false}
+        unit={shotUnit}
         onSave={(val) => {
           if (!shotModal) return
           if (shotModal.shot) updateShotMutation.mutate({ id: shotModal.shot.id, value: val })
