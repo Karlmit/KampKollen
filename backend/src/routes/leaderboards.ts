@@ -119,6 +119,17 @@ export async function leaderboardRoutes(app: FastifyInstance) {
       if (individualPlayerIds.has(p.userId)) playerPoints[p.userId] = 0
     }
 
+    // Track who has actually entered any score yet, so the UI can hide players
+    // and teams that have nothing recorded across every challenge.
+    const playersWithScores = new Set<string>()
+    const teamsWithScores = new Set<string>()
+    const teamByUserId = new Map(competition.players.map(p => [p.userId, p.teamId ?? null]))
+    const markScored = (userId: string) => {
+      playersWithScores.add(userId)
+      const teamId = teamByUserId.get(userId)
+      if (teamId) teamsWithScores.add(teamId)
+    }
+
     const challengeLeaderboards: any[] = []
 
     for (const cc of competition.challenges) {
@@ -140,6 +151,15 @@ export async function leaderboardRoutes(app: FastifyInstance) {
       // Drop unassigned players' scores entirely, so they neither rank nor shift
       // anyone else's points (relevant for relative score types like ranked_points).
       const scores = cc.scores.filter(s => individualPlayerIds.has(s.userId))
+
+      // Record participation for the "no score yet" hiding rule.
+      for (const s of scores) markScored(s.userId)
+      for (const s of shootingShots) markScored(s.userId)
+      if (isTimeDiff) {
+        for (const ts of cc.teamScores) {
+          if (computeTimeDifferenceSeconds(ts.time1Ms, ts.time2Ms) !== null) teamsWithScores.add(ts.teamId)
+        }
+      }
 
       const allScoreInputs = scores.map(s => ({
         userId: s.userId, rawScore: s.rawScore, timeMs: s.timeMs,
@@ -370,6 +390,7 @@ export async function leaderboardRoutes(app: FastifyInstance) {
         totalPoints: teamPoints[team.id]?.totalPoints ?? 0,
         challengeBreakdown: teamPoints[team.id]?.challengeBreakdown ?? {},
         playerCount: competition.players.filter(p => p.teamId === team.id).length,
+        hasScore: teamsWithScores.has(team.id),
       }))
       .sort((a, b) => b.totalPoints - a.totalPoints)
     const teamLeaderboard = overallTbm
@@ -389,6 +410,7 @@ export async function leaderboardRoutes(app: FastifyInstance) {
           teamId: cp.teamId,
           teamName: team?.name ?? null,
           totalPoints: playerPoints[cp.userId] ?? 0,
+          hasScore: playersWithScores.has(cp.userId),
         }
       })
       .sort((a, b) => b.totalPoints - a.totalPoints)

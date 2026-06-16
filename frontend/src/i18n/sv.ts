@@ -760,6 +760,8 @@ const sv = {
     lowerBetter: 'lägre = bättre',
     pts: 'p',
     players: 'spelare',
+    noTeamScores: 'Inga lag har registrerat något resultat ännu. Lagen visas här så fort poäng har matats in.',
+    noPlayerScores: 'Inga spelare har registrerat något resultat ännu. Spelarna visas här så fort poäng har matats in.',
   },
 } as const
 

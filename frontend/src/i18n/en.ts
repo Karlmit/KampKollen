@@ -762,6 +762,8 @@ const en = {
     lowerBetter: 'lower = better',
     pts: 'pts',
     players: 'players',
+    noTeamScores: 'No team has entered a score yet. Teams will appear here as soon as scores are recorded.',
+    noPlayerScores: 'No player has entered a score yet. Players will appear here as soon as scores are recorded.',
   },
 } as const
 

@@ -137,6 +137,7 @@ export interface LeaderboardTeam {
   rank: number
   challengeBreakdown: Record<string, number>
   playerCount: number
+  hasScore: boolean
 }
 
 export interface CompetitionLeaderboard {
@@ -151,6 +152,7 @@ export interface CompetitionLeaderboard {
     teamName?: string | null
     totalPoints: number
     rank: number
+    hasScore: boolean
   }>
   challengeLeaderboards: Array<{
     challengeId: string

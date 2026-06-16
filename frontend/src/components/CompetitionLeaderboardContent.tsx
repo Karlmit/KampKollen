@@ -58,7 +58,17 @@ export function CompetitionLeaderboardContent({
     )
   }
 
-  const topFive = lb.individualLeaderboard.slice(0, 5)
+  // Hide teams and players that haven't entered any score yet; if nobody has,
+  // the view shows an explanatory empty state instead.
+  const visibleTeams = lb.teamLeaderboard.filter((tm: LeaderboardTeam) => tm.hasScore)
+  const visiblePlayers = lb.individualLeaderboard.filter((p: any) => p.hasScore)
+  const topFive = visiblePlayers.slice(0, 5)
+
+  const emptyState = (message: string) => (
+    <Card padding="20px" style={{ textAlign: 'center', background: 'var(--surface)' }}>
+      <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: 1.5 }}>{message}</p>
+    </Card>
+  )
 
   return (
     <div>
@@ -91,9 +101,10 @@ export function CompetitionLeaderboardContent({
       )}
 
       {/* Teams leaderboard */}
-      {view === 'teams' && (
+      {view === 'teams' && visibleTeams.length === 0 && emptyState(t('leaderboardContent.noTeamScores'))}
+      {view === 'teams' && visibleTeams.length > 0 && (
         <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {lb.teamLeaderboard.map((team: LeaderboardTeam) => {
+          {visibleTeams.map((team: LeaderboardTeam) => {
             const isFirst = team.rank === 1
             const rankLabel = team.rank === 1 ? '🥇' : team.rank === 2 ? '🥈' : team.rank === 3 ? '🥉' : String(team.rank)
             return (
@@ -122,7 +133,8 @@ export function CompetitionLeaderboardContent({
       )}
 
       {/* Individual leaderboard */}
-      {view === 'individual' && (
+      {view === 'individual' && visiblePlayers.length === 0 && emptyState(t('leaderboardContent.noPlayerScores'))}
+      {view === 'individual' && visiblePlayers.length > 0 && (
         <>
           <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {topFive.map((p: any) => {
@@ -148,9 +160,9 @@ export function CompetitionLeaderboardContent({
             })}
           </div>
 
-          {lb.individualLeaderboard.length > 5 && (
+          {visiblePlayers.length > 5 && (
             <div style={{ marginTop: '8px' }}>
-              {lb.individualLeaderboard.slice(5).map((p: any) => {
+              {visiblePlayers.slice(5).map((p: any) => {
                 const isMe = p.userId === userId
                 return (
                   <div key={p.userId} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 16px', borderBottom: '1px solid var(--border-light)', ...(isMe ? { borderLeft: '3px solid var(--accent)' } : {}) }}>
@@ -170,11 +182,11 @@ export function CompetitionLeaderboardContent({
             </div>
           )}
 
-          {lb.individualLeaderboard.length > 5 && (
+          {visiblePlayers.length > 5 && (
             <Link to={`/competitions/${id}/leaderboard/individual`} style={{ textDecoration: 'none', display: 'block', marginTop: '10px' }}>
               <Card padding="12px" style={{ textAlign: 'center', background: 'var(--surface)' }}>
                 <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, color: 'var(--accent)' }}>
-                  {t('leaderboardContent.fullIndividual', { count: lb.individualLeaderboard.length })}
+                  {t('leaderboardContent.fullIndividual', { count: visiblePlayers.length })}
                 </p>
               </Card>
             </Link>
