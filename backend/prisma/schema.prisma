@@ -29,6 +29,7 @@ enum ScoreType {
   placement_lowest_wins
   manual_points
   win_loss
+  shooting
 }
 
 enum TeamScoreMode {
@@ -65,6 +66,8 @@ model User {
   competitionPlayers  CompetitionPlayer[]
   scores              Score[]             @relation("ScorePlayer")
   enteredScores       Score[]             @relation("ScoreEnteredBy")
+  shots               Shot[]              @relation("ShotPlayer")
+  enteredShots        Shot[]              @relation("ShotEnteredBy")
   teamLeaderships     Team[]              @relation("TeamLeader")
   trophies            Trophy[]            @relation("UserTrophies")
   groups              UserGroup[]
@@ -108,6 +111,7 @@ model Competition {
   teams            Team[]
   players          CompetitionPlayer[]
   scores           Score[]
+  shots            Shot[]
   reservedTrophies Trophy[]               @relation("TrophyReservation")
 }
 
@@ -119,6 +123,10 @@ model Challenge {
   scoreType            ScoreType     @default(number_highest_wins)
   defaultTeamScoreMode TeamScoreMode @default(sum_all_players)
   bestNPlayers         Int?
+  maxShots             Int           @default(20)
+  shotsPerPlayer       Int           @default(3)
+  maxScorePerShot      Int           @default(10)
+  shootingLowerIsBetter Boolean      @default(false)
   isGlobalTemplate     Boolean       @default(false)
   isQuiz               Boolean       @default(false)
   createdAt            DateTime      @default(now())
@@ -140,6 +148,7 @@ model CompetitionChallenge {
   bestNPlayersOverride  Int?
 
   scores      Score[]
+  shots       Shot[]
   quizSession QuizSession?
 
   @@unique([competitionId, challengeId])
@@ -201,6 +210,24 @@ model Score {
   updatedAt              DateTime             @updatedAt
 
   @@unique([competitionChallengeId, userId])
+}
+
+model Shot {
+  id                     String               @id @default(cuid())
+  competitionId          String
+  competition            Competition          @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  competitionChallengeId String
+  competitionChallenge   CompetitionChallenge @relation(fields: [competitionChallengeId], references: [id], onDelete: Cascade)
+  userId                 String
+  player                 User                 @relation("ShotPlayer", fields: [userId], references: [id])
+  value                  Int
+  order                  Int                  @default(0)
+  enteredByUserId        String
+  enteredByUser          User                 @relation("ShotEnteredBy", fields: [enteredByUserId], references: [id])
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+
+  @@index([competitionChallengeId])
 }
 
 model Group {

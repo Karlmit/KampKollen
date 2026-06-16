@@ -12,6 +12,7 @@ import { competitionRoutes } from './routes/competitions.js'
 import { challengeRoutes } from './routes/challenges.js'
 import { teamRoutes } from './routes/teams.js'
 import { scoreRoutes } from './routes/scores.js'
+import { shotRoutes } from './routes/shots.js'
 import { leaderboardRoutes } from './routes/leaderboards.js'
 import { settingsRoutes, imageOptionRoutes } from './routes/settings.js'
 import { trophyRoutes, trophyWordRoutes } from './routes/trophies.js'
@@ -61,6 +62,7 @@ export async function buildServer() {
   await app.register(challengeRoutes, { prefix: '/api/challenges' })
   await app.register(teamRoutes, { prefix: '/api/teams' })
   await app.register(scoreRoutes, { prefix: '/api/scores' })
+  await app.register(shotRoutes, { prefix: '/api/shots' })
   await app.register(leaderboardRoutes, { prefix: '/api/leaderboards' })
   await app.register(settingsRoutes, { prefix: '/api/admin/settings' })
   await app.register(imageOptionRoutes, { prefix: '/api/image-options' })

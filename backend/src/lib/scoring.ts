@@ -60,6 +60,93 @@ export function isLowerBetter(scoreType: ScoreType): boolean {
     || scoreType === 'time_fastest_wins'
 }
 
+// ── Shooting mode ────────────────────────────────────────────────────────────
+
+// Sort shot values best-first. "Best" = highest, unless lower is better.
+function bestFirst(values: number[], lowerBetter: boolean): number[] {
+  return [...values].sort((a, b) => (lowerBetter ? a - b : b - a))
+}
+
+// A player's individual shooting score: the sum of their best min(Y, n) shots.
+export function playerShootingScore(
+  values: number[],
+  shotsPerPlayer: number,
+  lowerBetter: boolean
+): number {
+  return bestFirst(values, lowerBetter)
+    .slice(0, Math.max(0, shotsPerPlayer))
+    .reduce((a, b) => a + b, 0)
+}
+
+export interface ShootingShotInput {
+  id: string
+  userId: string
+  value: number
+}
+
+// Team shooting score — "Guaranteed Y + fill lowest surplus":
+//  1. Each player's best min(Y, n) shots are guaranteed counted.
+//  2. deficit = Σ max(0, Y − n) for players who shot fewer than Y.
+//  3. surplus pool = every shot a player has beyond their first Y.
+//  4. Fill `deficit` slots from the surplus pool using the WORST-for-the-team
+//     surplus shots first (the substitution penalty).
+//  5. Cap the counted set at the best X shots overall.
+// Returns the set of counted shot ids and the summed team total.
+export function computeShootingCounted(
+  shots: ShootingShotInput[],
+  maxShots: number,
+  shotsPerPlayer: number,
+  lowerBetter: boolean
+): { countedIds: Set<string>; teamTotal: number } {
+  const X = Math.max(0, maxShots)
+  const Y = Math.max(0, shotsPerPlayer)
+
+  // Group shots by player
+  const byPlayer = new Map<string, ShootingShotInput[]>()
+  for (const s of shots) {
+    const arr = byPlayer.get(s.userId)
+    if (arr) arr.push(s)
+    else byPlayer.set(s.userId, [s])
+  }
+
+  const guaranteed: ShootingShotInput[] = []
+  const surplus: ShootingShotInput[] = []
+  let deficit = 0
+
+  for (const playerShots of byPlayer.values()) {
+    // Sort this player's shots best-first so the guaranteed slice is their best.
+    const sorted = [...playerShots].sort((a, b) =>
+      lowerBetter ? a.value - b.value : b.value - a.value
+    )
+    const take = Math.min(Y, sorted.length)
+    guaranteed.push(...sorted.slice(0, take))
+    if (sorted.length < Y) deficit += Y - sorted.length
+    else surplus.push(...sorted.slice(Y))
+  }
+
+  // Fill deficit from the surplus pool using the worst-for-the-team shots first.
+  // Higher-better -> lowest values are worst; lower-better -> highest values.
+  const surplusWorstFirst = [...surplus].sort((a, b) =>
+    lowerBetter ? b.value - a.value : a.value - b.value
+  )
+  const filled = surplusWorstFirst.slice(0, Math.max(0, deficit))
+
+  // Cap the combined counted set at the best X shots overall.
+  let counted = [...guaranteed, ...filled]
+  if (counted.length > X) {
+    counted = bestFirstShots(counted, lowerBetter).slice(0, X)
+  }
+
+  return {
+    countedIds: new Set(counted.map(s => s.id)),
+    teamTotal: counted.reduce((a, b) => a + b.value, 0),
+  }
+}
+
+function bestFirstShots(shots: ShootingShotInput[], lowerBetter: boolean): ShootingShotInput[] {
+  return [...shots].sort((a, b) => (lowerBetter ? a.value - b.value : b.value - a.value))
+}
+
 export function computeTeamScore(
   playerPoints: number[],
   mode: TeamScoreMode,

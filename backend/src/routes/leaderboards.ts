@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify'
 import { ScoreType, TeamScoreMode, TieBreakingMode } from '@prisma/client'
 import { prisma } from '../db.js'
 import { optionalAuth } from '../middleware/auth.js'
-import { computeCalculatedPoints, computeTeamScore, isLowerBetter } from '../lib/scoring.js'
+import { computeCalculatedPoints, computeTeamScore, isLowerBetter, computeShootingCounted, playerShootingScore } from '../lib/scoring.js'
 
 async function getUserGroupIds(userId: string): Promise<string[]> {
   const memberships = await prisma.userGroup.findMany({ where: { userId }, select: { groupId: true } })
@@ -14,6 +14,32 @@ function getScoreValue(score: any, st: ScoreType): number | null {
   if (st === 'placement_lowest_wins') return score.placement ?? null
   if (st === 'manual_points') return score.calculatedPoints ?? null
   return score.rawScore ?? null
+}
+
+// All-time aggregation for shooting challenges: fold each player's best
+// shooting score (sum of best Y shots) per competition into bestPerPlayer.
+function foldShootingShots(
+  shots: any[],
+  challenge: { shotsPerPlayer: number; shootingLowerIsBetter: boolean },
+  bestPerPlayer: Record<string, any>
+) {
+  const lowerBetter = challenge.shootingLowerIsBetter
+  const byUser: Record<string, any[]> = {}
+  for (const sh of shots) (byUser[sh.userId] ??= []).push(sh)
+  for (const userShots of Object.values(byUser)) {
+    const val = playerShootingScore(userShots.map((s: any) => s.value), challenge.shotsPerPlayer, lowerBetter)
+    if (val === null || userShots.length === 0) continue
+    const ref = userShots[0]
+    const existing = bestPerPlayer[ref.userId]
+    if (!existing || (lowerBetter ? val < existing.score : val > existing.score)) {
+      bestPerPlayer[ref.userId] = {
+        userId: ref.player.id, displayName: ref.player.displayName,
+        username: ref.player.username, profileImageUrl: ref.player.profileImageUrl,
+        score: val, competitionName: ref.competition.name,
+        competitionDate: ref.competition.date?.toISOString() ?? null,
+      }
+    }
+  }
 }
 
 // Standard competition ranking (1,1,3): items must already be sorted best-first.
@@ -48,7 +74,7 @@ export async function leaderboardRoutes(app: FastifyInstance) {
           include: { user: { select: { id: true, username: true, displayName: true, profileImageUrl: true } } },
         },
         challenges: {
-          include: { challenge: true, scores: true },
+          include: { challenge: true, scores: true, shots: true },
           orderBy: { order: 'asc' },
         },
       },
@@ -98,7 +124,14 @@ export async function leaderboardRoutes(app: FastifyInstance) {
       const scoreType: ScoreType = (cc.scoreTypeOverride ?? cc.challenge.scoreType) as ScoreType
       const teamScoreMode: TeamScoreMode = (cc.teamScoreModeOverride ?? cc.challenge.defaultTeamScoreMode) as TeamScoreMode
       const bestN = cc.bestNPlayersOverride ?? cc.challenge.bestNPlayers
-      const lowerBetter = isLowerBetter(scoreType)
+      const isShooting = scoreType === 'shooting'
+      const lowerBetter = isShooting ? cc.challenge.shootingLowerIsBetter : isLowerBetter(scoreType)
+
+      // Shooting challenges keep multiple shots per player (cc.shots) rather than a
+      // single Score row; only count shots from assigned players.
+      const shootingShots = isShooting
+        ? cc.shots.filter(s => individualPlayerIds.has(s.userId))
+        : []
 
       // Drop unassigned players' scores entirely, so they neither rank nor shift
       // anyone else's points (relevant for relative score types like ranked_points).
@@ -111,12 +144,21 @@ export async function leaderboardRoutes(app: FastifyInstance) {
 
       // Compute raw calculated points per player for this challenge
       const playerChallengePoints: Record<string, number> = {}
-      for (const s of scores) {
-        playerChallengePoints[s.userId] = computeCalculatedPoints(
-          { userId: s.userId, rawScore: s.rawScore, timeMs: s.timeMs, placement: s.placement, calculatedPoints: s.calculatedPoints, teamId: null },
-          allScoreInputs,
-          scoreType
-        )
+      if (isShooting) {
+        // Individual score = sum of a player's own best min(Y, n) shots.
+        const shotsByUser: Record<string, number[]> = {}
+        for (const s of shootingShots) (shotsByUser[s.userId] ??= []).push(s.value)
+        for (const [userId, values] of Object.entries(shotsByUser)) {
+          playerChallengePoints[userId] = playerShootingScore(values, cc.challenge.shotsPerPlayer, lowerBetter)
+        }
+      } else {
+        for (const s of scores) {
+          playerChallengePoints[s.userId] = computeCalculatedPoints(
+            { userId: s.userId, rawScore: s.rawScore, timeMs: s.timeMs, placement: s.placement, calculatedPoints: s.calculatedPoints, teamId: null },
+            allScoreInputs,
+            scoreType
+          )
+        }
       }
 
       // In team competitions, quiz results count only toward team scores —
@@ -165,9 +207,29 @@ export async function leaderboardRoutes(app: FastifyInstance) {
         }
       }
 
+      // Shooting: team score is computed from the pooled shots (guaranteed Y +
+      // fill lowest surplus), bypassing the TeamScoreMode selector.
+      const teamShots: Record<string, typeof shootingShots> = {}
+      if (isShooting) {
+        const teamByUser = new Map(competition.players.map(p => [p.userId, p.teamId ?? null]))
+        for (const s of shootingShots) {
+          const teamId = teamByUser.get(s.userId)
+          if (!teamId) continue
+          ;(teamShots[teamId] ??= []).push(s)
+        }
+      }
+
       // Calculate and rank team scores for this challenge
       const teamChallengeScores: Array<{ teamId: string; teamName: string; score: number }> = []
       for (const team of competition.teams) {
+        if (isShooting) {
+          const res = computeShootingCounted(
+            (teamShots[team.id] ?? []).map(s => ({ id: s.id, userId: s.userId, value: s.value })),
+            cc.challenge.maxShots, cc.challenge.shotsPerPlayer, lowerBetter
+          )
+          teamChallengeScores.push({ teamId: team.id, teamName: team.name, score: res.teamTotal })
+          continue
+        }
         if (teamScoreMode === 'manual_team_score') continue
         const playerPts = teamPlayerPoints[team.id] ?? []
         teamChallengeScores.push({ teamId: team.id, teamName: team.name, score: computeTeamScore(playerPts, teamScoreMode, bestN) })
@@ -324,19 +386,22 @@ export async function leaderboardRoutes(app: FastifyInstance) {
       groupFilter = groupId ? [groupId] : userGroupIds
     } catch { /* guest: no filter */ }
 
+    const playerInclude = {
+      include: {
+        player: { select: { id: true, username: true, displayName: true, profileImageUrl: true } },
+        competition: { select: { id: true, name: true, date: true } },
+      },
+    } as const
+
     const challenges = await prisma.challenge.findMany({
-      where: { isQuiz: { not: true }, competitionChallenges: { some: { scores: { some: {} } } } },
+      where: {
+        isQuiz: { not: true },
+        competitionChallenges: { some: { OR: [{ scores: { some: {} } }, { shots: { some: {} } }] } },
+      },
       include: {
         competitionChallenges: {
           where: groupFilter ? { competition: { groupId: { in: groupFilter } } } : undefined,
-          include: {
-            scores: {
-              include: {
-                player: { select: { id: true, username: true, displayName: true, profileImageUrl: true } },
-                competition: { select: { id: true, name: true, date: true } },
-              },
-            },
-          },
+          include: { scores: playerInclude, shots: playerInclude },
         },
       },
       orderBy: { name: 'asc' },
@@ -344,10 +409,15 @@ export async function leaderboardRoutes(app: FastifyInstance) {
 
     const result = challenges.map(challenge => {
       const baseScoreType = challenge.scoreType as ScoreType
-      const lowerBetter = isLowerBetter(baseScoreType)
+      const isShooting = baseScoreType === 'shooting'
+      const lowerBetter = isShooting ? challenge.shootingLowerIsBetter : isLowerBetter(baseScoreType)
       const bestPerPlayer: Record<string, any> = {}
 
       for (const cc of challenge.competitionChallenges) {
+        if (isShooting) {
+          foldShootingShots(cc.shots, challenge, bestPerPlayer)
+          continue
+        }
         const effectiveSt = (cc.scoreTypeOverride ?? challenge.scoreType) as ScoreType
         for (const s of cc.scores) {
           const val = getScoreValue(s, effectiveSt)
@@ -406,29 +476,34 @@ export async function leaderboardRoutes(app: FastifyInstance) {
       groupFilter = groupId ? [groupId] : userGroupIds
     } catch { /* guest: no filter */ }
 
+    const playerInclude = {
+      include: {
+        player: { select: { id: true, username: true, displayName: true, profileImageUrl: true } },
+        competition: { select: { id: true, name: true, date: true } },
+      },
+    } as const
+
     const challenge = await prisma.challenge.findUnique({
       where: { id: challengeId },
       include: {
         competitionChallenges: {
           where: groupFilter ? { competition: { groupId: { in: groupFilter } } } : undefined,
-          include: {
-            scores: {
-              include: {
-                player: { select: { id: true, username: true, displayName: true, profileImageUrl: true } },
-                competition: { select: { id: true, name: true, date: true } },
-              },
-            },
-          },
+          include: { scores: playerInclude, shots: playerInclude },
         },
       },
     })
     if (!challenge) return reply.status(404).send({ error: 'Challenge not found' })
 
     const baseScoreType = challenge.scoreType as ScoreType
-    const lowerBetter = isLowerBetter(baseScoreType)
+    const isShooting = baseScoreType === 'shooting'
+    const lowerBetter = isShooting ? challenge.shootingLowerIsBetter : isLowerBetter(baseScoreType)
     const bestPerPlayer: Record<string, any> = {}
 
     for (const cc of challenge.competitionChallenges) {
+      if (isShooting) {
+        foldShootingShots(cc.shots, challenge, bestPerPlayer)
+        continue
+      }
       const effectiveSt = (cc.scoreTypeOverride ?? challenge.scoreType) as ScoreType
       for (const s of cc.scores) {
         const val = getScoreValue(s, effectiveSt)

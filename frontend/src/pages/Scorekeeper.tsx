@@ -144,6 +144,89 @@ function NumpadModal({ open, onClose, playerName, currentValue, scoreLabel, onSa
   )
 }
 
+function ShotModal({ open, onClose, playerName, currentValue, maxScore, onSave, onDelete }: {
+  open: boolean
+  onClose: () => void
+  playerName: string
+  currentValue: number | null
+  maxScore: number
+  onSave: (val: number) => void
+  onDelete?: () => void
+}) {
+  const { t } = useTranslation()
+  const [input, setInput] = useState('')
+
+  useEffect(() => {
+    if (open) setInput(currentValue !== null ? String(currentValue) : '')
+  }, [open, currentValue])
+
+  const useButtons = maxScore <= 10
+  const num = input === '' ? NaN : parseInt(input)
+  const valid = !isNaN(num) && num >= 0 && num <= maxScore
+
+  const commit = (val: number) => { onSave(val); onClose() }
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={playerName}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
+          {onDelete && (
+            <Button variant="ghost" onClick={() => { onDelete(); onClose() }} style={{ color: 'var(--accent-warm)' }}>
+              {t('scorekeeper.clear')}
+            </Button>
+          )}
+          {!useButtons && (
+            <Button onClick={() => valid && commit(num)} disabled={!valid}>{t('scorekeeper.save')}</Button>
+          )}
+        </>
+      }
+    >
+      <p style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', marginBottom: '14px' }}>
+        {t('scorekeeper.shotValue', { max: maxScore })}
+      </p>
+      {useButtons ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+          {Array.from({ length: maxScore + 1 }, (_, i) => i).map(v => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => commit(v)}
+              className="numpad-btn"
+              style={currentValue === v ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : undefined}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <>
+          <div style={{
+            background: 'var(--surface)', borderRadius: 'var(--radius)', padding: '16px 20px',
+            marginBottom: '12px', textAlign: 'center', minHeight: '64px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <span style={{ fontSize: '44px', fontFamily: 'var(--font-ui)', fontWeight: 700, lineHeight: 1 }}>
+              {input || '—'}
+            </span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+            {['7', '8', '9', '4', '5', '6', '1', '2', '3'].map(d => (
+              <button key={d} className="numpad-btn" onClick={() => setInput(s => s + d)}>{d}</button>
+            ))}
+            <button className="numpad-btn numpad-btn--action" onClick={() => setInput('')} style={{ color: 'var(--accent-warm)' }}>C</button>
+            <button className="numpad-btn" onClick={() => setInput(s => s + '0')}>0</button>
+            <button className="numpad-btn numpad-btn--action" onClick={() => setInput(s => s.slice(0, -1))} style={{ color: 'var(--accent-warm)' }}>⌫</button>
+          </div>
+        </>
+      )}
+    </Modal>
+  )
+}
+
 export function ScorekeeperPage() {
   const { id: competitionId } = useParams<{ id: string }>()
   const { user, isAdmin } = useAuth()
@@ -151,6 +234,7 @@ export function ScorekeeperPage() {
   const { t } = useTranslation()
   const [selectedCcId, setSelectedCcId] = useState<string | null>(null)
   const [editingPlayer, setEditingPlayer] = useState<any>(null)
+  const [shotModal, setShotModal] = useState<{ player: any; shot: any | null } | null>(null)
   const [adminAllTeams, setAdminAllTeams] = useState(false)
 
   const { data: compData, isLoading } = useQuery({
@@ -163,6 +247,15 @@ export function ScorekeeperPage() {
     queryKey: ['scores', competitionId, selectedCcId],
     queryFn: () => api.scores.forChallenge(competitionId!, selectedCcId!),
     enabled: !!competitionId && !!selectedCcId,
+  })
+
+  const selectedCcEarly = compData?.competition?.challenges?.find((c: any) => c.id === selectedCcId)
+  const isShootingSel = (selectedCcEarly?.scoreTypeOverride ?? selectedCcEarly?.challenge?.scoreType) === 'shooting'
+
+  const { data: shotsData } = useQuery({
+    queryKey: ['shots', competitionId, selectedCcId],
+    queryFn: () => api.shots.forChallenge(competitionId!, selectedCcId!),
+    enabled: !!competitionId && !!selectedCcId && isShootingSel,
   })
 
   const deleteMutation = useMutation({
@@ -193,6 +286,25 @@ export function ScorekeeperPage() {
     },
   })
 
+  const invalidateShots = () => {
+    qc.invalidateQueries({ queryKey: ['shots', competitionId, selectedCcId] })
+    qc.invalidateQueries({ queryKey: ['leaderboard', competitionId] })
+  }
+
+  const addShotMutation = useMutation({
+    mutationFn: ({ userId, value }: { userId: string; value: number }) =>
+      api.shots.add(competitionId!, selectedCcId!, { userId, value }),
+    onSuccess: invalidateShots,
+  })
+  const updateShotMutation = useMutation({
+    mutationFn: ({ id, value }: { id: string; value: number }) => api.shots.update(id, { value }),
+    onSuccess: invalidateShots,
+  })
+  const deleteShotMutation = useMutation({
+    mutationFn: (id: string) => api.shots.delete(id),
+    onSuccess: invalidateShots,
+  })
+
   if (isLoading) return <Layout title={t('scorekeeper.enterScores')} back={`/competitions/${competitionId}`}><LoadingSpinner /></Layout>
 
   const comp = compData?.competition
@@ -216,7 +328,14 @@ export function ScorekeeperPage() {
   const scorableChallenges: any[] = (comp.challenges ?? []).filter((cc: any) => !cc.challenge.isQuiz)
   const selectedCc = comp.challenges?.find((c: any) => c.id === selectedCcId)
   const scoreType: ScoreType = selectedCc?.scoreTypeOverride ?? selectedCc?.challenge.scoreType
+  const isShooting = scoreType === 'shooting'
   const existingScores = scoresData?.scores ?? []
+  const shotConfig = shotsData?.config ?? {
+    maxScorePerShot: selectedCc?.challenge?.maxScorePerShot ?? 10,
+    shotsPerPlayer: selectedCc?.challenge?.shotsPerPlayer ?? 3,
+  }
+  const shotsByPlayer: Record<string, any[]> = {}
+  for (const s of (shotsData?.shots ?? [])) (shotsByPlayer[s.userId] ??= []).push(s)
 
   const getExistingScore = (userId: string) => {
     const s = existingScores.find((s: any) => s.userId === userId)
@@ -326,6 +445,61 @@ export function ScorekeeperPage() {
                 )}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {team.players.map((p: any) => {
+                    if (isShooting) {
+                      const playerShots = shotsByPlayer[p.userId] ?? []
+                      return (
+                        <Card key={p.userId} padding="14px 16px">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                            <Avatar src={p.user.profileImageUrl} name={p.user.displayName ?? p.user.username} size={40} />
+                            <div style={{ flex: 1 }}>
+                              <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '16px' }}>
+                                {p.user.displayName ?? p.user.username}
+                              </p>
+                              {p.team && <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{p.team.name}</p>}
+                            </div>
+                            <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                              {t('scorekeeper.shotCount', { count: playerShots.length })}
+                            </p>
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+                            {playerShots.map((sh: any) => (
+                              <button
+                                key={sh.id}
+                                type="button"
+                                onClick={() => setShotModal({ player: p, shot: sh })}
+                                className="shot-chip"
+                                style={{
+                                  minWidth: '44px', minHeight: '44px', padding: '0 10px',
+                                  borderRadius: 'var(--radius)', cursor: 'pointer',
+                                  fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px',
+                                  border: sh.counted ? '2px solid var(--accent-green)' : '1.5px solid var(--border-light)',
+                                  background: sh.counted ? 'var(--accent-green)' : 'var(--surface)',
+                                  color: sh.counted ? '#fff' : 'var(--text-primary)',
+                                  transition: 'background 160ms var(--ease-out), border-color 160ms var(--ease-out)',
+                                }}
+                                title={sh.counted ? t('scorekeeper.shotCounted') : t('scorekeeper.shotNotCounted')}
+                              >
+                                {sh.value}
+                              </button>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() => setShotModal({ player: p, shot: null })}
+                              aria-label={t('scorekeeper.addShot')}
+                              style={{
+                                minWidth: '44px', minHeight: '44px',
+                                borderRadius: 'var(--radius)', cursor: 'pointer',
+                                fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '22px',
+                                border: '1.5px dashed var(--accent)', background: 'var(--surface)',
+                                color: 'var(--accent)', lineHeight: 1,
+                              }}
+                            >
+                              +
+                            </button>
+                          </div>
+                        </Card>
+                      )
+                    }
                     const existing = getExistingScore(p.userId)
                     const isSaving = upsertMutation.isPending && editingPlayer?.userId === p.userId
                     return (
@@ -385,6 +559,20 @@ export function ScorekeeperPage() {
           const existing = existingScores.find((s: any) => s.userId === editingPlayer.userId)
           if (existing) deleteMutation.mutate(existing.id)
         }) : undefined}
+      />
+
+      <ShotModal
+        open={!!shotModal}
+        onClose={() => setShotModal(null)}
+        playerName={shotModal?.player?.user?.displayName ?? shotModal?.player?.user?.username ?? ''}
+        currentValue={shotModal?.shot ? shotModal.shot.value : null}
+        maxScore={shotConfig.maxScorePerShot}
+        onSave={(val) => {
+          if (!shotModal) return
+          if (shotModal.shot) updateShotMutation.mutate({ id: shotModal.shot.id, value: val })
+          else addShotMutation.mutate({ userId: shotModal.player.userId, value: val })
+        }}
+        onDelete={shotModal?.shot ? (() => deleteShotMutation.mutate(shotModal.shot.id)) : undefined}
       />
     </Layout>
   )

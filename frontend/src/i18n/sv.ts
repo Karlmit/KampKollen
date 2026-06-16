@@ -203,6 +203,12 @@ const sv = {
     scoreType: 'Poängtyp: {{type}}',
     quizChallenge: '🎯 Quiz-utmaning',
     scoreTypeLabel: 'Poängtyp: ',
+    addShot: 'Lägg till skott',
+    shotValue: 'Ange skottvärde (0–{{max}})',
+    shotCount_one: '{{count}} skott',
+    shotCount_other: '{{count}} skott',
+    shotCounted: 'Räknas i lagets poäng',
+    shotNotCounted: 'Räknas inte',
   },
 
   leaderboard: {
@@ -256,6 +262,7 @@ const sv = {
     placement_lowest_wins: 'Placering (Golfstil)',
     manual_points: 'Manuella poäng',
     win_loss: 'Vinst / Förlust',
+    shooting: 'Skytte',
   },
 
   admin: {
@@ -336,6 +343,14 @@ const sv = {
       averageScoreDesc: 'Summa delat med antal spelare. Rättvist när lag har olika storlek.',
       manualTeamScore: 'Manuell lagsumma',
       manualTeamScoreDesc: 'Ange ett poäng per lag direkt. Använd för stafetter eller grupputmaningar.',
+      maxShots: 'Max antal skott som räknas per lag',
+      shotsPerPlayer: 'Skott per spelare',
+      maxScorePerShot: 'Max poäng per skott',
+      shootingDirection: 'Riktning',
+      higherIsBetter: 'Högre är bättre',
+      higherIsBetterDesc: 'Högst total poäng vinner.',
+      lowerIsBetter: 'Lägre är bättre',
+      lowerIsBetterDesc: 'Lägst total poäng vinner.',
       imageFor: 'Bild för {{name}}',
       save: 'Spara',
       cancel: 'Avbryt',

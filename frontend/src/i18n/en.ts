@@ -203,6 +203,12 @@ const en = {
     scoreType: 'Score type: {{type}}',
     quizChallenge: '🎯 Quiz challenge',
     scoreTypeLabel: 'Score type: ',
+    addShot: 'Add shot',
+    shotValue: 'Enter shot value (0–{{max}})',
+    shotCount_one: '{{count}} shot',
+    shotCount_other: '{{count}} shots',
+    shotCounted: 'Counts toward team score',
+    shotNotCounted: 'Not counted',
   },
 
   leaderboard: {
@@ -258,6 +264,7 @@ const en = {
     placement_lowest_wins: 'Placement (Golf Style)',
     manual_points: 'Manual Points',
     win_loss: 'Win / Loss',
+    shooting: 'Shooting',
   },
 
   admin: {
@@ -338,6 +345,14 @@ const en = {
       averageScoreDesc: "Total divided by number of players. Fair when teams have different sizes.",
       manualTeamScore: 'Manual team score',
       manualTeamScoreDesc: "Enter one score per team directly. Use for relay races or group challenges.",
+      maxShots: 'Max shots counted per team',
+      shotsPerPlayer: 'Shots per player',
+      maxScorePerShot: 'Max score per shot',
+      shootingDirection: 'Direction',
+      higherIsBetter: 'Higher is better',
+      higherIsBetterDesc: 'Highest total score wins.',
+      lowerIsBetter: 'Lower is better',
+      lowerIsBetterDesc: 'Lowest total score wins.',
       imageFor: 'Image for {{name}}',
       save: 'Save',
       cancel: 'Cancel',

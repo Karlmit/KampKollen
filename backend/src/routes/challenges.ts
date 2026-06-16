@@ -11,6 +11,10 @@ const challengeSchema = z.object({
   scoreType: z.nativeEnum(ScoreType).optional(),
   defaultTeamScoreMode: z.nativeEnum(TeamScoreMode).optional(),
   bestNPlayers: z.number().int().min(1).optional(),
+  maxShots: z.number().int().min(1).optional(),
+  shotsPerPlayer: z.number().int().min(1).optional(),
+  maxScorePerShot: z.number().int().min(1).optional(),
+  shootingLowerIsBetter: z.boolean().optional(),
   isGlobalTemplate: z.boolean().optional(),
   isQuiz: z.boolean().optional(),
 })

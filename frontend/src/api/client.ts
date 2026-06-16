@@ -104,6 +104,15 @@ export const api = {
     delete: (id: string) => request(`/scores/${id}`, { method: 'DELETE' }),
   },
 
+  shots: {
+    forChallenge: (competitionId: string, ccId: string) =>
+      request<{ config: { maxShots: number; shotsPerPlayer: number; maxScorePerShot: number; lowerIsBetter: boolean }; shots: any[]; teamTotals: Record<string, number> }>(`/shots/competition/${competitionId}/challenge/${ccId}`),
+    add: (competitionId: string, ccId: string, data: { userId: string; value: number }) =>
+      request<{ shot: any }>(`/shots/competition/${competitionId}/challenge/${ccId}`, { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: { value: number }) => request<{ shot: any }>(`/shots/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: string) => request(`/shots/${id}`, { method: 'DELETE' }),
+  },
+
   // Admin settings
   settings: {
     get: () => request<{ settings: Record<string, string>; envDefaults: Record<string, string> }>('/admin/settings'),

@@ -24,6 +24,7 @@ export function AdminChallenges() {
     name: '', description: '', scoreType: 'number_highest_wins' as ScoreType,
     defaultTeamScoreMode: 'average_score' as TeamScoreMode,
     bestNPlayers: '', isGlobalTemplate: true,
+    maxShots: '20', shotsPerPlayer: '3', maxScorePerShot: '10', shootingLowerIsBetter: false,
   })
 
   const SCORE_TYPES: [ScoreType, string][] = [
@@ -31,7 +32,10 @@ export function AdminChallenges() {
     ['number_lowest_wins', t('scoreTypes.number_lowest_wins')],
     ['time_fastest_wins', t('scoreTypes.time_fastest_wins')],
     ['manual_points', t('scoreTypes.manual_points')],
+    ['shooting', t('scoreTypes.shooting')],
   ]
+
+  const isShooting = form.scoreType === 'shooting'
 
   const TEAM_MODE_OPTIONS: { value: TeamScoreMode; label: string; desc: string }[] = [
     { value: 'average_score', label: t('admin.challenges.averageScore'), desc: t('admin.challenges.averageScoreDesc') },
@@ -44,19 +48,27 @@ export function AdminChallenges() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ name: '', description: '', scoreType: 'number_highest_wins', defaultTeamScoreMode: 'average_score', bestNPlayers: '', isGlobalTemplate: true })
+    setForm({ name: '', description: '', scoreType: 'number_highest_wins', defaultTeamScoreMode: 'average_score', bestNPlayers: '', isGlobalTemplate: true, maxShots: '20', shotsPerPlayer: '3', maxScorePerShot: '10', shootingLowerIsBetter: false })
     setOpen(true)
   }
 
   const openEdit = (c: any) => {
     setEditing(c)
-    setForm({ name: c.name, description: c.description ?? '', scoreType: c.scoreType, defaultTeamScoreMode: c.defaultTeamScoreMode, bestNPlayers: c.bestNPlayers?.toString() ?? '', isGlobalTemplate: c.isGlobalTemplate })
+    setForm({ name: c.name, description: c.description ?? '', scoreType: c.scoreType, defaultTeamScoreMode: c.defaultTeamScoreMode, bestNPlayers: c.bestNPlayers?.toString() ?? '', isGlobalTemplate: c.isGlobalTemplate, maxShots: (c.maxShots ?? 20).toString(), shotsPerPlayer: (c.shotsPerPlayer ?? 3).toString(), maxScorePerShot: (c.maxScorePerShot ?? 10).toString(), shootingLowerIsBetter: !!c.shootingLowerIsBetter })
     setOpen(true)
   }
 
   const saveMutation = useMutation({
     mutationFn: () => {
       const data: any = { ...form, bestNPlayers: form.bestNPlayers ? parseInt(form.bestNPlayers) : undefined }
+      if (form.scoreType === 'shooting') {
+        data.maxShots = form.maxShots ? parseInt(form.maxShots) : 20
+        data.shotsPerPlayer = form.shotsPerPlayer ? parseInt(form.shotsPerPlayer) : 3
+        data.maxScorePerShot = form.maxScorePerShot ? parseInt(form.maxScorePerShot) : 10
+        data.shootingLowerIsBetter = form.shootingLowerIsBetter
+      } else {
+        delete data.maxShots; delete data.shotsPerPlayer; delete data.maxScorePerShot; delete data.shootingLowerIsBetter
+      }
       return editing ? api.challenges.update(editing.id, data) : api.challenges.create(data)
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['challenges'] }); setOpen(false) },
@@ -157,27 +169,59 @@ export function AdminChallenges() {
               {SCORE_TYPES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
             </select>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>{t('admin.challenges.teamScoreCalc')}</label>
-            {TEAM_MODE_OPTIONS.map(opt => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setForm(f => ({ ...f, defaultTeamScoreMode: opt.value as TeamScoreMode }))}
-                style={{
-                  padding: '10px 12px', borderRadius: 'var(--radius)', cursor: 'pointer', textAlign: 'left',
-                  border: form.defaultTeamScoreMode === opt.value ? '2px solid var(--accent)' : '1.5px solid var(--border-light)',
-                  background: form.defaultTeamScoreMode === opt.value ? 'var(--surface)' : 'var(--background)',
-                  width: '100%',
-                }}
-              >
-                <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', marginBottom: '2px' }}>{opt.label}</p>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.4 }}>{opt.desc}</p>
-              </button>
-            ))}
-          </div>
-          {form.defaultTeamScoreMode === 'best_n_players' && (
-            <Input label={t('admin.challenges.topPlayersCount')} type="number" value={form.bestNPlayers} onChange={set('bestNPlayers')} placeholder={t('admin.challenges.topPlayersPlaceholder')} />
+          {isShooting ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <Input label={t('admin.challenges.maxShots')} type="number" value={form.maxShots} onChange={set('maxShots')} placeholder="20" />
+              <Input label={t('admin.challenges.shotsPerPlayer')} type="number" value={form.shotsPerPlayer} onChange={set('shotsPerPlayer')} placeholder="3" />
+              <Input label={t('admin.challenges.maxScorePerShot')} type="number" value={form.maxScorePerShot} onChange={set('maxScorePerShot')} placeholder="10" />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>{t('admin.challenges.shootingDirection')}</label>
+                {[
+                  { value: false, label: t('admin.challenges.higherIsBetter'), desc: t('admin.challenges.higherIsBetterDesc') },
+                  { value: true, label: t('admin.challenges.lowerIsBetter'), desc: t('admin.challenges.lowerIsBetterDesc') },
+                ].map(opt => (
+                  <button
+                    key={String(opt.value)}
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, shootingLowerIsBetter: opt.value }))}
+                    style={{
+                      padding: '10px 12px', borderRadius: 'var(--radius)', cursor: 'pointer', textAlign: 'left',
+                      border: form.shootingLowerIsBetter === opt.value ? '2px solid var(--accent)' : '1.5px solid var(--border-light)',
+                      background: form.shootingLowerIsBetter === opt.value ? 'var(--surface)' : 'var(--background)',
+                      width: '100%',
+                    }}
+                  >
+                    <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', marginBottom: '2px' }}>{opt.label}</p>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.4 }}>{opt.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>{t('admin.challenges.teamScoreCalc')}</label>
+                {TEAM_MODE_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, defaultTeamScoreMode: opt.value as TeamScoreMode }))}
+                    style={{
+                      padding: '10px 12px', borderRadius: 'var(--radius)', cursor: 'pointer', textAlign: 'left',
+                      border: form.defaultTeamScoreMode === opt.value ? '2px solid var(--accent)' : '1.5px solid var(--border-light)',
+                      background: form.defaultTeamScoreMode === opt.value ? 'var(--surface)' : 'var(--background)',
+                      width: '100%',
+                    }}
+                  >
+                    <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', marginBottom: '2px' }}>{opt.label}</p>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.4 }}>{opt.desc}</p>
+                  </button>
+                ))}
+              </div>
+              {form.defaultTeamScoreMode === 'best_n_players' && (
+                <Input label={t('admin.challenges.topPlayersCount')} type="number" value={form.bestNPlayers} onChange={set('bestNPlayers')} placeholder={t('admin.challenges.topPlayersPlaceholder')} />
+              )}
+            </>
           )}
         </div>
       </Modal>

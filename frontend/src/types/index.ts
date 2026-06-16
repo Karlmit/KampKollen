@@ -12,7 +12,7 @@ export interface UserGroup {
   group: Pick<Group, 'id' | 'name'>
 }
 export type CompetitionStatus = 'DRAFT' | 'REGISTRATION' | 'ACTIVE' | 'COMPLETED' | 'ARCHIVED'
-export type ScoreType = 'number_highest_wins' | 'number_lowest_wins' | 'time_fastest_wins' | 'ranked_points' | 'placement_lowest_wins' | 'manual_points' | 'win_loss'
+export type ScoreType = 'number_highest_wins' | 'number_lowest_wins' | 'time_fastest_wins' | 'ranked_points' | 'placement_lowest_wins' | 'manual_points' | 'win_loss' | 'shooting'
 export type TeamScoreMode = 'sum_all_players' | 'best_n_players' | 'average_score' | 'manual_team_score'
 export type CompetitionScoringMode = 'raw_sum' | 'placement_points'
 
@@ -52,6 +52,10 @@ export interface Challenge {
   scoreType: ScoreType
   defaultTeamScoreMode: TeamScoreMode
   bestNPlayers?: number
+  maxShots?: number
+  shotsPerPlayer?: number
+  maxScorePerShot?: number
+  shootingLowerIsBetter?: boolean
   isGlobalTemplate: boolean
   createdAt: string
 }
@@ -108,6 +112,18 @@ export interface Score {
   createdAt: string
 }
 
+export interface Shot {
+  id: string
+  competitionId: string
+  competitionChallengeId: string
+  userId: string
+  player?: Pick<User, 'id' | 'username' | 'displayName' | 'profileImageUrl'>
+  value: number
+  order: number
+  counted?: boolean
+  createdAt: string
+}
+
 export interface LeaderboardTeam {
   teamId: string
   teamName: string
@@ -153,6 +169,7 @@ export const SCORE_TYPE_LABELS: Record<ScoreType, string> = {
   placement_lowest_wins: 'Placement (Golf Style)',
   manual_points: 'Manual Points',
   win_loss: 'Win / Loss',
+  shooting: 'Shooting',
 }
 
 export const TEAM_SCORE_MODE_LABELS: Record<TeamScoreMode, string> = {
