@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify'
 import { ScoreType, TeamScoreMode, TieBreakingMode } from '@prisma/client'
 import { prisma } from '../db.js'
 import { optionalAuth } from '../middleware/auth.js'
-import { computeCalculatedPoints, computeTeamScore, isLowerBetter, computeShootingCounted, playerShootingScore } from '../lib/scoring.js'
+import { computeCalculatedPoints, computeTeamScore, isLowerBetter, sumShots } from '../lib/scoring.js'
 
 async function getUserGroupIds(userId: string): Promise<string[]> {
   const memberships = await prisma.userGroup.findMany({ where: { userId }, select: { groupId: true } })
@@ -16,19 +16,19 @@ function getScoreValue(score: any, st: ScoreType): number | null {
   return score.rawScore ?? null
 }
 
-// All-time aggregation for shooting challenges: fold each player's best
-// shooting score (sum of best Y shots) per competition into bestPerPlayer.
+// All-time aggregation for shooting challenges: fold each player's shooting
+// score (the sum of all their shots) per competition into bestPerPlayer.
 function foldShootingShots(
   shots: any[],
-  challenge: { shotsPerPlayer: number; shootingLowerIsBetter: boolean },
+  challenge: { shootingLowerIsBetter: boolean },
   bestPerPlayer: Record<string, any>
 ) {
   const lowerBetter = challenge.shootingLowerIsBetter
   const byUser: Record<string, any[]> = {}
   for (const sh of shots) (byUser[sh.userId] ??= []).push(sh)
   for (const userShots of Object.values(byUser)) {
-    const val = playerShootingScore(userShots.map((s: any) => s.value), challenge.shotsPerPlayer, lowerBetter)
-    if (val === null || userShots.length === 0) continue
+    if (userShots.length === 0) continue
+    const val = sumShots(userShots.map((s: any) => s.value))
     const ref = userShots[0]
     const existing = bestPerPlayer[ref.userId]
     if (!existing || (lowerBetter ? val < existing.score : val > existing.score)) {
@@ -145,11 +145,11 @@ export async function leaderboardRoutes(app: FastifyInstance) {
       // Compute raw calculated points per player for this challenge
       const playerChallengePoints: Record<string, number> = {}
       if (isShooting) {
-        // Individual score = sum of a player's own best min(Y, n) shots.
+        // Individual score = sum of a player's own shots.
         const shotsByUser: Record<string, number[]> = {}
         for (const s of shootingShots) (shotsByUser[s.userId] ??= []).push(s.value)
         for (const [userId, values] of Object.entries(shotsByUser)) {
-          playerChallengePoints[userId] = playerShootingScore(values, cc.challenge.shotsPerPlayer, lowerBetter)
+          playerChallengePoints[userId] = sumShots(values)
         }
       } else {
         for (const s of scores) {
@@ -207,15 +207,15 @@ export async function leaderboardRoutes(app: FastifyInstance) {
         }
       }
 
-      // Shooting: team score is computed from the pooled shots (guaranteed Y +
-      // fill lowest surplus), bypassing the TeamScoreMode selector.
-      const teamShots: Record<string, typeof shootingShots> = {}
+      // Shooting: team score is the plain sum of every shot the team took,
+      // bypassing the TeamScoreMode selector.
+      const teamShotTotals: Record<string, number> = {}
       if (isShooting) {
         const teamByUser = new Map(competition.players.map(p => [p.userId, p.teamId ?? null]))
         for (const s of shootingShots) {
           const teamId = teamByUser.get(s.userId)
           if (!teamId) continue
-          ;(teamShots[teamId] ??= []).push(s)
+          teamShotTotals[teamId] = (teamShotTotals[teamId] ?? 0) + s.value
         }
       }
 
@@ -223,11 +223,7 @@ export async function leaderboardRoutes(app: FastifyInstance) {
       const teamChallengeScores: Array<{ teamId: string; teamName: string; score: number }> = []
       for (const team of competition.teams) {
         if (isShooting) {
-          const res = computeShootingCounted(
-            (teamShots[team.id] ?? []).map(s => ({ id: s.id, userId: s.userId, value: s.value })),
-            cc.challenge.maxShots, cc.challenge.shotsPerPlayer, lowerBetter
-          )
-          teamChallengeScores.push({ teamId: team.id, teamName: team.name, score: res.teamTotal })
+          teamChallengeScores.push({ teamId: team.id, teamName: team.name, score: teamShotTotals[team.id] ?? 0 })
           continue
         }
         if (teamScoreMode === 'manual_team_score') continue

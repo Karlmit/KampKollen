@@ -207,8 +207,9 @@ const en = {
     shotValue: 'Enter shot value (0–{{max}})',
     shotCount_one: '{{count}} shot',
     shotCount_other: '{{count}} shots',
-    shotCounted: 'Counts toward team score',
-    shotNotCounted: 'Not counted',
+    teamTotal: '{{total}} / {{max}} pts',
+    shotsUsed: '{{used}}/{{max}} shots',
+    belowMinShots: 'Needs at least {{min}} shots',
   },
 
   leaderboard: {
@@ -345,8 +346,8 @@ const en = {
       averageScoreDesc: "Total divided by number of players. Fair when teams have different sizes.",
       manualTeamScore: 'Manual team score',
       manualTeamScoreDesc: "Enter one score per team directly. Use for relay races or group challenges.",
-      maxShots: 'Max shots counted per team',
-      shotsPerPlayer: 'Shots per player',
+      shotsPerTeam: 'Shots per team',
+      minShotsPerPlayer: 'Minimum shots per player',
       maxScorePerShot: 'Max score per shot',
       shootingDirection: 'Direction',
       higherIsBetter: 'Higher is better',

@@ -123,8 +123,8 @@ model Challenge {
   scoreType            ScoreType     @default(number_highest_wins)
   defaultTeamScoreMode TeamScoreMode @default(sum_all_players)
   bestNPlayers         Int?
-  maxShots             Int           @default(20)
-  shotsPerPlayer       Int           @default(3)
+  shotsPerTeam         Int           @default(20)
+  minShotsPerPlayer    Int           @default(3)
   maxScorePerShot      Int           @default(10)
   shootingLowerIsBetter Boolean      @default(false)
   isGlobalTemplate     Boolean       @default(false)

@@ -52,8 +52,8 @@ export interface Challenge {
   scoreType: ScoreType
   defaultTeamScoreMode: TeamScoreMode
   bestNPlayers?: number
-  maxShots?: number
-  shotsPerPlayer?: number
+  shotsPerTeam?: number
+  minShotsPerPlayer?: number
   maxScorePerShot?: number
   shootingLowerIsBetter?: boolean
   isGlobalTemplate: boolean
@@ -120,7 +120,6 @@ export interface Shot {
   player?: Pick<User, 'id' | 'username' | 'displayName' | 'profileImageUrl'>
   value: number
   order: number
-  counted?: boolean
   createdAt: string
 }
 

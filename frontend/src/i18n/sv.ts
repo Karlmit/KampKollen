@@ -207,8 +207,9 @@ const sv = {
     shotValue: 'Ange skottvärde (0–{{max}})',
     shotCount_one: '{{count}} skott',
     shotCount_other: '{{count}} skott',
-    shotCounted: 'Räknas i lagets poäng',
-    shotNotCounted: 'Räknas inte',
+    teamTotal: '{{total}} / {{max}} p',
+    shotsUsed: '{{used}}/{{max}} skott',
+    belowMinShots: 'Behöver minst {{min}} skott',
   },
 
   leaderboard: {
@@ -343,8 +344,8 @@ const sv = {
       averageScoreDesc: 'Summa delat med antal spelare. Rättvist när lag har olika storlek.',
       manualTeamScore: 'Manuell lagsumma',
       manualTeamScoreDesc: 'Ange ett poäng per lag direkt. Använd för stafetter eller grupputmaningar.',
-      maxShots: 'Max antal skott som räknas per lag',
-      shotsPerPlayer: 'Skott per spelare',
+      shotsPerTeam: 'Antal skott per lag',
+      minShotsPerPlayer: 'Minst antal skott per spelare',
       maxScorePerShot: 'Max poäng per skott',
       shootingDirection: 'Riktning',
       higherIsBetter: 'Högre är bättre',

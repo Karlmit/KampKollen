@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { GlobalRole } from '@prisma/client'
 import { prisma } from '../db.js'
 import { requireAuth } from '../middleware/auth.js'
-import { computeShootingCounted } from '../lib/scoring.js'
+import { sumShots } from '../lib/scoring.js'
 
 const addShotSchema = z.object({
   userId: z.string(),
@@ -28,8 +28,8 @@ async function canEnterScore(
 }
 
 export async function shotRoutes(app: FastifyInstance) {
-  // List all shots for a challenge, annotated with whether each shot counts
-  // toward its team's score (computed per team via the shooting algorithm).
+  // List all shots for a challenge, with per-team totals (the plain sum of every
+  // shot) and the number of shots each team has registered.
   app.get('/competition/:competitionId/challenge/:ccId', { preHandler: requireAuth }, async (request, reply) => {
     const { competitionId, ccId } = request.params as { competitionId: string; ccId: string }
 
@@ -38,10 +38,6 @@ export async function shotRoutes(app: FastifyInstance) {
       include: { challenge: true },
     })
     if (!cc) return reply.status(404).send({ error: 'Competition challenge not found' })
-
-    const maxShots = cc.challenge.maxShots
-    const shotsPerPlayer = cc.challenge.shotsPerPlayer
-    const lowerBetter = cc.challenge.shootingLowerIsBetter
 
     const [shots, players] = await Promise.all([
       prisma.shot.findMany({
@@ -59,32 +55,24 @@ export async function shotRoutes(app: FastifyInstance) {
 
     const teamByUser = new Map(players.map(p => [p.userId, p.teamId ?? null]))
 
-    // Group shots by team and compute the counted set per team.
-    const shotsByTeam = new Map<string, typeof shots>()
+    const teamTotals: Record<string, number> = {}
+    const teamShotCounts: Record<string, number> = {}
     for (const s of shots) {
       const teamId = teamByUser.get(s.userId) ?? '__none__'
-      const arr = shotsByTeam.get(teamId)
-      if (arr) arr.push(s)
-      else shotsByTeam.set(teamId, [s])
-    }
-
-    const countedIds = new Set<string>()
-    const teamTotals: Record<string, number> = {}
-    for (const [teamId, teamShots] of shotsByTeam.entries()) {
-      const res = computeShootingCounted(
-        teamShots.map(s => ({ id: s.id, userId: s.userId, value: s.value })),
-        maxShots,
-        shotsPerPlayer,
-        lowerBetter
-      )
-      res.countedIds.forEach(id => countedIds.add(id))
-      teamTotals[teamId] = res.teamTotal
+      teamTotals[teamId] = (teamTotals[teamId] ?? 0) + s.value
+      teamShotCounts[teamId] = (teamShotCounts[teamId] ?? 0) + 1
     }
 
     return {
-      config: { maxShots, shotsPerPlayer, maxScorePerShot: cc.challenge.maxScorePerShot, lowerIsBetter: lowerBetter },
-      shots: shots.map(s => ({ ...s, counted: countedIds.has(s.id) })),
+      config: {
+        shotsPerTeam: cc.challenge.shotsPerTeam,
+        minShotsPerPlayer: cc.challenge.minShotsPerPlayer,
+        maxScorePerShot: cc.challenge.maxScorePerShot,
+        lowerIsBetter: cc.challenge.shootingLowerIsBetter,
+      },
+      shots,
       teamTotals,
+      teamShotCounts,
     }
   })
 

@@ -332,10 +332,16 @@ export function ScorekeeperPage() {
   const existingScores = scoresData?.scores ?? []
   const shotConfig = shotsData?.config ?? {
     maxScorePerShot: selectedCc?.challenge?.maxScorePerShot ?? 10,
-    shotsPerPlayer: selectedCc?.challenge?.shotsPerPlayer ?? 3,
+    minShotsPerPlayer: selectedCc?.challenge?.minShotsPerPlayer ?? 3,
+    shotsPerTeam: selectedCc?.challenge?.shotsPerTeam ?? 20,
   }
   const shotsByPlayer: Record<string, any[]> = {}
   for (const s of (shotsData?.shots ?? [])) (shotsByPlayer[s.userId] ??= []).push(s)
+  // Team-level shot totals/counts across ALL players on a team (the API returns
+  // every team's shots, so these stay correct even when viewing one team).
+  const teamShotTotals: Record<string, number> = shotsData?.teamTotals ?? {}
+  const teamShotCounts: Record<string, number> = shotsData?.teamShotCounts ?? {}
+  const sumVals = (arr: any[]) => arr.reduce((a, s) => a + s.value, 0)
 
   const getExistingScore = (userId: string) => {
     const s = existingScores.find((s: any) => s.userId === userId)
@@ -435,31 +441,59 @@ export function ScorekeeperPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
             {groupedTeams.map(team => (
               <div key={team.id ?? 'pool'}>
-                {showTeamHeaders && (
-                  <h3 style={{
-                    fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 700,
-                    color: 'var(--text-muted)', marginBottom: '8px', letterSpacing: '0.05em',
-                  }}>
-                    {team.name?.toUpperCase() ?? t('scorekeeper.playerPool')}
-                  </h3>
+                {(showTeamHeaders || (isShooting && team.id)) && (
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '8px', gap: '8px' }}>
+                    <h3 style={{
+                      fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 700,
+                      color: 'var(--text-muted)', letterSpacing: '0.05em',
+                    }}>
+                      {team.name?.toUpperCase() ?? t('scorekeeper.playerPool')}
+                    </h3>
+                    {isShooting && team.id && (() => {
+                      const used = teamShotCounts[team.id] ?? 0
+                      const total = teamShotTotals[team.id] ?? 0
+                      const over = used > shotConfig.shotsPerTeam
+                      return (
+                        <span style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                          <span style={{ color: 'var(--text-primary)' }}>
+                            {t('scorekeeper.teamTotal', { total, max: shotConfig.shotsPerTeam * shotConfig.maxScorePerShot })}
+                          </span>
+                          <span style={{ color: over ? 'var(--accent-warm)' : 'var(--text-muted)', marginLeft: '8px' }}>
+                            {t('scorekeeper.shotsUsed', { used, max: shotConfig.shotsPerTeam })}
+                          </span>
+                        </span>
+                      )
+                    })()}
+                  </div>
                 )}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {team.players.map((p: any) => {
                     if (isShooting) {
                       const playerShots = shotsByPlayer[p.userId] ?? []
+                      const playerTotal = sumVals(playerShots)
+                      const belowMin = playerShots.length < shotConfig.minShotsPerPlayer
                       return (
                         <Card key={p.userId} padding="14px 16px">
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
                             <Avatar src={p.user.profileImageUrl} name={p.user.displayName ?? p.user.username} size={40} />
-                            <div style={{ flex: 1 }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
                               <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '16px' }}>
                                 {p.user.displayName ?? p.user.username}
                               </p>
-                              {p.team && <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{p.team.name}</p>}
+                              {belowMin && (
+                                <p style={{ fontSize: '12px', color: 'var(--accent-warm)', fontWeight: 700 }}>
+                                  {t('scorekeeper.belowMinShots', { min: shotConfig.minShotsPerPlayer })}
+                                </p>
+                              )}
                             </div>
-                            <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                              {t('scorekeeper.shotCount', { count: playerShots.length })}
-                            </p>
+                            <div style={{ textAlign: 'right' }}>
+                              <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '22px', lineHeight: 1 }}>
+                                {playerTotal}
+                              </p>
+                              <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                {t('scorekeeper.shotCount', { count: playerShots.length })}
+                              </p>
+                            </div>
                           </div>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
                             {playerShots.map((sh: any) => (
@@ -472,12 +506,9 @@ export function ScorekeeperPage() {
                                   minWidth: '44px', minHeight: '44px', padding: '0 10px',
                                   borderRadius: 'var(--radius)', cursor: 'pointer',
                                   fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px',
-                                  border: sh.counted ? '2px solid var(--accent-green)' : '1.5px solid var(--border-light)',
-                                  background: sh.counted ? 'var(--accent-green)' : 'var(--surface)',
-                                  color: sh.counted ? '#fff' : 'var(--text-primary)',
-                                  transition: 'background 160ms var(--ease-out), border-color 160ms var(--ease-out)',
+                                  border: '1.5px solid var(--border-light)',
+                                  background: 'var(--surface)', color: 'var(--text-primary)',
                                 }}
-                                title={sh.counted ? t('scorekeeper.shotCounted') : t('scorekeeper.shotNotCounted')}
                               >
                                 {sh.value}
                               </button>

@@ -24,7 +24,7 @@ export function AdminChallenges() {
     name: '', description: '', scoreType: 'number_highest_wins' as ScoreType,
     defaultTeamScoreMode: 'average_score' as TeamScoreMode,
     bestNPlayers: '', isGlobalTemplate: true,
-    maxShots: '20', shotsPerPlayer: '3', maxScorePerShot: '10', shootingLowerIsBetter: false,
+    shotsPerTeam: '20', minShotsPerPlayer: '3', maxScorePerShot: '10', shootingLowerIsBetter: false,
   })
 
   const SCORE_TYPES: [ScoreType, string][] = [
@@ -48,13 +48,13 @@ export function AdminChallenges() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ name: '', description: '', scoreType: 'number_highest_wins', defaultTeamScoreMode: 'average_score', bestNPlayers: '', isGlobalTemplate: true, maxShots: '20', shotsPerPlayer: '3', maxScorePerShot: '10', shootingLowerIsBetter: false })
+    setForm({ name: '', description: '', scoreType: 'number_highest_wins', defaultTeamScoreMode: 'average_score', bestNPlayers: '', isGlobalTemplate: true, shotsPerTeam: '20', minShotsPerPlayer: '3', maxScorePerShot: '10', shootingLowerIsBetter: false })
     setOpen(true)
   }
 
   const openEdit = (c: any) => {
     setEditing(c)
-    setForm({ name: c.name, description: c.description ?? '', scoreType: c.scoreType, defaultTeamScoreMode: c.defaultTeamScoreMode, bestNPlayers: c.bestNPlayers?.toString() ?? '', isGlobalTemplate: c.isGlobalTemplate, maxShots: (c.maxShots ?? 20).toString(), shotsPerPlayer: (c.shotsPerPlayer ?? 3).toString(), maxScorePerShot: (c.maxScorePerShot ?? 10).toString(), shootingLowerIsBetter: !!c.shootingLowerIsBetter })
+    setForm({ name: c.name, description: c.description ?? '', scoreType: c.scoreType, defaultTeamScoreMode: c.defaultTeamScoreMode, bestNPlayers: c.bestNPlayers?.toString() ?? '', isGlobalTemplate: c.isGlobalTemplate, shotsPerTeam: (c.shotsPerTeam ?? 20).toString(), minShotsPerPlayer: (c.minShotsPerPlayer ?? 3).toString(), maxScorePerShot: (c.maxScorePerShot ?? 10).toString(), shootingLowerIsBetter: !!c.shootingLowerIsBetter })
     setOpen(true)
   }
 
@@ -62,12 +62,12 @@ export function AdminChallenges() {
     mutationFn: () => {
       const data: any = { ...form, bestNPlayers: form.bestNPlayers ? parseInt(form.bestNPlayers) : undefined }
       if (form.scoreType === 'shooting') {
-        data.maxShots = form.maxShots ? parseInt(form.maxShots) : 20
-        data.shotsPerPlayer = form.shotsPerPlayer ? parseInt(form.shotsPerPlayer) : 3
+        data.shotsPerTeam = form.shotsPerTeam ? parseInt(form.shotsPerTeam) : 20
+        data.minShotsPerPlayer = form.minShotsPerPlayer ? parseInt(form.minShotsPerPlayer) : 3
         data.maxScorePerShot = form.maxScorePerShot ? parseInt(form.maxScorePerShot) : 10
         data.shootingLowerIsBetter = form.shootingLowerIsBetter
       } else {
-        delete data.maxShots; delete data.shotsPerPlayer; delete data.maxScorePerShot; delete data.shootingLowerIsBetter
+        delete data.shotsPerTeam; delete data.minShotsPerPlayer; delete data.maxScorePerShot; delete data.shootingLowerIsBetter
       }
       return editing ? api.challenges.update(editing.id, data) : api.challenges.create(data)
     },
@@ -171,8 +171,8 @@ export function AdminChallenges() {
           </div>
           {isShooting ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <Input label={t('admin.challenges.maxShots')} type="number" value={form.maxShots} onChange={set('maxShots')} placeholder="20" />
-              <Input label={t('admin.challenges.shotsPerPlayer')} type="number" value={form.shotsPerPlayer} onChange={set('shotsPerPlayer')} placeholder="3" />
+              <Input label={t('admin.challenges.shotsPerTeam')} type="number" value={form.shotsPerTeam} onChange={set('shotsPerTeam')} placeholder="20" />
+              <Input label={t('admin.challenges.minShotsPerPlayer')} type="number" value={form.minShotsPerPlayer} onChange={set('minShotsPerPlayer')} placeholder="3" />
               <Input label={t('admin.challenges.maxScorePerShot')} type="number" value={form.maxScorePerShot} onChange={set('maxScorePerShot')} placeholder="10" />
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>{t('admin.challenges.shootingDirection')}</label>
