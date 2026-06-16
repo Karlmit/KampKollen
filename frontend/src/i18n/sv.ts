@@ -223,6 +223,12 @@ const sv = {
     timeWalkHours: 't',
     timeWalkMinutes: 'm',
     timeWalkSeconds: 's',
+    timeWalkWalk: 'Promenad {{n}}',
+    timeWalkApart: 'isär',
+    timeWalkPerfect: 'Perfekt match',
+    timeWalkEnterBoth: 'Ange båda promenaderna',
+    timeWalkUnitHint: 'min : sek',
+    timeWalkRemove: 'Ta bort',
   },
 
   leaderboard: {

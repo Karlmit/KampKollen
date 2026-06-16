@@ -223,6 +223,12 @@ const en = {
     timeWalkHours: 'h',
     timeWalkMinutes: 'm',
     timeWalkSeconds: 's',
+    timeWalkWalk: 'Walk {{n}}',
+    timeWalkApart: 'apart',
+    timeWalkPerfect: 'Perfect match',
+    timeWalkEnterBoth: 'Enter both walks',
+    timeWalkUnitHint: 'min : sec',
+    timeWalkRemove: 'Remove',
   },
 
   leaderboard: {

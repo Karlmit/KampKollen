@@ -471,6 +471,20 @@ img {
   100% { color: var(--text-primary); transform: scale(1); }
 }
 
+/* ─── Time Walk entry ─── */
+@keyframes twCaret {
+  0%, 49%   { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+@keyframes twVerdictPop {
+  0%   { transform: scale(0.88); opacity: 0; }
+  100% { transform: scale(1);    opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [style*="twCaret"]      { animation: none !important; opacity: 1 !important; }
+  [style*="twVerdictPop"] { animation: none !important; }
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    QUIZ — casino / game-show FX
    Playful, high-energy motion for every quiz mode (player, team leader,

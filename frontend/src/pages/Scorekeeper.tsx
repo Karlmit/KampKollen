@@ -13,18 +13,30 @@ import { ScoreType } from '../types'
 import { useTranslation } from 'react-i18next'
 
 // ── Time Walk (least_time_difference) helpers ────────────────────────────────
-function hmsToMs(h: string, m: string, s: string): number | null {
-  if (!h && !m && !s) return null
-  const hh = parseInt(h || '0', 10)
-  const mm = parseInt(m || '0', 10)
-  const ss = parseInt(s || '0', 10)
-  if ([hh, mm, ss].some(n => isNaN(n) || n < 0)) return null
+// Each walk's time is held as a raw digit string and read positionally as a
+// duration: the last two digits are seconds, the next two minutes, the next two
+// hours. Typing therefore needs no field-switching — digits just flow in from
+// the right (e.g. 4·3·2 → 4:32), which is the fewest possible presses.
+function digitsToMs(d: string): number | null {
+  if (!d) return null
+  const ss = parseInt(d.slice(-2) || '0', 10)
+  const mm = parseInt(d.slice(-4, -2) || '0', 10)
+  const hh = parseInt(d.slice(-6, -4) || '0', 10)
   return ((hh * 3600) + (mm * 60) + ss) * 1000
 }
-function msToHmsParts(ms: number | null | undefined): { h: string; m: string; s: string } {
-  if (ms == null) return { h: '', m: '', s: '' }
+function msToDigits(ms: number | null | undefined): string {
+  if (ms == null) return ''
   const total = Math.round(ms / 1000)
-  return { h: String(Math.floor(total / 3600)), m: String(Math.floor((total % 3600) / 60)), s: String(total % 60) }
+  const ss = total % 60, mm = Math.floor(total / 60) % 60, hh = Math.floor(total / 3600)
+  if (hh > 0) return `${hh}${String(mm).padStart(2, '0')}${String(ss).padStart(2, '0')}`
+  if (mm > 0) return `${mm}${String(ss).padStart(2, '0')}`
+  return ss === 0 ? '' : String(ss)
+}
+function formatWalkDigits(d: string): string {
+  const ss = d.slice(-2), mm = d.slice(-4, -2), hh = d.slice(-6, -4)
+  if (hh) return `${parseInt(hh, 10)}:${mm.padStart(2, '0')}:${ss.padStart(2, '0')}`
+  if (mm) return `${parseInt(mm, 10)}:${ss.padStart(2, '0')}`
+  return `0:${(ss || '0').padStart(2, '0')}`
 }
 function formatClock(ms: number | null | undefined): string {
   if (ms == null) return '–'
@@ -47,35 +59,97 @@ function TimeWalkModal({ open, onClose, teamName, time1Ms, time2Ms, onSave, onDe
   onDelete?: () => void
 }) {
   const { t } = useTranslation()
-  const [t1, setT1] = useState({ h: '', m: '', s: '' })
-  const [t2, setT2] = useState({ h: '', m: '', s: '' })
+  const [d1, setD1] = useState('')
+  const [d2, setD2] = useState('')
+  const [active, setActive] = useState<'a' | 'b'>('a')
 
   useEffect(() => {
-    if (open) { setT1(msToHmsParts(time1Ms)); setT2(msToHmsParts(time2Ms)) }
+    if (open) { setD1(msToDigits(time1Ms)); setD2(msToDigits(time2Ms)); setActive('a') }
   }, [open, time1Ms, time2Ms])
 
-  const ms1 = hmsToMs(t1.h, t1.m, t1.s)
-  const ms2 = hmsToMs(t2.h, t2.m, t2.s)
+  const ms1 = digitsToMs(d1)
+  const ms2 = digitsToMs(d2)
   const diffSec = ms1 != null && ms2 != null ? Math.abs(ms1 - ms2) / 1000 : null
+  const perfect = diffSec === 0
 
-  const renderTimeFields = (
-    value: { h: string; m: string; s: string },
-    setValue: (v: { h: string; m: string; s: string }) => void
-  ) => (
-    <div style={{ display: 'flex', gap: '8px' }}>
-      {([['h', t('scorekeeper.timeWalkHours')], ['m', t('scorekeeper.timeWalkMinutes')], ['s', t('scorekeeper.timeWalkSeconds')]] as const).map(([unit, label]) => (
-        <div key={unit} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <input
-            type="number" min="0" inputMode="numeric" placeholder="0"
-            value={value[unit]}
-            onChange={e => setValue({ ...value, [unit]: e.target.value })}
-            style={{ padding: '10px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', fontSize: '20px', fontFamily: 'var(--font-ui)', fontWeight: 700, textAlign: 'center', width: '100%' }}
-          />
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center' }}>{label}</span>
-        </div>
-      ))}
-    </div>
-  )
+  const setActiveDigits = (fn: (d: string) => string) =>
+    active === 'a' ? setD1(d => fn(d)) : setD2(d => fn(d))
+  const pressDigit = (n: string) => setActiveDigits(d => (d.length >= 6 ? d : (d + n).replace(/^0+(?=\d)/, '')))
+  const pressBack = () => setActiveDigits(d => d.slice(0, -1))
+  const pressClear = () => setActiveDigits(() => '')
+
+  const walkRow = (key: 'a' | 'b', label: string, digits: string) => {
+    const isActive = active === key
+    return (
+      <button
+        type="button"
+        onClick={() => setActive(key)}
+        aria-pressed={isActive}
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
+          width: '100%', textAlign: 'left', cursor: 'pointer',
+          padding: '14px 16px', borderRadius: 'var(--radius)',
+          border: isActive ? '2px solid var(--accent)' : '1.5px solid var(--border-light)',
+          background: isActive ? 'var(--surface)' : 'var(--background)',
+          transition: 'border-color 160ms var(--ease-out), background 160ms var(--ease-out)',
+        }}
+      >
+        <span style={{
+          fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em',
+          textTransform: 'uppercase', color: isActive ? 'var(--accent)' : 'var(--text-muted)',
+        }}>
+          {label}
+        </span>
+        <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+          <span
+            key={digits}
+            style={{
+              fontFamily: 'var(--font-ui)', fontWeight: 700, lineHeight: 1,
+              fontSize: isActive ? '34px' : '26px',
+              fontVariantNumeric: 'tabular-nums',
+              color: digits ? 'var(--text-primary)' : 'var(--border-light)',
+              animation: isActive && digits ? 'numpadDigitPop 130ms cubic-bezier(0.25, 1, 0.5, 1) both' : undefined,
+            }}
+          >
+            {formatWalkDigits(digits)}
+          </span>
+          {isActive && (
+            <span aria-hidden="true" style={{
+              width: '3px', height: '30px', marginLeft: '5px', borderRadius: '2px',
+              background: 'var(--accent)', animation: 'twCaret 1.05s steps(1) infinite',
+            }} />
+          )}
+        </span>
+      </button>
+    )
+  }
+
+  const verdict = (() => {
+    if (diffSec == null) {
+      return <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-ui)', fontWeight: 700 }}>{t('scorekeeper.timeWalkEnterBoth')}</span>
+    }
+    const bg = perfect ? 'var(--accent-green)' : 'var(--accent)'
+    return (
+      <span
+        key={diffSec}
+        style={{
+          display: 'inline-flex', alignItems: 'baseline', gap: '6px',
+          padding: '8px 16px', borderRadius: 'var(--radius-full)', background: bg, color: '#fff',
+          fontFamily: 'var(--font-ui)', fontWeight: 700,
+          animation: 'twVerdictPop 220ms var(--ease-out) both',
+        }}
+      >
+        {perfect ? (
+          <span style={{ fontSize: '15px' }}>◇ {t('scorekeeper.timeWalkPerfect')}</span>
+        ) : (
+          <>
+            <span style={{ fontSize: '22px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{formatDiffSeconds(diffSec)}s</span>
+            <span style={{ fontSize: '12px', opacity: 0.85 }}>{t('scorekeeper.timeWalkApart')}</span>
+          </>
+        )}
+      </span>
+    )
+  })()
 
   return (
     <Modal
@@ -87,7 +161,7 @@ function TimeWalkModal({ open, onClose, teamName, time1Ms, time2Ms, onSave, onDe
           <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
           {onDelete && (
             <Button variant="ghost" onClick={() => { onDelete(); onClose() }} style={{ color: 'var(--accent-warm)' }}>
-              {t('scorekeeper.clear')}
+              {t('scorekeeper.timeWalkRemove')}
             </Button>
           )}
           <Button onClick={() => { onSave(ms1, ms2); onClose() }} disabled={ms1 == null && ms2 == null}>
@@ -96,29 +170,29 @@ function TimeWalkModal({ open, onClose, teamName, time1Ms, time2Ms, onSave, onDe
         </>
       }
     >
-      <p style={{ fontSize: '12.5px', color: 'var(--text-muted)', lineHeight: 1.45, marginBottom: '16px' }}>
-        {t('scorekeeper.timeWalkInfo')}
-      </p>
-      <div style={{ marginBottom: '14px' }}>
-        <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, display: 'block', marginBottom: '6px' }}>
-          {t('scorekeeper.timeWalkFirst')}
-        </label>
-        {renderTimeFields(t1, setT1)}
+      {/* Two walks share one keypad; the gap between them is the verdict. */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '6px' }}>
+        {walkRow('a', t('scorekeeper.timeWalkWalk', { n: 1 }), d1)}
+        <div style={{ display: 'flex', justifyContent: 'center', minHeight: '40px', alignItems: 'center' }}>
+          {verdict}
+        </div>
+        {walkRow('b', t('scorekeeper.timeWalkWalk', { n: 2 }), d2)}
       </div>
-      <div style={{ marginBottom: '18px' }}>
-        <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, display: 'block', marginBottom: '6px' }}>
-          {t('scorekeeper.timeWalkSecond')}
-        </label>
-        {renderTimeFields(t2, setT2)}
-      </div>
-      <div style={{
-        background: 'var(--surface)', borderRadius: 'var(--radius)', padding: '14px 20px',
-        textAlign: 'center',
+
+      <p style={{
+        textAlign: 'center', fontSize: '11px', letterSpacing: '0.12em', textTransform: 'uppercase',
+        color: 'var(--text-muted)', fontFamily: 'var(--font-ui)', fontWeight: 700, margin: '14px 0 10px',
       }}>
-        <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>{t('scorekeeper.timeWalkDiff')}</p>
-        <p style={{ fontSize: '40px', fontFamily: 'var(--font-ui)', fontWeight: 700, lineHeight: 1, color: diffSec === 0 ? 'var(--accent-green)' : 'var(--text-primary)' }}>
-          {diffSec != null ? t('scorekeeper.timeWalkDiffSeconds', { seconds: formatDiffSeconds(diffSec) }) : '—'}
-        </p>
+        {t('scorekeeper.timeWalkUnitHint')}
+      </p>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+        {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(n => (
+          <button key={n} type="button" className="numpad-btn" onClick={() => pressDigit(n)}>{n}</button>
+        ))}
+        <button type="button" className="numpad-btn numpad-btn--action" onClick={pressBack} style={{ color: 'var(--accent-warm)' }}>⌫</button>
+        <button type="button" className="numpad-btn" onClick={() => pressDigit('0')}>0</button>
+        <button type="button" className="numpad-btn numpad-btn--action" onClick={pressClear} style={{ color: 'var(--accent-warm)', fontSize: '15px' }}>{t('scorekeeper.clear')}</button>
       </div>
     </Modal>
   )
