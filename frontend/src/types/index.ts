@@ -163,6 +163,7 @@ export interface CompetitionLeaderboard {
     scoreType: ScoreType
     teamScoreMode: TeamScoreMode
     lowerIsBetter: boolean
+    hasScore: boolean
     teams: Array<{ teamId: string; teamName: string; score: number; rank: number; placementPoints?: number }>
     players: Array<{ userId: string; displayName?: string | null; username?: string | null; profileImageUrl?: string | null; teamId?: string | null; teamName?: string | null; score: number; rank: number; placementPoints?: number }>
   }>

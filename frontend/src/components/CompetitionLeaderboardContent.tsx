@@ -196,10 +196,11 @@ export function CompetitionLeaderboardContent({
 
       {/* Challenge breakdown */}
       {(() => {
-        // Quizzes don't count toward individual scores in team competitions, so
-        // hide them from the per-challenge breakdown while in the individual view.
+        // Hide challenges that have no scores entered yet. Quizzes also don't count
+        // toward individual scores in team competitions, so drop them from the
+        // per-challenge breakdown while in the individual view.
         const breakdown = lb.challengeLeaderboards.filter(
-          (cl: any) => !(view === 'individual' && isTeamComp && cl.isQuiz)
+          (cl: any) => cl.hasScore && !(view === 'individual' && isTeamComp && cl.isQuiz)
         )
         return breakdown.length > 0 && (
         <section style={{ marginTop: '28px' }}>

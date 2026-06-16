@@ -356,6 +356,11 @@ export async function leaderboardRoutes(app: FastifyInstance) {
       const teamRankSizes: Record<number, number> = {}
       for (const item of rankedTeamsWithRanks) teamRankSizes[item.rank] = (teamRankSizes[item.rank] ?? 0) + 1
 
+      // A challenge counts as "scored" once anything has been entered for it:
+      // a per-player score/shot, or a team-level time-difference entry.
+      const challengeHasScore =
+        scores.length > 0 || shootingShots.length > 0 || Object.keys(teamTimeDiffs).length > 0
+
       challengeLeaderboards.push({
         challengeId: cc.challengeId,
         competitionChallengeId: cc.id,
@@ -366,6 +371,7 @@ export async function leaderboardRoutes(app: FastifyInstance) {
         scoreType,
         teamScoreMode,
         lowerIsBetter: lowerBetter,
+        hasScore: challengeHasScore,
         valueUnit: isShooting ? cc.challenge.valueUnit : null,
         teams: rankedTeamsWithRanks.map(t => ({
           ...t,
