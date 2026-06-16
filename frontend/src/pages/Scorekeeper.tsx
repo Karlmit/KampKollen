@@ -335,6 +335,7 @@ export function ScorekeeperPage() {
     maxScorePerShot: selectedCc?.challenge?.maxScorePerShot ?? 10,
     minShotsPerPlayer: selectedCc?.challenge?.minShotsPerPlayer ?? 3,
     shotsPerTeam: selectedCc?.challenge?.shotsPerTeam ?? 20,
+    lowerIsBetter: selectedCc?.challenge?.shootingLowerIsBetter ?? false,
   }
   const shotsByPlayer: Record<string, any[]> = {}
   for (const s of (shotsData?.shots ?? [])) (shotsByPlayer[s.userId] ??= []).push(s)
@@ -342,7 +343,13 @@ export function ScorekeeperPage() {
   // every team's shots, so these stay correct even when viewing one team).
   const teamShotTotals: Record<string, number> = shotsData?.teamTotals ?? {}
   const teamShotCounts: Record<string, number> = shotsData?.teamShotCounts ?? {}
-  const sumVals = (arr: any[]) => arr.reduce((a, s) => a + s.value, 0)
+  // A player's individual score = the sum of their best `minShotsPerPlayer`
+  // shots (matches the individual leaderboard), not the sum of every shot.
+  const playerIndividualScore = (shots: any[]) =>
+    [...shots]
+      .sort((a, b) => (shotConfig.lowerIsBetter ? a.value - b.value : b.value - a.value))
+      .slice(0, Math.max(0, shotConfig.minShotsPerPlayer))
+      .reduce((a, s) => a + s.value, 0)
 
   const getExistingScore = (userId: string) => {
     const s = existingScores.find((s: any) => s.userId === userId)
@@ -490,7 +497,7 @@ export function ScorekeeperPage() {
                   {team.players.map((p: any) => {
                     if (isShooting) {
                       const playerShots = shotsByPlayer[p.userId] ?? []
-                      const playerTotal = sumVals(playerShots)
+                      const playerTotal = playerIndividualScore(playerShots)
                       const belowMin = playerShots.length < shotConfig.minShotsPerPlayer
                       return (
                         <Card key={p.userId} padding="14px 16px">
