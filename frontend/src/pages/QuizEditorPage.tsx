@@ -365,23 +365,29 @@ export function QuizEditorPage() {
                     {({ setNodeRef, style, handleProps }) => (
                       <div ref={setNodeRef} style={style}>
                         <Card padding="14px">
-                          {/* Header: grip · number · question text · delete */}
+                          {/* Header: grip · number · editable question title · delete */}
                           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '10px' }}>
                             <span {...handleProps}
                               title={t('admin.quizEditor.reorderHint')}
                               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 40, color: 'var(--border-light)', fontSize: '16px', cursor: 'grab', flexShrink: 0, touchAction: 'none' }}>
                               {GRIP}
                             </span>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 30, height: 30, marginTop: 5, padding: '0 9px', borderRadius: 'var(--radius-full)', background: 'var(--accent)', color: '#fff', fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', flexShrink: 0 }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 30, height: 30, marginTop: 7, padding: '0 9px', borderRadius: 'var(--radius-full)', background: 'var(--accent)', color: '#fff', fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', flexShrink: 0 }}>
                               {qi + 1}
                             </span>
-                            <textarea
-                              defaultValue={q.text}
-                              onBlur={e => { if (e.target.value !== q.text) updateQ.mutate({ id: q.id, text: e.target.value }) }}
-                              rows={1}
-                              style={{ flex: 1, minWidth: 0, fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px', border: 'none', background: 'transparent', outline: 'none', resize: 'vertical', minHeight: 40, lineHeight: 1.35, color: 'var(--text-primary)', paddingTop: 9 }}
-                              placeholder={t('admin.quizEditor.questionPlaceholder')}
-                            />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <label htmlFor={`q-title-${q.id}`} style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4, fontFamily: 'var(--font-ui)' }}>
+                                {t('admin.quizEditor.questionTitle')}
+                              </label>
+                              <textarea
+                                id={`q-title-${q.id}`}
+                                defaultValue={q.text}
+                                onBlur={e => { if (e.target.value !== q.text) updateQ.mutate({ id: q.id, text: e.target.value }) }}
+                                rows={1}
+                                style={{ width: '100%', minWidth: 0, boxSizing: 'border-box', fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-sm)', background: 'var(--background)', outline: 'none', resize: 'vertical', minHeight: 42, lineHeight: 1.35, color: 'var(--text-primary)', padding: '10px 12px' }}
+                                placeholder={t('admin.quizEditor.questionPlaceholder')}
+                              />
+                            </div>
                             <IconButton tone="danger" title={t('admin.quizEditor.deleteQuestion')} onClick={() => deleteQ.mutate(q.id)}>🗑</IconButton>
                           </div>
 

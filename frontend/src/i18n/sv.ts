@@ -620,6 +620,7 @@ const sv = {
       fieldLabelPlaceholder: 'Fältets etikett (t.ex. "År", "VM-låt")…',
       deleteField: 'Ta bort fält',
       pointsShort: 'p',
+      questionTitle: 'Fråga',
       description: 'Beskrivning (valfri)',
       descriptionPlaceholder: 'Förklara frågan närmare… (fet, kursiv, understruken)',
       bold: 'Fet',

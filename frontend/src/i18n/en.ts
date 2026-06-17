@@ -622,6 +622,7 @@ const en = {
       fieldLabelPlaceholder: 'Field label (e.g. "Year", "VM song")…',
       deleteField: 'Delete field',
       pointsShort: 'p',
+      questionTitle: 'Question',
       description: 'Description (optional)',
       descriptionPlaceholder: 'Explain the question in more detail… (bold, italic, underline)',
       bold: 'Bold',
