@@ -177,6 +177,7 @@ export function AdminTrophies() {
   const [sendError, setSendError] = useState('')
   const [reserveTrophy, setReserveTrophy] = useState<any>(null)
   const [reserveCompId, setReserveCompId] = useState('')
+  const [batchCount, setBatchCount] = useState(5)
 
   const { data: wordsData } = useQuery({
     queryKey: ['trophy-words'],
@@ -236,6 +237,14 @@ export function AdminTrophies() {
   const ensureMutation = useMutation({
     mutationFn: (competitionId: string) => api.trophies.ensureForCompetition(competitionId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['trophy-status'] }),
+  })
+
+  const batchMutation = useMutation({
+    mutationFn: (count: number) => api.trophies.generateBatch(count),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['trophy-status'] })
+      qc.invalidateQueries({ queryKey: ['trophy-storage'] })
+    },
   })
 
   const sendMutation = useMutation({
@@ -374,13 +383,38 @@ export function AdminTrophies() {
                 </span>
               )}
             </div>
-            <Button
-              size="sm"
-              onClick={() => generateMutation.mutate(undefined)}
-              loading={generateMutation.isPending && generatingWord === null}
-            >
-              {t('admin.trophies.generateNew')}
-            </Button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input
+                type="number"
+                min={1}
+                max={50}
+                value={batchCount}
+                onChange={e => setBatchCount(Math.max(1, Math.min(50, Math.floor(Number(e.target.value) || 1))))}
+                title={t('admin.trophies.generateCountLabel')}
+                aria-label={t('admin.trophies.generateCountLabel')}
+                style={{
+                  width: 52, height: 32, textAlign: 'center',
+                  fontFamily: 'var(--font-ui)', fontSize: '13px',
+                  background: 'var(--surface)', border: '1px solid var(--border-light)',
+                  borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', outline: 'none',
+                }}
+              />
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => batchMutation.mutate(batchCount)}
+                loading={batchMutation.isPending}
+              >
+                {t('admin.trophies.generate', { count: batchCount })}
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => generateMutation.mutate(undefined)}
+                loading={generateMutation.isPending && generatingWord === null}
+              >
+                {t('admin.trophies.generateNew')}
+              </Button>
+            </div>
           </div>
 
           {storageLoading ? <LoadingSpinner /> : storageData?.trophies?.length === 0 ? (

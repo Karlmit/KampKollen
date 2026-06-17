@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify'
 import { prisma } from '../db.js'
 import { requireAuth, requireAdmin } from '../middleware/auth.js'
 import { generateImage } from '../lib/imageGeneration.js'
-import { getGeneratingCount, getActiveCompetitionNeeds, ensureForCompetition } from '../lib/awardTrophies.js'
+import { getGeneratingCount, getActiveCompetitionNeeds, ensureForCompetition, generateRandomTrophies } from '../lib/awardTrophies.js'
 import { getTrophyWords, normalizeTrophyWords, randomFrom, wordToTitle, TrophyWord } from '../lib/trophyWords.js'
 import { GlobalRole } from '@prisma/client'
 
@@ -133,6 +133,21 @@ export async function trophyRoutes(app: FastifyInstance) {
       data: { title, titleSv, imageUrl: result.publicUrl },
     })
     return { trophy }
+  })
+
+  // Generate several random trophies into storage at once (runs in the
+  // background; progress is reflected by the /status `generating` count).
+  app.post('/generate-batch', { preHandler: requireAdmin }, async (request, reply) => {
+    const body = request.body as { count?: number }
+    const count = Math.floor(Number(body.count))
+    if (!Number.isFinite(count) || count < 1) {
+      return reply.status(400).send({ error: 'count must be a positive integer' })
+    }
+    if (count > 50) {
+      return reply.status(400).send({ error: 'count must be 50 or fewer' })
+    }
+    generateRandomTrophies(count).catch(err => console.error('[awards] batch generate error:', err))
+    return { started: true, count }
   })
 
   // Reserve a storage trophy for a specific competition (or clear reservation)

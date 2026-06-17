@@ -450,6 +450,7 @@ const sv = {
       awardStorage: 'Prislager ({{count}})',
       generating: 'Genererar {{count}}...',
       generateNew: '+ Generera',
+      generateCountLabel: 'Antal slumpmässiga priser att generera',
       noAwards: 'Inga priser i lagret. Generera ett!',
       reservedFor: '🔒 {{name}}',
       reserveFor: 'Reservera för...',

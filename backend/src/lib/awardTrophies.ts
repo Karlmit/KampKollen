@@ -34,6 +34,18 @@ async function ensureTrophiesInStorage(count: number): Promise<void> {
   }
 }
 
+// Generate `count` brand-new random awards into storage (admin bulk action).
+export async function generateRandomTrophies(count: number): Promise<void> {
+  const n = Math.max(0, Math.floor(count))
+  if (n === 0) return
+
+  const BATCH_SIZE = 3
+  for (let i = 0; i < n; i += BATCH_SIZE) {
+    const batchCount = Math.min(BATCH_SIZE, n - i)
+    await Promise.all(Array.from({ length: batchCount }, () => generateOneTrophy()))
+  }
+}
+
 export interface CompetitionNeeds {
   id: string
   name: string

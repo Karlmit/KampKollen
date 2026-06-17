@@ -141,6 +141,7 @@ export const api = {
     getForUser: (userId: string) => request<{ trophies: any[] }>(`/trophies/user/${userId}`),
     history: (groupId?: string | null) => request<{ players: any[] }>(`/trophies/history${groupId ? `?groupId=${groupId}` : ''}`),
     generate: (word?: string, wordSv?: string) => request<{ trophy: any }>('/trophies/generate', { method: 'POST', body: JSON.stringify({ word, wordSv }) }),
+    generateBatch: (count: number) => request<{ started: boolean; count: number }>('/trophies/generate-batch', { method: 'POST', body: JSON.stringify({ count }) }),
     reserve: (id: string, competitionId: string | null) => request<{ trophy: any }>(`/trophies/${id}/reserve`, { method: 'PUT', body: JSON.stringify({ competitionId }) }),
     generateSend: (userId: string) => request<{ trophy: any }>('/trophies/generate-send', { method: 'POST', body: JSON.stringify({ userId }) }),
     send: (id: string, userId: string) => request<{ trophy: any }>(`/trophies/${id}/send`, { method: 'POST', body: JSON.stringify({ userId }) }),

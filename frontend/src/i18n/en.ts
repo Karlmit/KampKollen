@@ -452,6 +452,7 @@ const en = {
       awardStorage: 'Award Storage ({{count}})',
       generating: 'Generating {{count}}…',
       generateNew: '+ Generate',
+      generateCountLabel: 'Number of random awards to generate',
       noAwards: 'No awards in storage. Generate one!',
       reservedFor: '🔒 {{name}}',
       reserveFor: 'Reserve for…',
