@@ -206,6 +206,8 @@ export const api = {
     complete: (ccId: string) => request(`/quiz/${ccId}/session/complete`, { method: 'POST', body: '{}' }),
     submitAnswer: (ccId: string, data: { questionId: string; optionId?: string; fields?: { fieldId: string; answer: string }[]; teamId?: string }) =>
       request(`/quiz/${ccId}/answers`, { method: 'POST', body: JSON.stringify(data) }),
+    retractAnswer: (ccId: string, data: { questionId: string; teamId?: string }) =>
+      request(`/quiz/${ccId}/answers/retract`, { method: 'POST', body: JSON.stringify(data) }),
     setFieldPoints: (ccId: string, answerId: string, points: number) =>
       request(`/quiz/${ccId}/field-answers/${answerId}/points`, { method: 'PUT', body: JSON.stringify({ points }) }),
     toggleFieldLock: (ccId: string, answerId: string) =>

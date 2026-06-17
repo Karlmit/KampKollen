@@ -914,6 +914,47 @@ export async function quizRoutes(app: FastifyInstance) {
     return { success: true }
   })
 
+  // ── Take back an answer (player) ────────────────────────────────────────────
+  // Allowed only while the current question is still open: the quiz is ACTIVE,
+  // the question hasn't been locked, and the QM hasn't started the "next question"
+  // countdown yet. Clears the multiple-choice pick or every free-text field answer.
+  app.post('/:ccId/answers/retract', { preHandler: requireAuth }, async (request, reply) => {
+    const { ccId } = request.params as { ccId: string }
+    const me = request.user as { id: string }
+    const body = z.object({ questionId: z.string(), teamId: z.string().optional() }).safeParse(request.body)
+    if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
+
+    const session = await prisma.quizSession.findUnique({ where: { competitionChallengeId: ccId } })
+    if (!session || session.status !== 'ACTIVE') return reply.status(400).send({ error: 'Quiz not accepting changes' })
+    if (session.questionLocked) return reply.status(400).send({ error: 'Question is locked' })
+
+    // Once the next-question countdown is running, answers are final.
+    const endsAt = countdownMap.get(ccId)
+    if (endsAt && endsAt > Date.now()) return reply.status(400).send({ error: 'Too late to take back' })
+
+    const cc = await prisma.competitionChallenge.findUnique({ where: { id: ccId }, select: { challengeId: true } })
+    const currentQ = await prisma.quizQuestion.findFirst({
+      where: { challengeId: cc!.challengeId, order: session.currentQuestionIndex },
+    })
+    if (!currentQ || currentQ.id !== body.data.questionId) {
+      return reply.status(400).send({ error: 'Can only change the current question' })
+    }
+
+    const { teamId } = body.data
+    if (currentQ.isFreeText) {
+      const fieldIds = (await prisma.quizField.findMany({ where: { questionId: currentQ.id }, select: { id: true } })).map(f => f.id)
+      await prisma.quizFieldAnswer.deleteMany({
+        where: teamId ? { fieldId: { in: fieldIds }, teamId } : { fieldId: { in: fieldIds }, userId: me.id },
+      })
+    } else {
+      await prisma.quizAnswer.deleteMany({
+        where: teamId ? { questionId: currentQ.id, teamId } : { questionId: currentQ.id, userId: me.id },
+      })
+    }
+    broadcast(ccId)
+    return { success: true }
+  })
+
   // ── Set points for a free-text field answer (QM only) ───────────────────────
   app.put('/:ccId/field-answers/:answerId/points', { preHandler: requireAuth }, async (request, reply) => {
     const { ccId, answerId } = request.params as { ccId: string; answerId: string }

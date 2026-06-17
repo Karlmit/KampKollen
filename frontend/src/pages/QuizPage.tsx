@@ -196,6 +196,12 @@ export function QuizPage() {
     onSuccess: () => { setSubmitted(true); qc.invalidateQueries({ queryKey: ['quiz', ccId] }) },
   })
 
+  const retractAnswer = useMutation({
+    mutationFn: ({ teamId }: { teamId?: string }) =>
+      api.quiz.retractAnswer(ccId!, { questionId: currentQ?.id, teamId }),
+    onSuccess: () => { setSubmitted(false); setSelectedOption(null); setFreeTextInputs({}); qc.invalidateQueries({ queryKey: ['quiz', ccId] }) },
+  })
+
   const setFieldPoints = useMutation({
     mutationFn: ({ answerId, points }: { answerId: string; points: number }) =>
       api.quiz.setFieldPoints(ccId!, answerId, points),
@@ -256,6 +262,16 @@ export function QuizPage() {
   // Whether this player/team has already submitted the current free-text question
   // (any field filled). Drives the "answer submitted" confirmation card.
   const myFreeTextSubmitted = (currentQ?.fields ?? []).some((f: any) => f.myAnswer != null)
+
+  function handleRetract() {
+    if (!canAct || session.status !== 'ACTIVE' || currentQ?.locked) return
+    const teamId = isTeamComp ? myTeamId ?? undefined : undefined
+    retractAnswer.mutate({ teamId })
+  }
+
+  // Answers can be taken back until the question is locked or the QM has started
+  // the next-question countdown. (canAct/answer-exists checks happen at each button.)
+  const canRetract = canAct && session.status === 'ACTIVE' && !currentQ?.locked && countdownSecs === null
 
   return (
     <Layout
@@ -612,6 +628,11 @@ export function QuizPage() {
                     </p>
                   ))}
                 </div>
+                {canRetract && (
+                  <Button variant="ghost" size="sm" style={{ marginTop: 12 }} loading={retractAnswer.isPending} onClick={handleRetract}>
+                    {t('quiz.takeBackAnswer')}
+                  </Button>
+                )}
               </Card>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -672,6 +693,11 @@ export function QuizPage() {
                   </div>
                 )
               })}
+              {canRetract && mySubmittedOption && (
+                <Button variant="ghost" size="sm" style={{ marginTop: 4 }} loading={retractAnswer.isPending} onClick={handleRetract}>
+                  {t('quiz.takeBackAnswer')}
+                </Button>
+              )}
             </div>
           )}
 

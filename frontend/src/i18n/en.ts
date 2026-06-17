@@ -713,6 +713,7 @@ const en = {
     seeAllResults: 'See all {{count}} results ↓',
     yourAnswer: '(your answer)',
     answerSubmitted: '✓ Answer submitted — waiting for next question',
+    takeBackAnswer: '↩ Take back answer',
     questionLocked: '⏸ Question locked',
     teamAnswered: '✓ Your team has answered',
     waitingForTeam: 'Waiting for your team leader or scorekeeper to answer…',

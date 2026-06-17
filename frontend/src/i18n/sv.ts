@@ -711,6 +711,7 @@ const sv = {
     seeAllResults: 'Se alla {{count}} resultat ↓',
     yourAnswer: '(ditt svar)',
     answerSubmitted: '✓ Svar skickat — väntar på nästa fråga',
+    takeBackAnswer: '↩ Ta tillbaka svar',
     questionLocked: '⏸ Frågan är låst',
     teamAnswered: '✓ Ditt lag har svarat',
     waitingForTeam: 'Väntar på att din lagledare eller resultatskrivare ska svara...',
