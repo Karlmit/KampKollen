@@ -138,6 +138,8 @@ async function computeWinners(competitionId: string): Promise<AwardRecipient[]> 
   for (const cp of competition.players) playerTotalPoints[cp.userId] = 0
 
   const challengeTopScorers: AwardRecipient[] = []
+  // Every member of the winning team of each quiz challenge (team comps only).
+  const quizTeamWinners: AwardRecipient[] = []
 
   for (const cc of competition.challenges) {
     if (cc.scores.length === 0) continue
@@ -209,6 +211,23 @@ async function computeWinners(competitionId: string): Promise<AwardRecipient[]> 
         teamId: t.id,
         score: computeTeamScore(teamPlayerPoints[t.id] ?? [], teamScoreMode, bestN),
       }))
+
+    // Quiz challenges additionally award every member of the quiz's winning team.
+    if (cc.challenge.isQuiz && competition.isTeamCompetition && teamChallengeScores.length > 0) {
+      const topTeam = [...teamChallengeScores].sort((a, b) => lowerBetter ? a.score - b.score : b.score - a.score)[0]
+      if (topTeam && topTeam.score > 0) {
+        const team = competition.teams.find(t => t.id === topTeam.teamId)
+        const members = competition.players.filter(p => p.teamId === topTeam.teamId && !p.user.isDummy)
+        for (const member of members) {
+          quizTeamWinners.push({
+            userId: member.userId,
+            subtitle: `Awarded for being in the **winning team** **${team?.name ?? ''}** of the quiz **${cc.challenge.name}**`,
+            subtitleKey: 'quizWinningTeam',
+            subtitleParams: { team: team?.name ?? '', quiz: cc.challenge.name },
+          })
+        }
+      }
+    }
 
     if (competition.scoringMode === 'placement_points') {
       const ranked = [...teamChallengeScores].sort((a, b) => lowerBetter ? a.score - b.score : b.score - a.score)
@@ -283,6 +302,7 @@ async function computeWinners(competitionId: string): Promise<AwardRecipient[]> 
   }
 
   recipients.push(...challengeTopScorers)
+  recipients.push(...quizTeamWinners)
   return recipients
 }
 

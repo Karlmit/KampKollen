@@ -742,6 +742,7 @@ const en = {
     individualLeaderboard1: '🥇 Awarded for being **top 1** in the **individual leaderboard** during **{{competition}}**',
     individualLeaderboard2: '🥈 Awarded for being **top 2** in the **individual leaderboard** during **{{competition}}**',
     individualLeaderboard3: '🥉 Awarded for being **top 3** in the **individual leaderboard** during **{{competition}}**',
+    quizWinningTeam: 'Awarded for being in the **winning team** **{{team}}** of the quiz **{{quiz}}**',
   },
 
   globalLeaderboard: {
