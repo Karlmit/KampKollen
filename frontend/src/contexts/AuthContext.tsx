@@ -10,7 +10,6 @@ interface AuthContextType {
   logout: () => Promise<void>
   refreshUser: () => Promise<void>
   isAdmin: boolean
-  isReferee: boolean
   hasUnopenedTrophies: boolean
 }
 
@@ -64,7 +63,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       refreshUser,
       isAdmin: user?.globalRole === 'ADMIN',
-      isReferee: user?.globalRole === 'REFEREE' || user?.globalRole === 'ADMIN',
       hasUnopenedTrophies: unreadTrophyCount > 0,
     }}>
       {children}

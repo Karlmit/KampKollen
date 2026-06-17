@@ -1,4 +1,4 @@
-export type GlobalRole = 'PLAYER' | 'REFEREE' | 'ADMIN'
+export type GlobalRole = 'PLAYER' | 'ADMIN'
 
 export interface Group {
   id: string
@@ -97,6 +97,7 @@ export interface CompetitionPlayer {
   team?: Pick<Team, 'id' | 'name'>
   isTeamLeader: boolean
   isScorekeeper: boolean
+  isReferee: boolean
   isQuizMaster: boolean
   joinedAt: string
 }

@@ -16,7 +16,8 @@ const updateShotSchema = z.object({
 })
 
 // Who may enter/edit a shot:
-//   - global ADMIN / REFEREE: any team.
+//   - global ADMIN: any team, any competition.
+//   - per-competition referee: any team in THAT competition.
 //   - per-competition team leader / scorekeeper: their OWN team only — the shot's
 //     target player must be on the same team as the actor.
 async function canEnterScore(
@@ -25,11 +26,13 @@ async function canEnterScore(
   userRole: GlobalRole,
   target: { teamId?: string | null; playerUserId?: string }
 ): Promise<boolean> {
-  if (userRole === GlobalRole.ADMIN || userRole === GlobalRole.REFEREE) return true
+  if (userRole === GlobalRole.ADMIN) return true
   const cp = await prisma.competitionPlayer.findUnique({
     where: { competitionId_userId: { competitionId, userId } },
   })
-  if (!cp || !(cp.isScorekeeper || cp.isTeamLeader) || !cp.teamId) return false
+  if (!cp) return false
+  if (cp.isReferee) return true
+  if (!(cp.isScorekeeper || cp.isTeamLeader) || !cp.teamId) return false
   let targetTeamId = target.teamId ?? null
   if (targetTeamId == null && target.playerUserId) {
     const tp = await prisma.competitionPlayer.findUnique({

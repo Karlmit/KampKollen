@@ -429,7 +429,6 @@ const sv = {
       displayName: 'Visningsnamn',
       role: 'Roll',
       player: 'Spelare',
-      referee: 'Domare',
       adminRole: 'Admin',
       newPassword: 'Nytt lösenord (lämna blankt för att behålla nuvarande)',
       addToCompTitle: 'Lägg till {{name}} i tävling',

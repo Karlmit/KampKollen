@@ -63,6 +63,17 @@ export function CompetitionDetail() {
     },
   })
 
+  // Admin-only: toggle a per-competition role (referee, team leader, scorekeeper,
+  // quiz master) on a player straight from the pool / players view.
+  const [roleUpdatingUserId, setRoleUpdatingUserId] = useState<string | null>(null)
+  const updateRoleMutation = useMutation({
+    mutationFn: ({ userId, patch }: { userId: string; patch: Record<string, boolean> }) =>
+      api.competitions.updatePlayer(id!, userId, patch),
+    onMutate: ({ userId }) => setRoleUpdatingUserId(userId),
+    onSettled: () => setRoleUpdatingUserId(null),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['competition', id] }),
+  })
+
   if (isLoading) return <Layout title=""><LoadingSpinner /></Layout>
   const comp: Competition = data?.competition
   if (!comp) return <Layout title=""><p>{t('competition.notFound')}</p></Layout>
@@ -77,6 +88,38 @@ export function CompetitionDetail() {
   const playerPool = comp.players?.filter((p: CompetitionPlayer) => !p.teamId) ?? []
 
   const lbData: CompetitionLeaderboard | undefined = (lbDataRaw as any)
+
+  // Admin-only per-competition role toggles, rendered under a player's card in the
+  // pool / players view. Referee and Quiz Master are competition-wide; Team Leader
+  // and Scorekeeper are team-scoped, so they only appear once the player is on a
+  // team (a teamless "leader" would have no effect).
+  const renderRoleToggles = (p: CompetitionPlayer) => {
+    if (!isAdmin) return null
+    const hasTeam = !!p.teamId
+    const toggles: { key: keyof CompetitionPlayer; active: boolean; label: string; show: boolean }[] = [
+      { key: 'isReferee', active: p.isReferee, label: t('badges.referee'), show: true },
+      { key: 'isTeamLeader', active: p.isTeamLeader, label: t('badges.leader'), show: hasTeam },
+      { key: 'isScorekeeper', active: p.isScorekeeper, label: t('badges.scorekeeper'), show: hasTeam },
+      { key: 'isQuizMaster', active: p.isQuizMaster, label: t('team.qm'), show: true },
+    ]
+    const busy = updateRoleMutation.isPending && roleUpdatingUserId === p.userId
+    return (
+      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '8px' }}>
+        {toggles.filter(tg => tg.show).map(tg => (
+          <Button
+            key={tg.key}
+            size="sm"
+            variant={tg.active ? 'success' : 'ghost'}
+            loading={busy}
+            onClick={() => updateRoleMutation.mutate({ userId: p.userId, patch: { [tg.key]: !tg.active } })}
+            style={{ fontSize: '11px', padding: '4px 10px' }}
+          >
+            {tg.label}
+          </Button>
+        ))}
+      </div>
+    )
+  }
 
   // The team-competition player pool (unassigned players) is admin-only.
   // Non-team competitions show the full roster to everyone.
@@ -310,9 +353,9 @@ export function CompetitionDetail() {
                       <Avatar src={p.user.profileImageUrl} name={p.user.displayName ?? p.user.username} size={36} />
                       <div>
                         <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700 }}>{p.user.displayName ?? p.user.username}</p>
-                        {(p.isTeamLeader || p.isScorekeeper) && (
+                        {(p.isTeamLeader || p.isScorekeeper || p.isReferee) && (
                           <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                            {[p.isTeamLeader && t('competition.leaderboard'), p.isScorekeeper && t('badges.scorekeeper')].filter(Boolean).join(' · ')}
+                            {[p.isTeamLeader && t('badges.leader'), p.isScorekeeper && t('badges.scorekeeper'), p.isReferee && t('badges.referee')].filter(Boolean).join(' · ')}
                           </p>
                         )}
                       </div>
@@ -325,6 +368,7 @@ export function CompetitionDetail() {
                       </Button>
                     )}
                   </div>
+                  {renderRoleToggles(p)}
                 </Card>
               ))}
             </div>
@@ -362,6 +406,7 @@ export function CompetitionDetail() {
                         </div>
                       )}
                     </div>
+                    {renderRoleToggles(p)}
                   </Card>
                 ))}
               </div>
@@ -403,6 +448,7 @@ export function CompetitionDetail() {
                             </Button>
                           </div>
                         </div>
+                        {renderRoleToggles(p)}
                       </Card>
                     ) : (
                       <Link key={p.userId} to={`/profile/${p.userId}`} style={{ textDecoration: 'none', color: 'inherit' }}>

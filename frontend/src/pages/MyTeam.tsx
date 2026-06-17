@@ -198,6 +198,7 @@ export function MyTeamPage() {
                     {p.user?.isDummy && <Badge style={{ fontSize: '11px', background: 'var(--border-light)', color: 'var(--text-muted)' }}>{t('team.guest')}</Badge>}
                     {p.isTeamLeader && <Badge variant="info" style={{ fontSize: '11px' }}>{t('team.leader')}</Badge>}
                     {p.isScorekeeper && <Badge variant="success" style={{ fontSize: '11px' }}>{t('team.scorekeeper')}</Badge>}
+                    {p.isReferee && <Badge style={{ fontSize: '11px', background: 'var(--accent)', color: '#fff' }}>{t('badges.referee')}</Badge>}
                     {p.isQuizMaster && <Badge style={{ fontSize: '11px', background: 'var(--accent-orange)', color: '#fff' }}>{t('team.qmActive')}</Badge>}
                   </div>
                 </div>

@@ -9,7 +9,6 @@ datasource db {
 
 enum GlobalRole {
   PLAYER
-  REFEREE
   ADMIN
 }
 
@@ -197,6 +196,10 @@ model CompetitionPlayer {
   team          Team?       @relation(fields: [teamId], references: [id])
   isTeamLeader  Boolean     @default(false)
   isScorekeeper Boolean     @default(false)
+  // Per-competition referee: may enter scores for ALL teams in this competition
+  // (via the "All teams" toggle). Admin-assigned only. Competition-wide, unlike
+  // the team-scoped isScorekeeper / isTeamLeader.
+  isReferee     Boolean     @default(false)
   isQuizMaster  Boolean     @default(false)
   joinedAt      DateTime    @default(now())
   updatedAt     DateTime    @updatedAt

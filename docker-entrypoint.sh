@@ -3,18 +3,17 @@ set -e
 
 echo "Setting up KampKollen database schema..."
 
-# Rename the legacy SCOREKEEPER global role to REFEREE if present. Idempotent and
-# a no-op on fresh databases where the type/value doesn't exist yet. Done BEFORE
-# `db push` so the DB enum already matches the schema and push sees no drift (a
-# bare value rename would otherwise force Prisma to drop/recreate the type).
+# GlobalRole is now just PLAYER | ADMIN — the old all-team SCOREKEEPER/REFEREE
+# global roles are gone (referee is a per-competition CompetitionPlayer flag now).
+# Demote any user still holding a removed global role to PLAYER BEFORE `db push`,
+# so recreating the enum without those values doesn't hit rows that reference them.
+# Idempotent and a no-op on fresh databases (guarded by the table check).
 npx prisma db execute --schema prisma/schema.prisma --stdin <<'SQL'
 DO $$
 BEGIN
-  IF EXISTS (
-    SELECT 1 FROM pg_enum e JOIN pg_type t ON e.enumtypid = t.oid
-    WHERE t.typname = 'GlobalRole' AND e.enumlabel = 'SCOREKEEPER'
-  ) THEN
-    ALTER TYPE "GlobalRole" RENAME VALUE 'SCOREKEEPER' TO 'REFEREE';
+  IF to_regclass('public."User"') IS NOT NULL THEN
+    UPDATE "User" SET "globalRole" = 'PLAYER'
+    WHERE "globalRole"::text NOT IN ('PLAYER', 'ADMIN');
   END IF;
 END$$;
 SQL

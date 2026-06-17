@@ -430,7 +430,7 @@ function ShotModal({ open, onClose, playerName, currentValue, maxScore, allowDec
 
 export function ScorekeeperPage() {
   const { id: competitionId } = useParams<{ id: string }>()
-  const { user, isAdmin, isReferee } = useAuth()
+  const { user, isAdmin } = useAuth()
   const qc = useQueryClient()
   const { t } = useTranslation()
   const [selectedCcId, setSelectedCcId] = useState<string | null>(null)
@@ -536,7 +536,7 @@ export function ScorekeeperPage() {
   if (!comp) return <Layout title={t('scorekeeper.enterScores')}><p>{t('scorekeeper.notFound')}</p></Layout>
 
   const myPlayer = comp.players?.find((p: any) => p.userId === user?.id)
-  const canEnterScores = isAdmin || isReferee || myPlayer?.isTeamLeader || myPlayer?.isScorekeeper
+  const canEnterScores = isAdmin || myPlayer?.isReferee || myPlayer?.isTeamLeader || myPlayer?.isScorekeeper
 
   if (!canEnterScores) {
     return (
@@ -607,8 +607,9 @@ export function ScorekeeperPage() {
 
   // Determine which players to show and group by team
   const allPlayers: any[] = comp.players ?? []
-  // Global admins and referees may switch to entering scores for every team.
-  const canAllTeams = isAdmin || isReferee
+  // Global admins and this competition's referees may switch to entering scores
+  // for every team.
+  const canAllTeams = isAdmin || !!myPlayer?.isReferee
   const showAllTeams = canAllTeams && adminAllTeams
   const playersToShow = showAllTeams
     ? allPlayers

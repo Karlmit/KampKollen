@@ -431,7 +431,6 @@ const en = {
       displayName: 'Display name',
       role: 'Role',
       player: 'Player',
-      referee: 'Referee',
       adminRole: 'Admin',
       newPassword: 'New password (leave blank to keep current)',
       addToCompTitle: 'Add {{name}} to competition',

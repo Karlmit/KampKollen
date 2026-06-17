@@ -101,7 +101,7 @@ export async function competitionRoutes(app: FastifyInstance) {
         ...(callerId ? {
           players: {
             where: { userId: callerId },
-            select: { userId: true, isTeamLeader: true, isScorekeeper: true, isQuizMaster: true, teamId: true },
+            select: { userId: true, isTeamLeader: true, isScorekeeper: true, isReferee: true, isQuizMaster: true, teamId: true },
           },
         } : {}),
       },
@@ -421,7 +421,7 @@ export async function competitionRoutes(app: FastifyInstance) {
 
   app.post('/:id/players', { preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
-    const body = request.body as { userId: string; teamId?: string; isTeamLeader?: boolean; isScorekeeper?: boolean }
+    const body = request.body as { userId: string; teamId?: string; isTeamLeader?: boolean; isScorekeeper?: boolean; isReferee?: boolean }
 
     const existing = await prisma.competitionPlayer.findUnique({
       where: { competitionId_userId: { competitionId: id, userId: body.userId } },
@@ -435,6 +435,7 @@ export async function competitionRoutes(app: FastifyInstance) {
         teamId: body.teamId ?? null,
         isTeamLeader: body.isTeamLeader ?? false,
         isScorekeeper: body.isScorekeeper ?? false,
+        isReferee: body.isReferee ?? false,
       },
       include: {
         user: { select: { id: true, username: true, displayName: true } },
@@ -447,7 +448,7 @@ export async function competitionRoutes(app: FastifyInstance) {
   app.put('/:id/players/:userId', { preHandler: requireAuth }, async (request, reply) => {
     const { id, userId } = request.params as { id: string; userId: string }
     const me = request.user as { id: string; role: GlobalRole }
-    const body = request.body as { teamId?: string | null; isTeamLeader?: boolean; isScorekeeper?: boolean; isQuizMaster?: boolean }
+    const body = request.body as { teamId?: string | null; isTeamLeader?: boolean; isScorekeeper?: boolean; isReferee?: boolean; isQuizMaster?: boolean }
 
     if (me.role !== GlobalRole.ADMIN) {
       const myPlayer = await prisma.competitionPlayer.findUnique({
@@ -456,8 +457,8 @@ export async function competitionRoutes(app: FastifyInstance) {
       if (!myPlayer?.isTeamLeader) {
         return reply.status(403).send({ error: 'Admin access required' })
       }
-      if (body.teamId !== undefined || body.isTeamLeader !== undefined || body.isQuizMaster !== undefined) {
-        return reply.status(403).send({ error: 'Only admins can change team assignment, leader, or QM status' })
+      if (body.teamId !== undefined || body.isTeamLeader !== undefined || body.isReferee !== undefined || body.isQuizMaster !== undefined) {
+        return reply.status(403).send({ error: 'Only admins can change team assignment, leader, referee, or QM status' })
       }
       const targetPlayer = await prisma.competitionPlayer.findUnique({
         where: { competitionId_userId: { competitionId: id, userId } },
@@ -659,7 +660,7 @@ export async function competitionRoutes(app: FastifyInstance) {
         // Move real player to dummy's team
         await tx.competitionPlayer.update({
           where: { competitionId_userId: { competitionId: id, userId: body.realUserId } },
-          data: { teamId: dummyPlayer.teamId, isTeamLeader: dummyPlayer.isTeamLeader, isScorekeeper: dummyPlayer.isScorekeeper },
+          data: { teamId: dummyPlayer.teamId, isTeamLeader: dummyPlayer.isTeamLeader, isScorekeeper: dummyPlayer.isScorekeeper, isReferee: dummyPlayer.isReferee },
         })
       } else {
         await tx.competitionPlayer.create({
@@ -669,6 +670,7 @@ export async function competitionRoutes(app: FastifyInstance) {
             teamId: dummyPlayer.teamId,
             isTeamLeader: dummyPlayer.isTeamLeader,
             isScorekeeper: dummyPlayer.isScorekeeper,
+            isReferee: dummyPlayer.isReferee,
           },
         })
       }

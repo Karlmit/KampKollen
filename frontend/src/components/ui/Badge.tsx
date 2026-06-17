@@ -44,7 +44,6 @@ export function RoleBadge({ role }: { role: string }) {
   const { t } = useTranslation()
   const map: Record<string, { key: string; variant: BadgeProps['variant'] }> = {
     ADMIN: { key: 'badges.admin', variant: 'admin' },
-    REFEREE: { key: 'badges.referee', variant: 'info' },
     PLAYER: { key: 'badges.player', variant: 'default' },
   }
   const entry = map[role]

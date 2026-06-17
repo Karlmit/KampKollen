@@ -24,15 +24,3 @@ export async function requireAdmin(request: FastifyRequest, reply: FastifyReply)
 export async function optionalAuth(request: FastifyRequest) {
   try { await request.jwtVerify() } catch { /* unauthenticated — request continues */ }
 }
-
-export async function requireAdminOrReferee(request: FastifyRequest, reply: FastifyReply) {
-  try {
-    await request.jwtVerify()
-    const user = request.user as { role: GlobalRole }
-    if (user.role !== GlobalRole.ADMIN && user.role !== GlobalRole.REFEREE) {
-      return reply.status(403).send({ error: 'Admin or Referee access required' })
-    }
-  } catch {
-    return reply.status(401).send({ error: 'Authentication required' })
-  }
-}
