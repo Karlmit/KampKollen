@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next'
 
 export function ScorePicker() {
   const navigate = useNavigate()
-  const { isAdmin, isScorekeeper } = useAuth()
+  const { isAdmin, isReferee } = useAuth()
   const { t } = useTranslation()
 
   const { data, isLoading } = useQuery({
@@ -21,7 +21,7 @@ export function ScorePicker() {
   })
 
   const competitions = (data?.competitions ?? []) as Competition[]
-  const scorable = scorableCompetitions(competitions, { isAdmin, isScorekeeper })
+  const scorable = scorableCompetitions(competitions, { isAdmin, isReferee })
 
   return (
     <Layout title={t('scorePicker.title')}>

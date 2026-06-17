@@ -1,4 +1,4 @@
-export type GlobalRole = 'PLAYER' | 'SCOREKEEPER' | 'ADMIN'
+export type GlobalRole = 'PLAYER' | 'REFEREE' | 'ADMIN'
 
 export interface Group {
   id: string
@@ -61,6 +61,7 @@ export interface Challenge {
   attemptsPerPlayer?: number | null
   sumAllAttempts?: boolean
   useTeamScoreMode?: boolean
+  attemptLabel?: string
   isGlobalTemplate: boolean
   createdAt: string
 }

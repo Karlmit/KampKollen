@@ -9,7 +9,7 @@ datasource db {
 
 enum GlobalRole {
   PLAYER
-  SCOREKEEPER
+  REFEREE
   ADMIN
 }
 

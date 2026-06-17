@@ -198,7 +198,7 @@ export function AdminUsers() {
             <select value={form.globalRole} onChange={e => setForm(f => ({ ...f, globalRole: e.target.value }))}
               style={{ padding: '10px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', fontSize: '15px' }}>
               <option value="PLAYER">{t('admin.users.player')}</option>
-              <option value="SCOREKEEPER">{t('admin.users.scorekeeper')}</option>
+              <option value="REFEREE">{t('admin.users.referee')}</option>
               <option value="ADMIN">{t('admin.users.adminRole')}</option>
             </select>
           </div>

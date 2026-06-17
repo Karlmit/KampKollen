@@ -59,16 +59,17 @@ export function formatDate(iso: string) {
 const NON_SCORABLE_STATUSES = ['COMPLETED', 'ARCHIVED', 'TEMPLATE']
 
 // A competition is scoreable by the current user when it is still ongoing and
-// the user is allowed to enter scores for it: a global admin/scorekeeper, or a
-// team leader/scorekeeper within that competition. Mirrors the gate in
-// Scorekeeper.tsx so the picker never offers a competition that would bounce.
+// the user is allowed to enter scores for it: a global admin/referee (any team),
+// or a team leader/scorekeeper within that competition (their own team). Mirrors
+// the gate in Scorekeeper.tsx so the picker never offers a competition that would
+// bounce.
 export function scorableCompetitions(
   competitions: any[],
-  opts: { isAdmin: boolean; isScorekeeper: boolean },
+  opts: { isAdmin: boolean; isReferee: boolean },
 ): any[] {
   return competitions.filter((c: any) => {
     if (NON_SCORABLE_STATUSES.includes(c.status)) return false
-    if (opts.isAdmin || opts.isScorekeeper) return true
+    if (opts.isAdmin || opts.isReferee) return true
     return !!(c.myPlayer?.isTeamLeader || c.myPlayer?.isScorekeeper)
   })
 }

@@ -15,17 +15,29 @@ const updateShotSchema = z.object({
   value: z.number().min(0),
 })
 
+// Who may enter/edit a shot:
+//   - global ADMIN / REFEREE: any team.
+//   - per-competition team leader / scorekeeper: their OWN team only — the shot's
+//     target player must be on the same team as the actor.
 async function canEnterScore(
   competitionId: string,
   userId: string,
-  userRole: GlobalRole
+  userRole: GlobalRole,
+  target: { teamId?: string | null; playerUserId?: string }
 ): Promise<boolean> {
-  if (userRole === GlobalRole.ADMIN) return true
-  if (userRole === GlobalRole.SCOREKEEPER) return true
+  if (userRole === GlobalRole.ADMIN || userRole === GlobalRole.REFEREE) return true
   const cp = await prisma.competitionPlayer.findUnique({
     where: { competitionId_userId: { competitionId, userId } },
   })
-  return cp?.isScorekeeper === true || cp?.isTeamLeader === true
+  if (!cp || !(cp.isScorekeeper || cp.isTeamLeader) || !cp.teamId) return false
+  let targetTeamId = target.teamId ?? null
+  if (targetTeamId == null && target.playerUserId) {
+    const tp = await prisma.competitionPlayer.findUnique({
+      where: { competitionId_userId: { competitionId, userId: target.playerUserId } },
+    })
+    targetTeamId = tp?.teamId ?? null
+  }
+  return targetTeamId != null && targetTeamId === cp.teamId
 }
 
 export async function shotRoutes(app: FastifyInstance) {
@@ -126,7 +138,7 @@ export async function shotRoutes(app: FastifyInstance) {
     const body = addShotSchema.safeParse(request.body)
     if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
 
-    if (!(await canEnterScore(competitionId, me.id, me.role))) {
+    if (!(await canEnterScore(competitionId, me.id, me.role, { playerUserId: body.data.userId }))) {
       return reply.status(403).send({ error: 'Not authorized to enter scores' })
     }
 
@@ -178,7 +190,7 @@ export async function shotRoutes(app: FastifyInstance) {
     })
     if (!existing) return reply.status(404).send({ error: 'Shot not found' })
 
-    if (!(await canEnterScore(existing.competitionId, me.id, me.role))) {
+    if (!(await canEnterScore(existing.competitionId, me.id, me.role, { playerUserId: existing.userId }))) {
       return reply.status(403).send({ error: 'Not authorized' })
     }
 
@@ -202,7 +214,7 @@ export async function shotRoutes(app: FastifyInstance) {
     const existing = await prisma.shot.findUnique({ where: { id } })
     if (!existing) return reply.status(404).send({ error: 'Shot not found' })
 
-    if (!(await canEnterScore(existing.competitionId, me.id, me.role))) {
+    if (!(await canEnterScore(existing.competitionId, me.id, me.role, { playerUserId: existing.userId }))) {
       return reply.status(403).send({ error: 'Not authorized' })
     }
 

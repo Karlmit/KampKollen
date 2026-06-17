@@ -12,7 +12,7 @@ function matchItem(to: string, pathname: string) {
 }
 
 export function BottomNav() {
-  const { user, isAdmin, isScorekeeper } = useAuth()
+  const { user, isAdmin, isReferee } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
   const qc = useQueryClient()
@@ -46,7 +46,7 @@ export function BottomNav() {
 
   async function handleScoreNav() {
     const competitions = await getCompetitions()
-    const scorable = scorableCompetitions(competitions, { isAdmin, isScorekeeper })
+    const scorable = scorableCompetitions(competitions, { isAdmin, isReferee })
     // Exactly one scorable competition → jump straight into Enter Score mode.
     // None or several → show the picker so the user can choose which to score.
     if (scorable.length === 1) {
@@ -67,10 +67,10 @@ export function BottomNav() {
     }
   }
 
-  // Show FAB for global admins/scorekeepers, or if user is a team leader/scorekeeper in any active competition.
+  // Show FAB for global admins/referees, or if user is a team leader/scorekeeper in any active competition.
   // Uses myPlayer from the competitions list (always fresh) so the button survives page refreshes.
   const showScoreFab = !!user && (() => {
-    if (isAdmin || isScorekeeper) return true
+    if (isAdmin || isReferee) return true
     const cached = qc.getQueryData<{ competitions: any[] }>(['competitions'])
     return (cached?.competitions ?? []).some((c: any) =>
       (c.status === 'ACTIVE' || c.status === 'REGISTRATION') &&
