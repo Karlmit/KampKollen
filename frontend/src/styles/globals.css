@@ -747,3 +747,13 @@ img {
   .qz-gold-shimmer::after { display: none !important; }
   .qz-selected { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 32%, transparent) !important; }
 }
+
+/* Rich-text editor (quiz question description) — placeholder + content spacing */
+.rte-input:empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+.rte-input:focus { outline: none; }
+.rte-content b, .rte-content strong { font-weight: 700; }
+.rte-content u { text-decoration: underline; }

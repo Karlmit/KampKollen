@@ -10,6 +10,7 @@ import { Button } from '../components/ui/Button'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { IconButton } from '../components/quiz/IconButton'
 import { GenerateImageDialog } from '../components/quiz/GenerateImageDialog'
+import { RichTextEditor } from '../components/ui/RichTextEditor'
 import { api } from '../api/client'
 import { useTranslation } from 'react-i18next'
 
@@ -99,6 +100,49 @@ function SortableOptionRow({ option, onUpdate, onDelete, onImageUpload, onImageR
       </label>
       <IconButton size="sm" title={t('admin.quizEditor.generateAnswerImage')} disabled={generating} onClick={onGenerate}>✨</IconButton>
       <IconButton size="sm" tone="danger" title={t('admin.quizEditor.deleteOption')} onClick={onDelete}>×</IconButton>
+    </div>
+  )
+}
+
+// One individually-scored free-text answer field (e.g. "Year" → 1p). The label
+// is the sub-prompt shown to players; points is the max the QM can award.
+function SortableFieldRow({ field, index, onUpdate, onDelete, canDelete }: {
+  field: any
+  index: number
+  onUpdate: (data: { label?: string; points?: number }) => void
+  onDelete: () => void
+  canDelete: boolean
+}) {
+  const { t } = useTranslation()
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id })
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1,
+    display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 10px',
+    borderRadius: 'var(--radius-sm)', background: 'var(--background)', border: '1.5px solid var(--border-light)',
+  }
+  return (
+    <div ref={setNodeRef} style={style}>
+      <span {...attributes} {...listeners}
+        title={t('admin.quizEditor.reorderHint')}
+        style={{ cursor: 'grab', color: 'var(--border-light)', fontSize: '14px', flexShrink: 0, touchAction: 'none', lineHeight: 1 }}>
+        {GRIP}
+      </span>
+      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 24, height: 24, borderRadius: 'var(--radius-full)', background: 'var(--surface-raised)', color: 'var(--text-muted)', fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px', flexShrink: 0 }}>
+        {index + 1}
+      </span>
+      <input
+        defaultValue={field.label}
+        onBlur={e => { if (e.target.value !== field.label) onUpdate({ label: e.target.value }) }}
+        style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', fontSize: '14px', outline: 'none', fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--text-primary)' }}
+        placeholder={t('admin.quizEditor.fieldLabelPlaceholder')}
+      />
+      <label style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0, fontSize: '12px', color: 'var(--text-muted)' }}>
+        <input type="number" min={1} defaultValue={field.points}
+          onBlur={e => onUpdate({ points: Math.max(1, parseInt(e.target.value) || 1) })}
+          style={{ width: 52, height: 32, padding: '0 6px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)', background: 'var(--surface)', fontSize: '14px', color: 'var(--text-primary)' }} />
+        {t('admin.quizEditor.pointsShort')}
+      </label>
+      <IconButton size="sm" tone="danger" title={t('admin.quizEditor.deleteField')} disabled={!canDelete} onClick={onDelete}>×</IconButton>
     </div>
   )
 }
@@ -195,6 +239,22 @@ export function QuizEditorPage() {
   })
   const removeOptImg = useMutation({
     mutationFn: ({ id }: { id: string }) => api.quiz.removeOptionImage(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz-full', challengeId] }),
+  })
+  const addField = useMutation({
+    mutationFn: (questionId: string) => api.quiz.createField(questionId, { label: '', points: 1 }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz-full', challengeId] }),
+  })
+  const updateField = useMutation({
+    mutationFn: ({ id, ...rest }: { id: string; label?: string; points?: number }) => api.quiz.updateField(id, rest),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz-full', challengeId] }),
+  })
+  const deleteField = useMutation({
+    mutationFn: (id: string) => api.quiz.deleteField(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz-full', challengeId] }),
+  })
+  const reorderFields = useMutation({
+    mutationFn: (order: string[]) => api.quiz.reorderFields(order),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz-full', challengeId] }),
   })
   const genQuizImg = useMutation({
@@ -325,6 +385,16 @@ export function QuizEditorPage() {
                             <IconButton tone="danger" title={t('admin.quizEditor.deleteQuestion')} onClick={() => deleteQ.mutate(q.id)}>🗑</IconButton>
                           </div>
 
+                          {/* Optional rich-text description shown under the question */}
+                          <div style={{ marginBottom: '12px' }}>
+                            <p style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, fontFamily: 'var(--font-ui)' }}>{t('admin.quizEditor.description')}</p>
+                            <RichTextEditor
+                              defaultValue={q.description ?? ''}
+                              placeholder={t('admin.quizEditor.descriptionPlaceholder')}
+                              onCommit={html => { if (html !== (q.description ?? '')) updateQ.mutate({ id: q.id, description: html }) }}
+                            />
+                          </div>
+
                           {/* Image preview */}
                           {q.imageUrl && (
                             <div style={{ position: 'relative', display: 'inline-block', width: '100%', maxWidth: 240, marginBottom: 12 }}>
@@ -388,8 +458,40 @@ export function QuizEditorPage() {
                           <hr style={{ height: 1, background: 'var(--border-light)', border: 'none', margin: '0 0 12px' }} />
 
                           {q.isFreeText ? (
-                            <div style={{ padding: '12px', borderRadius: 'var(--radius-sm)', background: 'var(--surface-raised)', fontSize: '13px', color: 'var(--text-muted)' }}>
-                              {t('admin.quizEditor.freeTextInfo')}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                              <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                                {t('admin.quizEditor.freeTextInfo')}
+                              </p>
+                              <DndContext
+                                sensors={sensors}
+                                collisionDetection={closestCenter}
+                                onDragEnd={({ active, over }) => {
+                                  if (!over || active.id === over.id) return
+                                  const fields = q.fields ?? []
+                                  const oldIdx = fields.findIndex((f: any) => f.id === active.id)
+                                  const newIdx = fields.findIndex((f: any) => f.id === over.id)
+                                  if (oldIdx === -1 || newIdx === -1) return
+                                  reorderFields.mutate(arrayMove(fields, oldIdx, newIdx).map((f: any) => f.id))
+                                }}
+                              >
+                                <SortableContext items={(q.fields ?? []).map((f: any) => f.id)} strategy={verticalListSortingStrategy}>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    {(q.fields ?? []).map((f: any, fi: number) => (
+                                      <SortableFieldRow
+                                        key={f.id}
+                                        field={f}
+                                        index={fi}
+                                        canDelete={(q.fields ?? []).length > 1}
+                                        onUpdate={d => updateField.mutate({ id: f.id, ...d })}
+                                        onDelete={() => deleteField.mutate(f.id)}
+                                      />
+                                    ))}
+                                  </div>
+                                </SortableContext>
+                              </DndContext>
+                              <Button size="sm" variant="ghost" loading={addField.isPending && addField.variables === q.id} onClick={() => addField.mutate(q.id)}>
+                                {t('admin.quizEditor.addField')}
+                              </Button>
                             </div>
                           ) : (
                             <>

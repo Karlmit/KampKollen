@@ -9,8 +9,23 @@ import { Avatar } from '../components/ui/Avatar'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../api/client'
+import { sanitizeRichText } from '../utils'
 import { useTranslation } from 'react-i18next'
 import { CountUp, Confetti } from '../components/quiz/QuizFx'
+
+// Renders the optional rich-text question description (bold/italic/underline)
+// shown beneath the question text. Re-sanitised at render as defence in depth.
+function QuestionDescription({ html }: { html?: string | null }) {
+  const clean = sanitizeRichText(html)
+  if (!clean) return null
+  return (
+    <div
+      className="rte-content"
+      style={{ fontFamily: 'var(--font-ui)', fontSize: '14px', lineHeight: 1.5, color: 'var(--text-muted)', marginTop: 8 }}
+      dangerouslySetInnerHTML={{ __html: clean }}
+    />
+  )
+}
 
 // ── Timer bar ─────────────────────────────────────────────────────────────────
 function TimerBar({ seconds, onExpire }: { seconds: number; onExpire: () => void }) {
@@ -92,6 +107,40 @@ function MiniScoreboard({ questions, teams, players, isTeamComp }: any) {
   )
 }
 
+// Group a free-text question's per-field answers by respondent (team or player),
+// so the QM/correction/completed views can show one card per team/player with all
+// of their field answers (and per-field points) together.
+function groupFieldAnswers(q: any, competition: any, isTeamComp: boolean) {
+  const fields: any[] = q.fields ?? []
+  const map = new Map<string, { key: string; teamId: string | null; userId: string | null; name: string; entries: { field: any; answer: any }[] }>()
+  for (const field of fields) {
+    for (const a of field.answers ?? []) {
+      const key = isTeamComp ? a.teamId : a.userId
+      if (!key) continue
+      if (!map.has(key)) {
+        const name = isTeamComp
+          ? competition.teams.find((x: any) => x.id === a.teamId)?.name ?? a.teamId
+          : competition.players.find((x: any) => x.userId === a.userId)?.user?.displayName ?? competition.players.find((x: any) => x.userId === a.userId)?.user?.username ?? a.userId
+        map.set(key, { key, teamId: a.teamId ?? null, userId: a.userId ?? null, name, entries: [] })
+      }
+      map.get(key)!.entries.push({ field, answer: a })
+    }
+  }
+  for (const r of map.values()) r.entries.sort((x, y) => (x.field.order ?? 0) - (y.field.order ?? 0))
+  return [...map.values()]
+}
+
+// Every submitted field answer locked? Gate for advancing past a free-text question.
+function allFieldAnswersLocked(q: any) {
+  const answers = (q.fields ?? []).flatMap((f: any) => f.answers ?? [])
+  return answers.length === 0 || answers.every((a: any) => a.locked)
+}
+
+// Sum of points the QM has awarded a respondent across all of a question's fields.
+function respondentPoints(entries: { field: any; answer: any }[]) {
+  return entries.reduce((sum, e) => sum + (e.answer.points ?? 0), 0)
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export function QuizPage() {
   const { competitionId, ccId } = useParams<{ competitionId: string; ccId: string }>()
@@ -100,7 +149,7 @@ export function QuizPage() {
   const qc = useQueryClient()
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
-  const [freeTextInput, setFreeTextInput] = useState('')
+  const [freeTextInputs, setFreeTextInputs] = useState<Record<string, string>>({})
   const [confirmStart, setConfirmStart] = useState(false)
   const [countdownSecs, setCountdownSecs] = useState<number | null>(null)
   const [showFullResults, setShowFullResults] = useState(false)
@@ -127,7 +176,7 @@ export function QuizPage() {
   const sessionStatus = data?.session?.status
   const currentIdx = data?.session?.currentQuestionIndex
   const countdownEndsAt: number | null = data?.session?.countdownEndsAt ?? null
-  useEffect(() => { setSelectedOption(null); setSubmitted(false); setFreeTextInput('') }, [currentIdx, sessionStatus])
+  useEffect(() => { setSelectedOption(null); setSubmitted(false); setFreeTextInputs({}) }, [currentIdx, sessionStatus])
 
   // Live countdown tick from server-provided endsAt timestamp
   useEffect(() => {
@@ -142,19 +191,19 @@ export function QuizPage() {
   }, [countdownEndsAt])
 
   const submitAnswer = useMutation({
-    mutationFn: ({ optionId, freeTextAnswer, teamId }: { optionId?: string; freeTextAnswer?: string; teamId?: string }) =>
-      api.quiz.submitAnswer(ccId!, { questionId: currentQ?.id, optionId, freeTextAnswer, teamId }),
+    mutationFn: ({ optionId, fields, teamId }: { optionId?: string; fields?: { fieldId: string; answer: string }[]; teamId?: string }) =>
+      api.quiz.submitAnswer(ccId!, { questionId: currentQ?.id, optionId, fields, teamId }),
     onSuccess: () => { setSubmitted(true); qc.invalidateQueries({ queryKey: ['quiz', ccId] }) },
   })
 
-  const setFreeTextPoints = useMutation({
+  const setFieldPoints = useMutation({
     mutationFn: ({ answerId, points }: { answerId: string; points: number }) =>
-      api.quiz.setFreeTextPoints(ccId!, answerId, points),
+      api.quiz.setFieldPoints(ccId!, answerId, points),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz', ccId] }),
   })
 
-  const toggleFreeTextLock = useMutation({
-    mutationFn: (answerId: string) => api.quiz.toggleFreeTextLock(ccId!, answerId),
+  const toggleFieldLock = useMutation({
+    mutationFn: (answerId: string) => api.quiz.toggleFieldLock(ccId!, answerId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz', ccId] }),
   })
 
@@ -197,11 +246,16 @@ export function QuizPage() {
   }
 
   function handleSubmitFreeText() {
-    const text = freeTextInput.trim()
-    if (!text || currentQ?.locked || session.status !== 'ACTIVE') return
+    if (currentQ?.locked || session.status !== 'ACTIVE') return
+    const fields = (currentQ?.fields ?? []).map((f: any) => ({ fieldId: f.id, answer: (freeTextInputs[f.id] ?? '').trim() }))
+    if (fields.length === 0 || fields.every((f: any) => !f.answer)) return
     const teamId = isTeamComp ? myTeamId ?? undefined : undefined
-    submitAnswer.mutate({ freeTextAnswer: text, teamId })
+    submitAnswer.mutate({ fields, teamId })
   }
+
+  // Whether this player/team has already submitted the current free-text question
+  // (any field filled). Drives the "answer submitted" confirmation card.
+  const myFreeTextSubmitted = (currentQ?.fields ?? []).some((f: any) => f.myAnswer != null)
 
   return (
     <Layout
@@ -394,6 +448,7 @@ export function QuizPage() {
             <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px', lineHeight: 1.4 }}>
               {currentQ.text}
             </p>
+            <QuestionDescription html={currentQ.description} />
             {currentQ.imageUrl && (
               <img src={currentQ.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginTop: 10, display: 'block' }} />
             )}
@@ -404,21 +459,25 @@ export function QuizPage() {
             currentQ.isFreeText ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', color: 'var(--text-muted)' }}>
-                  {t('quiz.freeTextAnswers')} ({currentQ.answeredUserIds?.length ?? currentQ.answeredTeams?.length ?? 0})
+                  {t('quiz.freeTextAnswers')} ({isTeamComp ? currentQ.answeredTeams?.length ?? 0 : currentQ.answeredUserIds?.length ?? 0})
                 </p>
-                {(currentQ.freeTextAnswers ?? []).length === 0 ? (
-                  <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('quiz.freeTextNoAnswers')}</p>
-                ) : (currentQ.freeTextAnswers ?? []).map((a: any) => {
-                  const label = isTeamComp
-                    ? competition.teams.find((x: any) => x.id === a.teamId)?.name ?? a.teamId
-                    : competition.players.find((x: any) => x.userId === a.userId)?.user?.displayName ?? a.userId
-                  return (
-                    <div key={a.id} style={{ padding: '10px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', border: '1px solid var(--border-light)' }}>
-                      <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px', color: 'var(--text-muted)', marginBottom: 4 }}>{label}</p>
-                      <p style={{ fontFamily: 'var(--font-ui)', fontSize: '14px' }}>{a.freeTextAnswer}</p>
+                {(() => {
+                  const respondents = groupFieldAnswers(currentQ, competition, isTeamComp)
+                  if (respondents.length === 0) return <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('quiz.freeTextNoAnswers')}</p>
+                  return respondents.map(r => (
+                    <div key={r.key} style={{ padding: '10px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', border: '1px solid var(--border-light)' }}>
+                      <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px', color: 'var(--text-muted)', marginBottom: 6 }}>{r.name}</p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {r.entries.map(({ field, answer }) => (
+                          <div key={answer.id}>
+                            {field.label && <span style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--text-muted)', marginRight: 6 }}>{field.label}:</span>}
+                            <span style={{ fontFamily: 'var(--font-ui)', fontSize: '14px' }}>{answer.answer}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  )
-                })}
+                  ))
+                })()}
               </div>
             ) : (
               <div className="qz-deal" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -480,20 +539,32 @@ export function QuizPage() {
             <Card padding="14px" style={{ textAlign: 'center' }}>
               <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--text-muted)' }}>
                 {currentQ.isFreeText
-                  ? (currentQ.myFreeTextAnswer ? t('quiz.freeTextAnswerSubmitted') : t('quiz.questionLocked'))
+                  ? (myFreeTextSubmitted ? t('quiz.freeTextAnswerSubmitted') : t('quiz.questionLocked'))
                   : (mySubmittedOption ? t('quiz.answerSubmitted') : t('quiz.questionLocked'))}
               </p>
-              {currentQ.isFreeText && currentQ.myFreeTextAnswer && (
-                <p style={{ fontFamily: 'var(--font-ui)', fontSize: '14px', marginTop: 6, color: 'var(--text-primary)' }}>{currentQ.myFreeTextAnswer}</p>
+              {currentQ.isFreeText && myFreeTextSubmitted && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: 8 }}>
+                  {(currentQ.fields ?? []).map((f: any) => (
+                    <p key={f.id} style={{ fontFamily: 'var(--font-ui)', fontSize: '14px', color: 'var(--text-primary)' }}>
+                      {f.label && <span style={{ color: 'var(--text-muted)', marginRight: 6 }}>{f.label}:</span>}{f.myAnswer}
+                    </p>
+                  ))}
+                </div>
               )}
             </Card>
           ) : !canAct ? (
             <div className="qz-deal" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {currentQ.isFreeText ? (
-                currentQ.myFreeTextAnswer ? (
+                myFreeTextSubmitted ? (
                   <Card padding="14px" style={{ background: 'color-mix(in srgb, var(--accent-green) 8%, transparent)', border: '1px solid var(--accent-green)' }}>
-                    <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', color: 'var(--accent-green)', marginBottom: 4 }}>{t('quiz.teamAnswered')}</p>
-                    <p style={{ fontFamily: 'var(--font-ui)', fontSize: '14px' }}>{currentQ.myFreeTextAnswer}</p>
+                    <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', color: 'var(--accent-green)', marginBottom: 6 }}>{t('quiz.teamAnswered')}</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {(currentQ.fields ?? []).map((f: any) => (
+                        <p key={f.id} style={{ fontFamily: 'var(--font-ui)', fontSize: '14px' }}>
+                          {f.label && <span style={{ color: 'var(--text-muted)', marginRight: 6 }}>{f.label}:</span>}{f.myAnswer}
+                        </p>
+                      ))}
+                    </div>
                   </Card>
                 ) : (
                   <Card padding="14px" style={{ textAlign: 'center', background: 'var(--surface)' }}>
@@ -531,25 +602,40 @@ export function QuizPage() {
               )}
             </div>
           ) : currentQ.isFreeText ? (
-            submitted || currentQ.myFreeTextAnswer ? (
+            submitted || myFreeTextSubmitted ? (
               <Card padding="14px" style={{ textAlign: 'center', background: 'color-mix(in srgb, var(--accent-green) 8%, transparent)', border: '1px solid var(--accent-green)' }}>
                 <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--accent-green)' }}>{t('quiz.freeTextAnswerSubmitted')}</p>
-                <p style={{ fontFamily: 'var(--font-ui)', fontSize: '14px', marginTop: 6 }}>{currentQ.myFreeTextAnswer ?? freeTextInput}</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: 8 }}>
+                  {(currentQ.fields ?? []).map((f: any) => (
+                    <p key={f.id} style={{ fontFamily: 'var(--font-ui)', fontSize: '14px' }}>
+                      {f.label && <span style={{ color: 'var(--text-muted)', marginRight: 6 }}>{f.label}:</span>}{f.myAnswer ?? freeTextInputs[f.id] ?? ''}
+                    </p>
+                  ))}
+                </div>
               </Card>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <textarea
-                  value={freeTextInput}
-                  onChange={e => setFreeTextInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmitFreeText() } }}
-                  placeholder={t('quiz.freeTextPlaceholder')}
-                  rows={3}
-                  style={{ width: '100%', padding: '12px', borderRadius: 'var(--radius)', border: '2px solid var(--border-light)', fontSize: '15px', fontFamily: 'var(--font-ui)', resize: 'vertical', boxSizing: 'border-box', outline: 'none' }}
-                />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {(currentQ.fields ?? []).map((f: any) => (
+                  <div key={f.id} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {f.label && (
+                      <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
+                        <span>{f.label}</span>
+                        <span style={{ fontWeight: 400 }}>{t('quiz.points', { count: f.points })}</span>
+                      </label>
+                    )}
+                    <input
+                      value={freeTextInputs[f.id] ?? ''}
+                      onChange={e => setFreeTextInputs(prev => ({ ...prev, [f.id]: e.target.value }))}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleSubmitFreeText() } }}
+                      placeholder={t('quiz.freeTextPlaceholder')}
+                      style={{ width: '100%', height: 46, padding: '0 12px', borderRadius: 'var(--radius)', border: '2px solid var(--border-light)', fontSize: '15px', fontFamily: 'var(--font-ui)', boxSizing: 'border-box', outline: 'none' }}
+                    />
+                  </div>
+                ))}
                 <Button
                   fullWidth
                   size="lg"
-                  disabled={!freeTextInput.trim()}
+                  disabled={(currentQ.fields ?? []).every((f: any) => !(freeTextInputs[f.id] ?? '').trim())}
                   loading={submitAnswer.isPending}
                   onClick={handleSubmitFreeText}
                 >
@@ -688,93 +774,110 @@ export function QuizPage() {
 
           <Card key={session.correctionIndex} className="qz-question-in">
             <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px', lineHeight: 1.4 }}>{correctionQ.text}</p>
+            <QuestionDescription html={correctionQ.description} />
             {correctionQ.imageUrl && <img src={correctionQ.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginTop: 8, display: 'block' }} />}
           </Card>
 
           {/* Answer options / free text answers */}
           {correctionQ.isFreeText ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {/* Player view: show their own submitted answer; points only revealed once locked */}
-              {!isQM && correctionQ.myFreeTextAnswer && (
+              {/* Player view: their own per-field answers; points revealed once locked */}
+              {!isQM && (correctionQ.fields ?? []).some((f: any) => f.myAnswer != null) && (
                 <Card padding="12px">
-                  <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--text-muted)', marginBottom: 4 }}>{t('quiz.yourAnswer')}</p>
-                  <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px' }}>{correctionQ.myFreeTextAnswer}</p>
-                  {correctionQ.myFreeTextLocked && correctionQ.myFreeTextPoints !== null && (
-                    <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', color: 'var(--accent-green)', marginTop: 4, fontWeight: 700 }}>
-                      {t('quiz.freeTextPointsAwarded', { points: correctionQ.myFreeTextPoints, max: correctionQ.points })}
-                    </p>
-                  )}
+                  <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--text-muted)', marginBottom: 6 }}>{t('quiz.yourAnswer')}</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {(correctionQ.fields ?? []).map((f: any) => (
+                      <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+                        <p style={{ fontFamily: 'var(--font-ui)', fontSize: '15px' }}>
+                          {f.label && <span style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', marginRight: 6 }}>{f.label}:</span>}
+                          <span style={{ fontWeight: 700 }}>{f.myAnswer}</span>
+                        </p>
+                        {f.myLocked && f.myPoints !== null && (
+                          <span style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', color: 'var(--accent-green)', fontWeight: 700, flexShrink: 0 }}>
+                            {t('quiz.freeTextPointsAwarded', { points: f.myPoints, max: f.points })}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </Card>
               )}
 
-              {/* QM view: all submitted answers with +/- point controls and per-answer lock */}
-              {isQM && (
-                <>
-                  <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', color: 'var(--text-muted)', fontWeight: 700 }}>
-                    {t('quiz.freeTextAnswers')}
-                  </p>
-                  {(correctionQ.freeTextAnswers ?? []).length === 0 ? (
-                    <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('quiz.freeTextNoAnswers')}</p>
-                  ) : (correctionQ.freeTextAnswers ?? []).map((a: any) => {
-                    const label = isTeamComp
-                      ? competition.teams.find((x: any) => x.id === a.teamId)?.name ?? a.teamId
-                      : competition.players.find((x: any) => x.userId === a.userId)?.user?.displayName ?? a.userId
-                    const pts = a.freeTextPoints ?? 0
-                    const locked = !!a.freeTextLocked
-                    return (
-                      <div key={a.id} style={{
-                        padding: '10px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--background)',
-                        border: `1.5px solid ${locked ? 'var(--accent-green)' : 'var(--border-light)'}`,
-                        transition: 'border-color 200ms',
-                      }}>
-                        <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px', color: 'var(--text-muted)', marginBottom: 4 }}>{label}</p>
-                        <p style={{ fontFamily: 'var(--font-ui)', fontSize: '15px', marginBottom: 8 }}>{a.freeTextAnswer}</p>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <button
-                            type="button"
-                            onClick={() => !locked && setFreeTextPoints.mutate({ answerId: a.id, points: Math.max(0, pts - 1) })}
-                            disabled={pts <= 0 || locked}
-                            style={{
-                              width: 32, height: 32, borderRadius: '50%', border: '1.5px solid var(--border-light)', background: 'var(--surface)',
-                              fontSize: '18px', cursor: (pts <= 0 || locked) ? 'not-allowed' : 'pointer',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              opacity: (pts <= 0 || locked) ? 0.3 : 1, fontWeight: 700,
-                            }}
-                          >−</button>
-                          <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '16px', minWidth: 48, textAlign: 'center' }}>
-                            {pts}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => !locked && setFreeTextPoints.mutate({ answerId: a.id, points: pts + 1 })}
-                            disabled={locked}
-                            style={{
-                              width: 32, height: 32, borderRadius: '50%', border: '1.5px solid var(--border-light)', background: 'var(--surface)',
-                              fontSize: '18px', cursor: locked ? 'not-allowed' : 'pointer',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              opacity: locked ? 0.3 : 1, fontWeight: 700,
-                            }}
-                          >+</button>
-                          <button
-                            type="button"
-                            onClick={() => toggleFreeTextLock.mutate(a.id)}
-                            style={{
-                              marginLeft: 'auto', padding: '4px 12px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                              border: `1.5px solid ${locked ? 'var(--accent-green)' : 'var(--border-light)'}`,
-                              background: locked ? 'color-mix(in srgb, var(--accent-green) 12%, transparent)' : 'var(--surface)',
-                              color: locked ? 'var(--accent-green)' : 'var(--text-muted)',
-                              fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px',
-                              transition: 'border-color 150ms, background 150ms, color 150ms',
-                            }}
-                          >
-                            {locked ? t('quiz.freeTextLockedStatus') : t('quiz.freeTextLock')}
-                          </button>
+              {/* QM view: one card per respondent; each field scored individually with lock */}
+              {isQM && (() => {
+                const respondents = groupFieldAnswers(correctionQ, competition, isTeamComp)
+                return (
+                  <>
+                    <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', color: 'var(--text-muted)', fontWeight: 700 }}>
+                      {t('quiz.freeTextAnswers')}
+                    </p>
+                    {respondents.length === 0 ? (
+                      <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('quiz.freeTextNoAnswers')}</p>
+                    ) : respondents.map(r => {
+                      const allLocked = r.entries.every(e => e.answer.locked)
+                      return (
+                        <div key={r.key} style={{
+                          padding: '10px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--background)',
+                          border: `1.5px solid ${allLocked ? 'var(--accent-green)' : 'var(--border-light)'}`,
+                          transition: 'border-color 200ms',
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                            <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px' }}>{r.name}</p>
+                            <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '13px', color: 'var(--accent)' }}>
+                              {t('quiz.points', { count: respondentPoints(r.entries) })}
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {r.entries.map(({ field, answer }) => {
+                              const pts = answer.points ?? 0
+                              const locked = !!answer.locked
+                              return (
+                                <div key={answer.id} style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingTop: 8, borderTop: '1px solid var(--border-light)' }}>
+                                  <p style={{ fontFamily: 'var(--font-ui)', fontSize: '14px' }}>
+                                    {field.label && <span style={{ color: 'var(--text-muted)', fontSize: '12px', fontWeight: 700, marginRight: 6 }}>{field.label}:</span>}
+                                    {answer.answer || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>—</span>}
+                                  </p>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => !locked && setFieldPoints.mutate({ answerId: answer.id, points: Math.max(0, pts - 1) })}
+                                      disabled={pts <= 0 || locked}
+                                      style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px solid var(--border-light)', background: 'var(--surface)', fontSize: '18px', cursor: (pts <= 0 || locked) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: (pts <= 0 || locked) ? 0.3 : 1, fontWeight: 700 }}
+                                    >−</button>
+                                    <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '15px', minWidth: 54, textAlign: 'center' }}>
+                                      {pts} / {field.points}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => !locked && setFieldPoints.mutate({ answerId: answer.id, points: Math.min(field.points, pts + 1) })}
+                                      disabled={locked || pts >= field.points}
+                                      style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px solid var(--border-light)', background: 'var(--surface)', fontSize: '18px', cursor: (locked || pts >= field.points) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: (locked || pts >= field.points) ? 0.3 : 1, fontWeight: 700 }}
+                                    >+</button>
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleFieldLock.mutate(answer.id)}
+                                      style={{
+                                        marginLeft: 'auto', padding: '4px 12px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                                        border: `1.5px solid ${locked ? 'var(--accent-green)' : 'var(--border-light)'}`,
+                                        background: locked ? 'color-mix(in srgb, var(--accent-green) 12%, transparent)' : 'var(--surface)',
+                                        color: locked ? 'var(--accent-green)' : 'var(--text-muted)',
+                                        fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px',
+                                        transition: 'border-color 150ms, background 150ms, color 150ms',
+                                      }}
+                                    >
+                                      {locked ? t('quiz.freeTextLockedStatus') : t('quiz.freeTextLock')}
+                                    </button>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    )
-                  })}
-                </>
-              )}
+                      )
+                    })}
+                  </>
+                )
+              })()}
             </div>
           ) : (
             <div className="qz-deal" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -849,8 +952,7 @@ export function QuizPage() {
               <p style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '4px' }}>{t('quiz.quizMaster')}</p>
               <div style={{ display: 'flex', gap: '8px' }}>
                 {correctionQ.isFreeText ? (() => {
-                  const answers = correctionQ.freeTextAnswers ?? []
-                  const allLocked = answers.length === 0 || answers.every((a: any) => a.freeTextLocked)
+                  const allLocked = allFieldAnswersLocked(correctionQ)
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <Button size="sm" disabled={!allLocked} onClick={() => qmMutate(() => api.quiz.nextCorrection(ccId!))}>
@@ -888,13 +990,15 @@ export function QuizPage() {
         const scoreMap: Record<string, number> = {}
         for (const q of questions) {
           if (q.isFreeText) {
-            for (const a of q.freeTextAnswers ?? []) {
-              const pts = a.freeTextPoints ?? 0
-              if (pts <= 0) continue
-              if (isTeamComp && a.teamId) {
-                scoreMap[a.teamId] = (scoreMap[a.teamId] ?? 0) + pts
-              } else if (!isTeamComp && a.userId) {
-                scoreMap[a.userId] = (scoreMap[a.userId] ?? 0) + pts
+            for (const f of q.fields ?? []) {
+              for (const a of f.answers ?? []) {
+                const pts = a.points ?? 0
+                if (pts <= 0) continue
+                if (isTeamComp && a.teamId) {
+                  scoreMap[a.teamId] = (scoreMap[a.teamId] ?? 0) + pts
+                } else if (!isTeamComp && a.userId) {
+                  scoreMap[a.userId] = (scoreMap[a.userId] ?? 0) + pts
+                }
               }
             }
           } else {
@@ -1054,42 +1158,54 @@ export function QuizPage() {
             {questions.map((q: any, qi: number) => (
               <Card key={q.id} padding="14px">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
-                  <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px', flex: 1 }}>
-                    <span style={{ color: 'var(--text-muted)', marginRight: 6 }}>Q{qi + 1}.</span>{q.text}
-                    {q.isFreeText && <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: 8, fontWeight: 400 }}>{t('quiz.freeText')}</span>}
-                  </p>
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: 8, flexShrink: 0 }}>{t('quiz.points', { count: q.points })}</span>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px' }}>
+                      <span style={{ color: 'var(--text-muted)', marginRight: 6 }}>Q{qi + 1}.</span>{q.text}
+                      {q.isFreeText && <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: 8, fontWeight: 400 }}>{t('quiz.freeText')}</span>}
+                    </p>
+                    <QuestionDescription html={q.description} />
+                  </div>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: 8, flexShrink: 0 }}>
+                    {t('quiz.points', { count: q.isFreeText ? (q.fields ?? []).reduce((s: number, f: any) => s + f.points, 0) : q.points })}
+                  </span>
                 </div>
                 {q.imageUrl && (
                   <img src={q.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginBottom: 10, display: 'block' }} />
                 )}
-                {q.isFreeText ? (
+                {q.isFreeText ? (() => {
+                  const respondents = groupFieldAnswers(q, competition, isTeamComp)
+                  const maxPts = (q.fields ?? []).reduce((s: number, f: any) => s + f.points, 0)
+                  return (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {(q.freeTextAnswers ?? []).length === 0 ? (
+                    {respondents.length === 0 ? (
                       <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('quiz.freeTextNoAnswers')}</p>
-                    ) : (q.freeTextAnswers ?? []).map((a: any) => {
-                      const isMine = isTeamComp ? a.teamId === myTeamId : a.userId === user?.id
-                      const label = isTeamComp
-                        ? competition.teams.find((x: any) => x.id === a.teamId)?.name ?? a.teamId
-                        : competition.players.find((x: any) => x.userId === a.userId)?.user?.displayName ?? a.userId
-                      const pts = a.freeTextPoints ?? 0
+                    ) : respondents.map(r => {
+                      const isMine = isTeamComp ? r.teamId === myTeamId : r.userId === user?.id
+                      const pts = respondentPoints(r.entries)
                       return (
-                        <div key={a.id} style={{
+                        <div key={r.key} style={{
                           padding: '8px 12px', borderRadius: 'var(--radius-sm)',
                           border: `1.5px solid ${isMine ? 'var(--accent)' : 'var(--border-light)'}`,
                         }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                            <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-ui)', fontWeight: 700 }}>{label}</p>
+                            <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-ui)', fontWeight: 700 }}>{r.name}</p>
                             <span style={{ fontSize: '12px', fontFamily: 'var(--font-ui)', fontWeight: 700, color: pts > 0 ? 'var(--accent-green)' : 'var(--text-muted)', flexShrink: 0 }}>
-                              {t('quiz.freeTextPointsAwarded', { points: pts, max: q.points })}
+                              {t('quiz.freeTextPointsAwarded', { points: pts, max: maxPts })}
                             </span>
                           </div>
-                          <p style={{ fontSize: '14px', fontFamily: 'var(--font-ui)', marginTop: 4 }}>{a.freeTextAnswer}</p>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4 }}>
+                            {r.entries.map(({ field, answer }) => (
+                              <p key={answer.id} style={{ fontSize: '14px', fontFamily: 'var(--font-ui)' }}>
+                                {field.label && <span style={{ color: 'var(--text-muted)', fontSize: '12px', marginRight: 6 }}>{field.label}:</span>}{answer.answer}
+                              </p>
+                            ))}
+                          </div>
                         </div>
                       )
                     })}
                   </div>
-                ) : (
+                  )
+                })() : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {q.options.map((opt: any) => {
                       const isMine = q.myOptionId === opt.id

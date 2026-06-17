@@ -155,9 +155,9 @@ export const api = {
   // Quiz
   quiz: {
     getState: (ccId: string) => request<any>(`/quiz/${ccId}/state`),
-    createQuestion: (data: { challengeId: string; text: string; points?: number; timerSeconds?: number; isFreeText?: boolean }) =>
+    createQuestion: (data: { challengeId: string; text: string; description?: string; points?: number; timerSeconds?: number; isFreeText?: boolean }) =>
       request<{ question: any }>('/quiz/questions', { method: 'POST', body: JSON.stringify(data) }),
-    updateQuestion: (id: string, data: { text?: string; points?: number; timerSeconds?: number; isFreeText?: boolean }) =>
+    updateQuestion: (id: string, data: { text?: string; description?: string | null; points?: number; timerSeconds?: number; isFreeText?: boolean }) =>
       request<{ question: any }>(`/quiz/questions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteQuestion: (id: string) => request(`/quiz/questions/${id}`, { method: 'DELETE' }),
     reorderQuestions: (order: string[]) => request('/quiz/questions/reorder', { method: 'PUT', body: JSON.stringify({ order }) }),
@@ -173,6 +173,12 @@ export const api = {
     generateQuizImage: (challengeId: string, prompt?: string) =>
       request<{ logoUrl: string }>(`/quiz/challenge/${challengeId}/generate-image`, { method: 'POST', body: JSON.stringify(prompt ? { prompt } : {}) }),
     removeQuizImage: (challengeId: string) => request(`/quiz/challenge/${challengeId}/image`, { method: 'DELETE' }),
+    createField: (questionId: string, data: { label?: string; points?: number }) =>
+      request<{ field: any }>(`/quiz/questions/${questionId}/fields`, { method: 'POST', body: JSON.stringify(data) }),
+    updateField: (id: string, data: { label?: string; points?: number }) =>
+      request<{ field: any }>(`/quiz/fields/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteField: (id: string) => request(`/quiz/fields/${id}`, { method: 'DELETE' }),
+    reorderFields: (order: string[]) => request('/quiz/fields/reorder', { method: 'PUT', body: JSON.stringify({ order }) }),
     createOption: (questionId: string, data: { text: string; isCorrect?: boolean }) =>
       request<{ option: any }>(`/quiz/questions/${questionId}/options`, { method: 'POST', body: JSON.stringify(data) }),
     updateOption: (id: string, data: { text?: string; isCorrect?: boolean }) =>
@@ -198,12 +204,12 @@ export const api = {
     showAnswer: (ccId: string) => request(`/quiz/${ccId}/session/show-answer`, { method: 'POST', body: '{}' }),
     nextCorrection: (ccId: string) => request(`/quiz/${ccId}/session/next-correction`, { method: 'POST', body: '{}' }),
     complete: (ccId: string) => request(`/quiz/${ccId}/session/complete`, { method: 'POST', body: '{}' }),
-    submitAnswer: (ccId: string, data: { questionId: string; optionId?: string; freeTextAnswer?: string; teamId?: string }) =>
+    submitAnswer: (ccId: string, data: { questionId: string; optionId?: string; fields?: { fieldId: string; answer: string }[]; teamId?: string }) =>
       request(`/quiz/${ccId}/answers`, { method: 'POST', body: JSON.stringify(data) }),
-    setFreeTextPoints: (ccId: string, answerId: string, points: number) =>
-      request(`/quiz/${ccId}/answers/${answerId}/points`, { method: 'PUT', body: JSON.stringify({ points }) }),
-    toggleFreeTextLock: (ccId: string, answerId: string) =>
-      request(`/quiz/${ccId}/answers/${answerId}/lock`, { method: 'PUT', body: '{}' }),
+    setFieldPoints: (ccId: string, answerId: string, points: number) =>
+      request(`/quiz/${ccId}/field-answers/${answerId}/points`, { method: 'PUT', body: JSON.stringify({ points }) }),
+    toggleFieldLock: (ccId: string, answerId: string) =>
+      request(`/quiz/${ccId}/field-answers/${answerId}/lock`, { method: 'PUT', body: '{}' }),
     setQuizMaster: (compId: string, userId: string, isQuizMaster: boolean) =>
       request(`/quiz/competition/${compId}/players/${userId}/quiz-master`, { method: 'PUT', body: JSON.stringify({ isQuizMaster }) }),
     history: (groupId?: string | null) =>

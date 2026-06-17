@@ -305,7 +305,10 @@ export async function competitionRoutes(app: FastifyInstance) {
         where: { id: body.data.templateId },
         include: {
           quizQuestions: {
-            include: { options: { orderBy: { order: 'asc' } } },
+            include: {
+              options: { orderBy: { order: 'asc' } },
+              fields: { orderBy: { order: 'asc' } },
+            },
             orderBy: { order: 'asc' },
           },
         },
@@ -323,6 +326,7 @@ export async function competitionRoutes(app: FastifyInstance) {
         quizQuestions: {
           create: template.quizQuestions.map((q: any) => ({
             text: q.text,
+            description: q.description ?? undefined,
             points: q.points,
             timerSeconds: q.timerSeconds,
             isFreeText: q.isFreeText,
@@ -334,6 +338,13 @@ export async function competitionRoutes(app: FastifyInstance) {
                 isCorrect: o.isCorrect,
                 order: o.order,
                 imageUrl: o.imageUrl ?? undefined,
+              })),
+            },
+            fields: {
+              create: q.fields.map((f: any) => ({
+                label: f.label,
+                points: f.points,
+                order: f.order,
               })),
             },
           })),

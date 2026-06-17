@@ -310,6 +310,9 @@ model QuizQuestion {
   challengeId  String
   challenge    Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
   text         String
+  // Optional longer explanation shown under the question. Stores a small subset
+  // of HTML (<b>/<i>/<u>/<br>) produced by the rich-text editor; sanitised on render.
+  description  String?
   imageUrl     String?
   points       Int       @default(1)
   order        Int       @default(0)
@@ -320,6 +323,36 @@ model QuizQuestion {
 
   options QuizOption[]
   answers QuizAnswer[]
+  fields  QuizField[]
+}
+
+// A free-text question can hold one or more individually-scored answer fields
+// (e.g. "Which year did Sweden win?" + "What was the VM song that year?").
+// A simple free-text question is just a question with a single field.
+model QuizField {
+  id         String       @id @default(cuid())
+  questionId String
+  question   QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  label      String       @default("")
+  points     Int          @default(1)
+  order      Int          @default(0)
+
+  answers QuizFieldAnswer[]
+}
+
+model QuizFieldAnswer {
+  id          String    @id @default(cuid())
+  fieldId     String
+  field       QuizField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  answer      String    @default("")
+  points      Int?
+  locked      Boolean   @default(false)
+  userId      String?
+  teamId      String?
+  submittedAt DateTime  @default(now())
+
+  @@unique([fieldId, userId])
+  @@unique([fieldId, teamId])
 }
 
 model QuizOption {

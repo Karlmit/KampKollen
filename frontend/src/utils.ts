@@ -72,3 +72,24 @@ export function scorableCompetitions(
     return !!(c.myPlayer?.isTeamLeader || c.myPlayer?.isScorekeeper || c.myPlayer?.isReferee)
   })
 }
+
+// Sanitise rich text coming from the quiz description editor. Only bold/italic/
+// underline and line breaks survive; everything else (scripts, styles, attributes,
+// other tags) is stripped. Editors are trusted QMs/admins — this is defence in depth
+// before the HTML is rendered to players via dangerouslySetInnerHTML.
+export function sanitizeRichText(html: string | null | undefined): string {
+  if (!html) return ''
+  return html
+    // Normalise the tags execCommand emits to the canonical allowlist.
+    .replace(/<\s*(\/?)\s*strong\b[^>]*>/gi, '<$1b>')
+    .replace(/<\s*(\/?)\s*em\b[^>]*>/gi, '<$1i>')
+    // Block wrappers (div/p) become line breaks.
+    .replace(/<\s*(div|p)\b[^>]*>/gi, '<br>')
+    .replace(/<\/\s*(div|p)\s*>/gi, '')
+    // Drop any tag that is not an allowed formatting tag (keeps attributes out too).
+    .replace(/<(?!\s*\/?\s*(b|i|u|br)\b)[^>]*>/gi, '')
+    // Strip attributes from the allowed opening tags.
+    .replace(/<\s*(b|i|u)\b[^>]*>/gi, (_m, tag: string) => `<${tag.toLowerCase()}>`)
+    .replace(/<\s*br\b[^>]*\/?>/gi, '<br>')
+    .trim()
+}

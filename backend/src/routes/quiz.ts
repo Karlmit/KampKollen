@@ -72,6 +72,22 @@ async function challengeIdFromQuestion(questionId: string): Promise<string | nul
   return q?.challengeId ?? null
 }
 
+// Resolve challengeId from a free-text field id (field → question → challenge)
+async function challengeIdFromField(fieldId: string): Promise<string | null> {
+  const f = await prisma.quizField.findUnique({ where: { id: fieldId }, select: { question: { select: { challengeId: true } } } })
+  return f?.question?.challengeId ?? null
+}
+
+// Ensure a free-text question always has at least one field, so the editor and
+// the live quiz can rely on a uniform field-based model. Returns nothing.
+async function ensureDefaultField(questionId: string) {
+  const count = await prisma.quizField.count({ where: { questionId } })
+  if (count === 0) {
+    const q = await prisma.quizQuestion.findUnique({ where: { id: questionId }, select: { points: true } })
+    await prisma.quizField.create({ data: { questionId, label: '', points: q?.points ?? 1, order: 0 } })
+  }
+}
+
 // Best-effort delete of a stored upload from disk. Handles both the upload
 // ("/uploads/quiz/…") and generated ("uploads/quiz/…") forms; ignores remote
 // placeholder URLs and missing files.
@@ -87,7 +103,7 @@ async function computeAndSaveScores(ccId: string, actorId: string) {
     where: { id: ccId },
     include: {
       competition: { include: { players: true, teams: true } },
-      challenge: { include: { quizQuestions: { include: { options: true, answers: true } } } },
+      challenge: { include: { quizQuestions: { include: { options: true, answers: true, fields: { include: { answers: true } } } } } },
     },
   })
   if (!cc) return
@@ -100,14 +116,16 @@ async function computeAndSaveScores(ccId: string, actorId: string) {
 
   for (const question of cc.challenge.quizQuestions) {
     if (question.isFreeText) {
-      // Free text: use QM-awarded freeTextPoints
-      for (const answer of question.answers) {
-        const pts = answer.freeTextPoints ?? 0
-        if (pts <= 0) continue
-        if (isTeamComp && answer.teamId) {
-          teamPoints[answer.teamId] = (teamPoints[answer.teamId] ?? 0) + pts
-        } else if (!isTeamComp && answer.userId) {
-          playerPoints[answer.userId] = (playerPoints[answer.userId] ?? 0) + pts
+      // Free text: sum the QM-awarded points across every field answer.
+      for (const field of question.fields) {
+        for (const answer of field.answers) {
+          const pts = answer.points ?? 0
+          if (pts <= 0) continue
+          if (isTeamComp && answer.teamId) {
+            teamPoints[answer.teamId] = (teamPoints[answer.teamId] ?? 0) + pts
+          } else if (!isTeamComp && answer.userId) {
+            playerPoints[answer.userId] = (playerPoints[answer.userId] ?? 0) + pts
+          }
         }
       }
     } else {
@@ -165,10 +183,17 @@ export async function quizRoutes(app: FastifyInstance) {
     if (!await canEditQuiz(me.id, me.role, challengeId)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
     const challenge = await prisma.challenge.findUnique({ where: { id: challengeId } })
     if (!challenge) return reply.status(404).send({ error: 'Not found' })
+    // Lazily give every free-text question a default field so legacy questions
+    // created before multi-field support still edit cleanly.
+    const freeTextIds = await prisma.quizQuestion.findMany({ where: { challengeId, isFreeText: true }, select: { id: true } })
+    for (const { id } of freeTextIds) await ensureDefaultField(id)
     const questions = await prisma.quizQuestion.findMany({
       where: { challengeId },
       orderBy: { order: 'asc' },
-      include: { options: { orderBy: { order: 'asc' } } },
+      include: {
+        options: { orderBy: { order: 'asc' } },
+        fields: { orderBy: { order: 'asc' } },
+      },
     })
     return { challenge, questions }
   })
@@ -244,6 +269,10 @@ export async function quizRoutes(app: FastifyInstance) {
               include: {
                 options: { orderBy: { order: 'asc' } },
                 answers: { orderBy: { submittedAt: 'asc' } },
+                fields: {
+                  orderBy: { order: 'asc' },
+                  include: { answers: { orderBy: { submittedAt: 'asc' } } },
+                },
               },
             },
           },
@@ -307,20 +336,51 @@ export async function quizRoutes(app: FastifyInstance) {
         : []
 
       // Free text: include submitted answers (for QM and correction/completed states) with their text and points
-      const freeTextAnswers = q.isFreeText && (isQM || isBeingCorrected || isPastCorrection || isCompleted_)
-        ? q.answers.map(a => ({
-            id: a.id,
-            freeTextAnswer: a.freeTextAnswer,
-            freeTextPoints: a.freeTextPoints,
-            freeTextLocked: a.freeTextLocked,
-            userId: a.userId,
-            teamId: a.teamId,
-          }))
+      const showFreeTextAnswers = isQM || isBeingCorrected || isPastCorrection || isCompleted_
+
+      // Per-field data for free-text questions. `myAnswer`/`myPoints`/`myLocked`
+      // are this player's own submission; `answers` (the full submitted set) is
+      // only exposed to the QM and during correction/completed states.
+      const fields = q.isFreeText
+        ? q.fields.map(f => {
+            const mine = !me ? undefined : isTeamComp
+              ? f.answers.find(a => a.teamId === myTeamId)
+              : f.answers.find(a => a.userId === me.id)
+            return {
+              id: f.id,
+              label: f.label,
+              points: f.points,
+              order: f.order,
+              myAnswer: mine?.answer ?? null,
+              myPoints: mine?.points ?? null,
+              myLocked: mine?.locked ?? false,
+              answers: showFreeTextAnswers
+                ? f.answers.map(a => ({
+                    id: a.id,
+                    answer: a.answer,
+                    points: a.points,
+                    locked: a.locked,
+                    userId: a.userId,
+                    teamId: a.teamId,
+                  }))
+                : [],
+            }
+          })
+        : []
+
+      // Teams/users that have submitted at least one field answer for a free-text
+      // question — drives the "who has answered" count shown to the QM.
+      const freeTextAnsweredTeams = q.isFreeText && isQM && isTeamComp
+        ? [...new Set(q.fields.flatMap(f => f.answers.map(a => a.teamId).filter(Boolean)))]
+        : []
+      const freeTextAnsweredUserIds = q.isFreeText && isQM && !isTeamComp
+        ? [...new Set(q.fields.flatMap(f => f.answers.map(a => a.userId).filter(Boolean)))]
         : []
 
       return {
         id: q.id,
         text: showOptions ? q.text : null,
+        description: showOptions ? q.description : null,
         imageUrl: showOptions ? q.imageUrl : null,
         points: q.points,
         timerSeconds: q.timerSeconds,
@@ -334,13 +394,10 @@ export async function quizRoutes(app: FastifyInstance) {
           isCorrect: showAnswers ? o.isCorrect : undefined,
         })) : [],
         myOptionId: myAnswer?.optionId ?? null,
-        myFreeTextAnswer: q.isFreeText ? (myAnswer?.freeTextAnswer ?? null) : null,
-        myFreeTextPoints: q.isFreeText ? (myAnswer?.freeTextPoints ?? null) : null,
-        myFreeTextLocked: q.isFreeText ? (myAnswer?.freeTextLocked ?? false) : null,
-        answeredTeams,
-        answeredUserIds,
+        fields,
+        answeredTeams: q.isFreeText ? freeTextAnsweredTeams : answeredTeams,
+        answeredUserIds: q.isFreeText ? freeTextAnsweredUserIds : answeredUserIds,
         answerCounts,
-        freeTextAnswers,
         locked: session.status === 'ACTIVE' && (idx < session.currentQuestionIndex || session.questionLocked),
       }
     })
@@ -380,6 +437,7 @@ export async function quizRoutes(app: FastifyInstance) {
     const body = z.object({
       challengeId: z.string(),
       text: z.string().min(1),
+      description: z.string().optional(),
       points: z.number().int().min(1).default(3),
       timerSeconds: z.number().int().min(0).default(0),
       isFreeText: z.boolean().default(false),
@@ -392,6 +450,7 @@ export async function quizRoutes(app: FastifyInstance) {
       data: { ...body.data, order: (maxOrder._max.order ?? -1) + 1 },
       include: { options: true },
     })
+    if (question.isFreeText) await ensureDefaultField(question.id)
     return reply.status(201).send({ question })
   })
 
@@ -402,12 +461,14 @@ export async function quizRoutes(app: FastifyInstance) {
     if (!cid || !await canEditQuiz(me.id, me.role, cid)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
     const body = z.object({
       text: z.string().min(1).optional(),
+      description: z.string().nullable().optional(),
       points: z.number().int().min(1).optional(),
       timerSeconds: z.number().int().min(0).optional(),
       isFreeText: z.boolean().optional(),
     }).safeParse(request.body)
     if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
     const question = await prisma.quizQuestion.update({ where: { id }, data: body.data, include: { options: true } })
+    if (question.isFreeText) await ensureDefaultField(question.id)
     return { question }
   })
 
@@ -429,6 +490,59 @@ export async function quizRoutes(app: FastifyInstance) {
       if (!cid || !await canEditQuiz(me.id, me.role, cid)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
     }
     await Promise.all(body.data.order.map((id, i) => prisma.quizQuestion.update({ where: { id }, data: { order: i } })))
+    return { success: true }
+  })
+
+  // ── Free-text field CRUD (admin or QM) ──────────────────────────────────────
+  app.post('/questions/:questionId/fields', { preHandler: requireAuth }, async (request, reply) => {
+    const { questionId } = request.params as { questionId: string }
+    const me = request.user as { id: string; role: string }
+    const cid = await challengeIdFromQuestion(questionId)
+    if (!cid || !await canEditQuiz(me.id, me.role, cid)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
+    const body = z.object({ label: z.string().default(''), points: z.number().int().min(1).default(1) }).safeParse(request.body)
+    if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
+    const maxOrder = await prisma.quizField.aggregate({ where: { questionId }, _max: { order: true } })
+    const field = await prisma.quizField.create({
+      data: { questionId, label: body.data.label, points: body.data.points, order: (maxOrder._max.order ?? -1) + 1 },
+    })
+    return reply.status(201).send({ field })
+  })
+
+  app.put('/fields/:id', { preHandler: requireAuth }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const me = request.user as { id: string; role: string }
+    const cid = await challengeIdFromField(id)
+    if (!cid || !await canEditQuiz(me.id, me.role, cid)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
+    const body = z.object({ label: z.string().optional(), points: z.number().int().min(1).optional() }).safeParse(request.body)
+    if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
+    const field = await prisma.quizField.update({ where: { id }, data: body.data })
+    return { field }
+  })
+
+  app.delete('/fields/:id', { preHandler: requireAuth }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const me = request.user as { id: string; role: string }
+    const cid = await challengeIdFromField(id)
+    if (!cid || !await canEditQuiz(me.id, me.role, cid)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
+    // Keep at least one field on a free-text question.
+    const field = await prisma.quizField.findUnique({ where: { id }, select: { questionId: true } })
+    if (field) {
+      const count = await prisma.quizField.count({ where: { questionId: field.questionId } })
+      if (count <= 1) return reply.status(400).send({ error: 'A free-text question must keep at least one field' })
+    }
+    await prisma.quizField.delete({ where: { id } })
+    return { success: true }
+  })
+
+  app.put('/fields/reorder', { preHandler: requireAuth }, async (request, reply) => {
+    const me = request.user as { id: string; role: string }
+    const body = z.object({ order: z.array(z.string()) }).safeParse(request.body)
+    if (!body.success) return reply.status(400).send({ error: 'order must be an array of IDs' })
+    if (body.data.order.length > 0) {
+      const cid = await challengeIdFromField(body.data.order[0])
+      if (!cid || !await canEditQuiz(me.id, me.role, cid)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
+    }
+    await Promise.all(body.data.order.map((id, i) => prisma.quizField.update({ where: { id }, data: { order: i } })))
     return { success: true }
   })
 
@@ -739,7 +853,7 @@ export async function quizRoutes(app: FastifyInstance) {
     const body = z.object({
       questionId: z.string(),
       optionId: z.string().optional(),
-      freeTextAnswer: z.string().optional(),
+      fields: z.array(z.object({ fieldId: z.string(), answer: z.string() })).optional(),
       teamId: z.string().optional(),
     }).safeParse(request.body)
     if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
@@ -758,20 +872,26 @@ export async function quizRoutes(app: FastifyInstance) {
     }
 
     if (currentQ.isFreeText) {
-      const freeText = body.data.freeTextAnswer?.trim() ?? ''
+      if (!body.data.fields || body.data.fields.length === 0) return reply.status(400).send({ error: 'fields required for free text question' })
       const { teamId } = body.data
-      if (teamId) {
-        await prisma.quizAnswer.upsert({
-          where: { questionId_teamId: { questionId: body.data.questionId, teamId } },
-          create: { questionId: body.data.questionId, freeTextAnswer: freeText, teamId, submittedAt: new Date() },
-          update: { freeTextAnswer: freeText, submittedAt: new Date() },
-        })
-      } else {
-        await prisma.quizAnswer.upsert({
-          where: { questionId_userId: { questionId: body.data.questionId, userId: me.id } },
-          create: { questionId: body.data.questionId, freeTextAnswer: freeText, userId: me.id, submittedAt: new Date() },
-          update: { freeTextAnswer: freeText, submittedAt: new Date() },
-        })
+      // Only accept answers for fields that actually belong to this question.
+      const validFieldIds = new Set((await prisma.quizField.findMany({ where: { questionId: body.data.questionId }, select: { id: true } })).map(f => f.id))
+      for (const { fieldId, answer } of body.data.fields) {
+        if (!validFieldIds.has(fieldId)) continue
+        const text = answer.trim()
+        if (teamId) {
+          await prisma.quizFieldAnswer.upsert({
+            where: { fieldId_teamId: { fieldId, teamId } },
+            create: { fieldId, answer: text, teamId, submittedAt: new Date() },
+            update: { answer: text, submittedAt: new Date() },
+          })
+        } else {
+          await prisma.quizFieldAnswer.upsert({
+            where: { fieldId_userId: { fieldId, userId: me.id } },
+            create: { fieldId, answer: text, userId: me.id, submittedAt: new Date() },
+            update: { answer: text, submittedAt: new Date() },
+          })
+        }
       }
     } else {
       if (!body.data.optionId) return reply.status(400).send({ error: 'optionId required for multiple choice question' })
@@ -794,36 +914,35 @@ export async function quizRoutes(app: FastifyInstance) {
     return { success: true }
   })
 
-  // ── Set points for a free text answer (QM only) ─────────────────────────────
-  app.put('/:ccId/answers/:answerId/points', { preHandler: requireAuth }, async (request, reply) => {
+  // ── Set points for a free-text field answer (QM only) ───────────────────────
+  app.put('/:ccId/field-answers/:answerId/points', { preHandler: requireAuth }, async (request, reply) => {
     const { ccId, answerId } = request.params as { ccId: string; answerId: string }
     const me = request.user as { id: string; role: string }
     if (!await isQM(me.id, ccId)) return reply.status(403).send({ error: 'QM or admin required' })
 
-    const answer = await prisma.quizAnswer.findUnique({
-      where: { id: answerId },
-      include: { question: true },
-    })
+    const answer = await prisma.quizFieldAnswer.findUnique({ where: { id: answerId }, include: { field: true } })
     if (!answer) return reply.status(404).send({ error: 'Answer not found' })
 
     const body = z.object({ points: z.number().int().min(0) }).safeParse(request.body)
     if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
 
-    await prisma.quizAnswer.update({ where: { id: answerId }, data: { freeTextPoints: body.data.points } })
+    // Clamp to the field's max so a fat-fingered "+" can't exceed the field value.
+    const points = Math.min(body.data.points, answer.field.points)
+    await prisma.quizFieldAnswer.update({ where: { id: answerId }, data: { points } })
     broadcast(ccId)
     return { success: true }
   })
 
-  // ── Toggle lock on a free text answer (QM only) ─────────────────────────────
-  app.put('/:ccId/answers/:answerId/lock', { preHandler: requireAuth }, async (request, reply) => {
+  // ── Toggle lock on a free-text field answer (QM only) ───────────────────────
+  app.put('/:ccId/field-answers/:answerId/lock', { preHandler: requireAuth }, async (request, reply) => {
     const { ccId, answerId } = request.params as { ccId: string; answerId: string }
     const me = request.user as { id: string; role: string }
     if (!await isQM(me.id, ccId)) return reply.status(403).send({ error: 'QM or admin required' })
 
-    const answer = await prisma.quizAnswer.findUnique({ where: { id: answerId } })
+    const answer = await prisma.quizFieldAnswer.findUnique({ where: { id: answerId } })
     if (!answer) return reply.status(404).send({ error: 'Answer not found' })
 
-    await prisma.quizAnswer.update({ where: { id: answerId }, data: { freeTextLocked: !answer.freeTextLocked } })
+    await prisma.quizFieldAnswer.update({ where: { id: answerId }, data: { locked: !answer.locked } })
     broadcast(ccId)
     return { success: true }
   })
