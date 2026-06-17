@@ -623,10 +623,19 @@ export function ScorekeeperPage() {
       poolPlayers.push(p)
     }
   }
-  const groupedTeams = [
-    ...Object.values(teamMap),
-    ...(poolPlayers.length > 0 ? [{ id: null as any, name: t('scorekeeper.playerPool'), players: poolPlayers }] : []),
-  ]
+  // Least Time Difference is scored per TEAM, not per player, so the list of
+  // entries must come from the competition's teams directly. Deriving it from
+  // `comp.players` (as the player-based modes do) means teams with no players
+  // individually added — or any team when the admin isn't a participant — never
+  // render, leaving the "all teams" toggle showing nothing.
+  const allTeams: any[] = comp.teams ?? []
+  const groupedTeams = isTimeDiff
+    ? (showAllTeams ? allTeams : allTeams.filter((tm: any) => tm.id === myPlayer?.teamId))
+        .map((tm: any) => ({ id: tm.id, name: tm.name, players: tm.players ?? [] }))
+    : [
+        ...Object.values(teamMap),
+        ...(poolPlayers.length > 0 ? [{ id: null as any, name: t('scorekeeper.playerPool'), players: poolPlayers }] : []),
+      ]
   const showTeamHeaders = showAllTeams || groupedTeams.length > 1
 
   return (
