@@ -733,6 +733,14 @@ const en = {
     generationFailed: 'Image generation failed',
   },
 
+  trophySubtitle: {
+    topScore: 'Awarded for having the **top score** in **{{challenge}}** in **{{competition}}**',
+    placement1: '🥇 **1st place** in **{{competition}}**',
+    placement2: '🥈 **2nd place** in **{{competition}}**',
+    placement3: '🥉 **3rd place** in **{{competition}}**',
+    winningTeam: 'Awarded for being in the **winning team** **{{team}}** in **{{competition}}**',
+  },
+
   globalLeaderboard: {
     title: 'Scores',
     competitions: 'Competitions',

@@ -82,7 +82,7 @@ export async function trophyRoutes(app: FastifyInstance) {
             ...(activeGroupIds.length > 0 ? { groupId: { in: activeGroupIds } } : {}),
           },
           orderBy: { sentAt: 'desc' },
-          select: { id: true, title: true, titleSv: true, subtitle: true, imageUrl: true, sentAt: true },
+          select: { id: true, title: true, titleSv: true, subtitle: true, subtitleKey: true, subtitleParams: true, imageUrl: true, sentAt: true },
         },
       },
     })

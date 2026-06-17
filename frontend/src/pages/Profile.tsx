@@ -13,7 +13,7 @@ import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { ProfileImageGenerator } from '../components/ProfileImageGenerator'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../api/client'
-import { formatScore, extractScoreValue, trophyTitle } from '../utils'
+import { formatScore, extractScoreValue, trophyTitle, trophySubtitle } from '../utils'
 import { BoldText } from '../components/ui/BoldText'
 import { useTranslation } from 'react-i18next'
 
@@ -93,12 +93,12 @@ function TrophyCard({ trophy, isSelf, adminMode, giftAnimData, onOpen, onTakeBac
           }}>
             {title}
           </p>
-          {trophy.subtitle && (
+          {(trophy.subtitleKey || trophy.subtitle) && (
             <p style={{
               fontSize: '9px', textAlign: 'center', color: 'var(--text-muted)',
               lineHeight: 1.3, maxWidth: 88, wordBreak: 'break-word',
             }}>
-              <BoldText text={trophy.subtitle} />
+              <BoldText text={trophySubtitle(trophy, t)} />
             </p>
           )}
         </div>

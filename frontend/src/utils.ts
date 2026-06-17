@@ -37,6 +37,17 @@ export function trophyTitle(trophy: { title?: string; titleSv?: string | null },
   return trophy.title ?? ''
 }
 
+// Resolve a trophy's subtitle. New awards carry a structured i18n key + params
+// and render in the active language; older awards only have a static (English)
+// `subtitle` string, which is used as the fallback.
+export function trophySubtitle(
+  trophy: { subtitle?: string | null; subtitleKey?: string | null; subtitleParams?: Record<string, unknown> | null },
+  t: (...args: any[]) => unknown,
+): string {
+  if (trophy.subtitleKey) return String(t(`trophySubtitle.${trophy.subtitleKey}`, trophy.subtitleParams ?? {}))
+  return trophy.subtitle ?? ''
+}
+
 export function formatDate(iso: string) {
   const d = new Date(iso)
   const day = d.getUTCDate().toString().padStart(2, '0')

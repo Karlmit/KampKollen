@@ -80,6 +80,8 @@ model Trophy {
   title                    String
   titleSv                  String?
   subtitle                 String?
+  subtitleKey              String?
+  subtitleParams           Json?
   imageUrl                 String
   userId                   String?
   user                     User?        @relation("UserTrophies", fields: [userId], references: [id])

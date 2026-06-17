@@ -9,7 +9,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useGroup } from '../contexts/GroupContext'
 import { BoldText } from '../components/ui/BoldText'
 import { api } from '../api/client'
-import { formatDate, formatScore, trophyTitle } from '../utils'
+import { formatDate, formatScore, trophyTitle, trophySubtitle } from '../utils'
 import { useTranslation } from 'react-i18next'
 
 type View = 'competitions' | 'challenges' | 'awards' | 'quizHistory'
@@ -292,8 +292,8 @@ export function GlobalLeaderboard() {
                         />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>{trophyTitle(trophy, i18n.language)}</p>
-                          {trophy.subtitle && (
-                            <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px', lineHeight: 1.4 }}><BoldText text={trophy.subtitle} /></p>
+                          {(trophy.subtitleKey || trophy.subtitle) && (
+                            <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px', lineHeight: 1.4 }}><BoldText text={trophySubtitle(trophy, t)} /></p>
                           )}
                         </div>
                       </div>

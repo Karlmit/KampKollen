@@ -104,7 +104,12 @@ export async function ensureForCompetition(competitionId: string): Promise<void>
 
 interface AwardRecipient {
   userId: string
+  // English fallback sentence (kept for non-UI consumers / older clients).
   subtitle: string
+  // i18n key within the `trophySubtitle` namespace + its interpolation params,
+  // so the frontend can render the subtitle in the active language.
+  subtitleKey: string
+  subtitleParams: Record<string, string | number>
 }
 
 async function computeWinners(competitionId: string): Promise<AwardRecipient[]> {
@@ -166,6 +171,8 @@ async function computeWinners(competitionId: string): Promise<AwardRecipient[]> 
       challengeTopScorers.push({
         userId: sortedPlayers[0][0],
         subtitle: `Awarded for having the **top score** in **${cc.challenge.name}** in **${competition.name}**`,
+        subtitleKey: 'topScore',
+        subtitleParams: { challenge: cc.challenge.name, competition: competition.name },
       })
     }
 
@@ -220,6 +227,7 @@ async function computeWinners(competitionId: string): Promise<AwardRecipient[]> 
   if (!competition.isTeamCompetition) {
     // Individual competition: top 3 players by total points
     const posLabels = ['🥇 **1st place**', '🥈 **2nd place**', '🥉 **3rd place**']
+    const placementKeys = ['placement1', 'placement2', 'placement3']
     const top3 = Object.entries(playerTotalPoints)
       .filter(([userId]) => {
         const cp = competition.players.find(p => p.userId === userId)
@@ -233,6 +241,8 @@ async function computeWinners(competitionId: string): Promise<AwardRecipient[]> 
       recipients.push({
         userId,
         subtitle: `${posLabels[i]} in **${competition.name}**`,
+        subtitleKey: placementKeys[i],
+        subtitleParams: { competition: competition.name },
       })
     }
   } else {
@@ -248,6 +258,8 @@ async function computeWinners(competitionId: string): Promise<AwardRecipient[]> 
         recipients.push({
           userId: member.userId,
           subtitle: `Awarded for being in the **winning team** **${winningTeam.name}** in **${competition.name}**`,
+          subtitleKey: 'winningTeam',
+          subtitleParams: { team: winningTeam.name, competition: competition.name },
         })
       }
     }
@@ -311,6 +323,8 @@ export async function awardCompetitionTrophies(competitionId: string): Promise<v
         data: {
           userId: recipient.userId,
           subtitle: recipient.subtitle,
+          subtitleKey: recipient.subtitleKey,
+          subtitleParams: recipient.subtitleParams,
           sentAt: now,
           isOpened: false,
           reservedForCompetitionId: null,

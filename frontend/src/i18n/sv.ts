@@ -731,6 +731,14 @@ const sv = {
     generationFailed: 'Bildgenerering misslyckades',
   },
 
+  trophySubtitle: {
+    topScore: 'Tilldelat för **högsta poängen** i **{{challenge}}** i **{{competition}}**',
+    placement1: '🥇 **1:a plats** i **{{competition}}**',
+    placement2: '🥈 **2:a plats** i **{{competition}}**',
+    placement3: '🥉 **3:e plats** i **{{competition}}**',
+    winningTeam: 'Tilldelat för att ha varit i det **vinnande laget** **{{team}}** i **{{competition}}**',
+  },
+
   globalLeaderboard: {
     title: 'Resultat',
     competitions: 'Tävlingar',
