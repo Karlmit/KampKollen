@@ -1,3 +1,5 @@
+import type { LocalizedName } from '../utils'
+
 const BASE = 'api'
 
 class ApiError extends Error {
@@ -126,8 +128,8 @@ export const api = {
 
   // Image prompt options (subjects/clothes/accessories)
   imageOptions: {
-    get: () => request<{ subjects: string[]; clothes: string[]; accessories: string[] }>('/image-options'),
-    update: (data: { subjects?: string[]; clothes?: string[]; accessories?: string[] }) =>
+    get: () => request<{ subjects: LocalizedName[]; clothes: LocalizedName[]; accessories: LocalizedName[] }>('/image-options'),
+    update: (data: { subjects?: LocalizedName[]; clothes?: LocalizedName[]; accessories?: LocalizedName[] }) =>
       request<{ success: boolean }>('/image-options', { method: 'PUT', body: JSON.stringify(data) }),
   },
 
@@ -138,15 +140,15 @@ export const api = {
     getStorage: () => request<{ trophies: any[] }>('/trophies/storage'),
     getForUser: (userId: string) => request<{ trophies: any[] }>(`/trophies/user/${userId}`),
     history: (groupId?: string | null) => request<{ players: any[] }>(`/trophies/history${groupId ? `?groupId=${groupId}` : ''}`),
-    generate: (word?: string) => request<{ trophy: any }>('/trophies/generate', { method: 'POST', body: JSON.stringify({ word }) }),
+    generate: (word?: string, wordSv?: string) => request<{ trophy: any }>('/trophies/generate', { method: 'POST', body: JSON.stringify({ word, wordSv }) }),
     reserve: (id: string, competitionId: string | null) => request<{ trophy: any }>(`/trophies/${id}/reserve`, { method: 'PUT', body: JSON.stringify({ competitionId }) }),
     generateSend: (userId: string) => request<{ trophy: any }>('/trophies/generate-send', { method: 'POST', body: JSON.stringify({ userId }) }),
     send: (id: string, userId: string) => request<{ trophy: any }>(`/trophies/${id}/send`, { method: 'POST', body: JSON.stringify({ userId }) }),
     takeBack: (id: string) => request<{ trophy: any }>(`/trophies/${id}/take-back`, { method: 'POST', body: '{}' }),
     open: (id: string) => request<{ trophy: any }>(`/trophies/${id}/open`, { method: 'POST', body: '{}' }),
     delete: (id: string) => request(`/trophies/${id}`, { method: 'DELETE' }),
-    getWords: () => request<{ words: string[] }>('/admin/trophy-words'),
-    updateWords: (words: string[]) => request<{ success: boolean }>('/admin/trophy-words', { method: 'PUT', body: JSON.stringify({ words }) }),
+    getWords: () => request<{ words: LocalizedName[] }>('/admin/trophy-words'),
+    updateWords: (words: LocalizedName[]) => request<{ success: boolean }>('/admin/trophy-words', { method: 'PUT', body: JSON.stringify({ words }) }),
   },
 
   // Quiz

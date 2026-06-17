@@ -13,7 +13,7 @@ import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { ProfileImageGenerator } from '../components/ProfileImageGenerator'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../api/client'
-import { formatScore, extractScoreValue } from '../utils'
+import { formatScore, extractScoreValue, trophyTitle } from '../utils'
 import { BoldText } from '../components/ui/BoldText'
 import { useTranslation } from 'react-i18next'
 
@@ -25,9 +25,10 @@ function TrophyCard({ trophy, isSelf, adminMode, giftAnimData, onOpen, onTakeBac
   onOpen: () => void
   onTakeBack: () => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [playing, setPlaying] = useState(false)
   const [revealed, setRevealed] = useState(trophy.isOpened)
+  const title = trophyTitle(trophy, i18n.language)
 
   const handleClick = () => {
     if (!isSelf || revealed || playing || !giftAnimData) return
@@ -50,7 +51,7 @@ function TrophyCard({ trophy, isSelf, adminMode, giftAnimData, onOpen, onTakeBac
       {showContent ? (
         <img
           src={imgUrl}
-          alt={trophy.title}
+          alt={title}
           style={{ width: 80, height: 80, borderRadius: 'var(--radius)', objectFit: 'cover', opacity: revealed ? 1 : 0.7 }}
         />
       ) : giftAnimData ? (
@@ -90,7 +91,7 @@ function TrophyCard({ trophy, isSelf, adminMode, giftAnimData, onOpen, onTakeBac
             textAlign: 'center', color: 'var(--text-primary)', lineHeight: 1.2,
             maxWidth: 88, wordBreak: 'break-word',
           }}>
-            {trophy.title}
+            {title}
           </p>
           {trophy.subtitle && (
             <p style={{

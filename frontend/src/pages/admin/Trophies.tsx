@@ -9,22 +9,106 @@ import { Modal } from '../../components/ui/Modal'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { api } from '../../api/client'
 import { useTranslation } from 'react-i18next'
+import { trophyTitle, type LocalizedName } from '../../utils'
 
-function WordList({ words, generatingWord, onAdd, onRemove, onGenerate }: {
-  words: string[]
+function WordRow({ word, generatingWord, onRemove, onGenerate, onUpdateSv }: {
+  word: LocalizedName
   generatingWord: string | null
-  onAdd: (w: string) => void
-  onRemove: (w: string) => void
-  onGenerate: (w: string) => void
+  onRemove: (en: string) => void
+  onGenerate: (word: LocalizedName) => void
+  onUpdateSv: (en: string, sv: string) => void
 }) {
   const { t } = useTranslation()
-  const [newWord, setNewWord] = useState('')
+  const [sv, setSv] = useState(word.sv ?? '')
+
+  // Keep local input in sync if the word list is reloaded from the server.
+  useEffect(() => { setSv(word.sv ?? '') }, [word.sv])
+
+  const commit = () => {
+    const trimmed = sv.trim()
+    if (trimmed !== (word.sv ?? '')) onUpdateSv(word.en, trimmed)
+  }
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div style={{ flex: 1, display: 'flex', gap: '6px', minWidth: 0 }}>
+        <span style={{
+          flex: 1, minWidth: 0, fontFamily: 'var(--font-ui)', fontSize: '13px',
+          background: 'var(--surface)', border: '1px solid var(--border-light)',
+          borderRadius: 'var(--radius-sm)', padding: '6px 10px',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {word.en}
+        </span>
+        <input
+          value={sv}
+          onChange={e => setSv(e.target.value)}
+          onBlur={commit}
+          onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+          placeholder={t('admin.trophies.swedishNamePlaceholder')}
+          style={{
+            flex: 1, minWidth: 0, fontFamily: 'var(--font-ui)', fontSize: '13px',
+            background: 'var(--surface)', border: '1px solid var(--border-light)',
+            borderRadius: 'var(--radius-sm)', padding: '6px 10px', outline: 'none',
+            color: 'var(--text-primary)',
+          }}
+        />
+      </div>
+      <button
+        onClick={() => onGenerate(word)}
+        disabled={generatingWord !== null}
+        title={t('admin.trophies.generateAwardFor', { word: word.en })}
+        style={{
+          width: 28, height: 28, borderRadius: 'var(--radius-sm)',
+          border: '1px solid var(--border-light)',
+          background: generatingWord === word.en ? 'var(--accent)' : 'var(--surface)',
+          color: generatingWord === word.en ? '#fff' : 'var(--text-muted)',
+          cursor: generatingWord !== null ? 'default' : 'pointer',
+          fontSize: '13px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          opacity: generatingWord !== null && generatingWord !== word.en ? 0.4 : 1,
+          transition: 'background 150ms, color 150ms',
+        }}
+      >
+        {generatingWord === word.en ? '…' : '⚡'}
+      </button>
+      <button
+        onClick={() => onRemove(word.en)}
+        style={{
+          width: 28, height: 28, borderRadius: 'var(--radius-sm)',
+          border: '1px solid var(--border-light)',
+          background: 'var(--accent-warm)', color: '#fff',
+          cursor: 'pointer', fontSize: '14px', fontWeight: 700,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+        }}
+      >
+        ×
+      </button>
+    </div>
+  )
+}
+
+function WordList({ words, generatingWord, onAdd, onRemove, onGenerate, onUpdateSv }: {
+  words: LocalizedName[]
+  generatingWord: string | null
+  onAdd: (w: LocalizedName) => void
+  onRemove: (en: string) => void
+  onGenerate: (w: LocalizedName) => void
+  onUpdateSv: (en: string, sv: string) => void
+}) {
+  const { t } = useTranslation()
+  const [newEn, setNewEn] = useState('')
+  const [newSv, setNewSv] = useState('')
+
+  const isDuplicate = words.some(w => w.en === newEn.trim())
 
   const handleAdd = () => {
-    const trimmed = newWord.trim()
-    if (!trimmed || words.includes(trimmed)) return
-    onAdd(trimmed)
-    setNewWord('')
+    const en = newEn.trim()
+    if (!en || isDuplicate) return
+    const sv = newSv.trim()
+    onAdd(sv ? { en, sv } : { en })
+    setNewEn('')
+    setNewSv('')
   }
 
   return (
@@ -33,64 +117,47 @@ function WordList({ words, generatingWord, onAdd, onRemove, onGenerate }: {
       <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px' }}>
         {t('admin.trophies.awardWordsDesc')}
       </p>
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '6px', padding: '0 2px' }}>
+        <span style={{ flex: 1, fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', fontFamily: 'var(--font-ui)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('admin.trophies.englishName')}</span>
+        <span style={{ flex: 1, fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', fontFamily: 'var(--font-ui)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('admin.trophies.swedishName')}</span>
+        <span style={{ width: 64, flexShrink: 0 }} />
+      </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
         {words.map(word => (
-          <div key={word} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{
-              flex: 1, fontFamily: 'var(--font-ui)', fontSize: '13px',
-              background: 'var(--surface)', border: '1px solid var(--border-light)',
-              borderRadius: 'var(--radius-sm)', padding: '6px 10px',
-            }}>
-              {word}
-            </span>
-            <button
-              onClick={() => onGenerate(word)}
-              disabled={generatingWord !== null}
-              title={t('admin.trophies.generateAwardFor', { word })}
-              style={{
-                width: 28, height: 28, borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border-light)',
-                background: generatingWord === word ? 'var(--accent)' : 'var(--surface)',
-                color: generatingWord === word ? '#fff' : 'var(--text-muted)',
-                cursor: generatingWord !== null ? 'default' : 'pointer',
-                fontSize: '13px',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                opacity: generatingWord !== null && generatingWord !== word ? 0.4 : 1,
-                transition: 'background 150ms, color 150ms',
-              }}
-            >
-              {generatingWord === word ? '…' : '⚡'}
-            </button>
-            <button
-              onClick={() => onRemove(word)}
-              style={{
-                width: 28, height: 28, borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border-light)',
-                background: 'var(--accent-warm)', color: '#fff',
-                cursor: 'pointer', fontSize: '14px', fontWeight: 700,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-              }}
-            >
-              ×
-            </button>
-          </div>
+          <WordRow
+            key={word.en}
+            word={word}
+            generatingWord={generatingWord}
+            onRemove={onRemove}
+            onGenerate={onGenerate}
+            onUpdateSv={onUpdateSv}
+          />
         ))}
       </div>
       <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
         <div style={{ flex: 1 }}>
           <Input
             label={t('admin.trophies.addWord')}
-            value={newWord}
-            onChange={e => setNewWord(e.target.value)}
+            value={newEn}
+            onChange={e => setNewEn(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') handleAdd() }}
             placeholder={t('admin.trophies.addWordPlaceholder')}
+          />
+        </div>
+        <div style={{ flex: 1 }}>
+          <Input
+            label={t('admin.trophies.swedishName')}
+            value={newSv}
+            onChange={e => setNewSv(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleAdd() }}
+            placeholder={t('admin.trophies.swedishNamePlaceholder')}
           />
         </div>
         <Button
           size="sm"
           variant="ghost"
           onClick={handleAdd}
-          disabled={!newWord.trim() || words.includes(newWord.trim())}
+          disabled={!newEn.trim() || isDuplicate}
           style={{ alignSelf: 'flex-end', height: '40px' }}
         >
           {t('admin.trophies.add')}
@@ -101,9 +168,9 @@ function WordList({ words, generatingWord, onAdd, onRemove, onGenerate }: {
 }
 
 export function AdminTrophies() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const qc = useQueryClient()
-  const [words, setWords] = useState<string[]>([])
+  const [words, setWords] = useState<LocalizedName[]>([])
   const [generatingWord, setGeneratingWord] = useState<string | null>(null)
   const [sendTrophy, setSendTrophy] = useState<any>(null)
   const [sendUserId, setSendUserId] = useState('')
@@ -152,12 +219,12 @@ export function AdminTrophies() {
   })
 
   const updateWordsMutation = useMutation({
-    mutationFn: (w: string[]) => api.trophies.updateWords(w),
+    mutationFn: (w: LocalizedName[]) => api.trophies.updateWords(w),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['trophy-words'] }),
   })
 
   const generateMutation = useMutation({
-    mutationFn: (word?: string) => api.trophies.generate(word),
+    mutationFn: (arg?: { word: string; wordSv?: string }) => api.trophies.generate(arg?.word, arg?.wordSv),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['trophy-storage'] })
       qc.invalidateQueries({ queryKey: ['trophy-status'] })
@@ -202,21 +269,27 @@ export function AdminTrophies() {
     },
   })
 
-  const handleWordAdd = (w: string) => {
+  const handleWordAdd = (w: LocalizedName) => {
     const next = [...words, w]
     setWords(next)
     updateWordsMutation.mutate(next)
   }
 
-  const handleWordRemove = (w: string) => {
-    const next = words.filter(x => x !== w)
+  const handleWordRemove = (en: string) => {
+    const next = words.filter(x => x.en !== en)
     setWords(next)
     updateWordsMutation.mutate(next)
   }
 
-  const handleWordGenerate = (word: string) => {
-    setGeneratingWord(word)
-    generateMutation.mutate(word)
+  const handleWordUpdateSv = (en: string, sv: string) => {
+    const next = words.map(w => w.en === en ? (sv ? { en, sv } : { en }) : w)
+    setWords(next)
+    updateWordsMutation.mutate(next)
+  }
+
+  const handleWordGenerate = (word: LocalizedName) => {
+    setGeneratingWord(word.en)
+    generateMutation.mutate({ word: word.en, wordSv: word.sv })
   }
 
   const generating = statusData?.generating ?? 0
@@ -233,6 +306,7 @@ export function AdminTrophies() {
           onAdd={handleWordAdd}
           onRemove={handleWordRemove}
           onGenerate={handleWordGenerate}
+          onUpdateSv={handleWordUpdateSv}
         />
 
         {/* Active competition needs */}
@@ -319,10 +393,10 @@ export function AdminTrophies() {
                 <Card key={trophy.id} padding="10px" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
                   <img
                     src={trophy.imageUrl}
-                    alt={trophy.title}
+                    alt={trophyTitle(trophy, i18n.language)}
                     style={{ width: 80, height: 80, borderRadius: 'var(--radius-sm)', objectFit: 'cover' }}
                   />
-                  <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px', textAlign: 'center' }}>{trophy.title}</p>
+                  <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px', textAlign: 'center' }}>{trophyTitle(trophy, i18n.language)}</p>
 
                   {/* Reservation status */}
                   {trophy.reservedForCompetition ? (
@@ -389,7 +463,7 @@ export function AdminTrophies() {
       <Modal
         open={!!sendTrophy}
         onClose={() => { setSendTrophy(null); setSendUserId(''); setSendError('') }}
-        title={t('admin.trophies.sendTrophy', { title: sendTrophy?.title })}
+        title={t('admin.trophies.sendTrophy', { title: sendTrophy ? trophyTitle(sendTrophy, i18n.language) : '' })}
         footer={
           <>
             <Button variant="ghost" onClick={() => { setSendTrophy(null); setSendUserId(''); setSendError('') }}>{t('common.cancel')}</Button>
@@ -439,7 +513,7 @@ export function AdminTrophies() {
       <Modal
         open={!!reserveTrophy}
         onClose={() => { setReserveTrophy(null); setReserveCompId('') }}
-        title={t('admin.trophies.reserveTrophy', { title: reserveTrophy?.title })}
+        title={t('admin.trophies.reserveTrophy', { title: reserveTrophy ? trophyTitle(reserveTrophy, i18n.language) : '' })}
         footer={
           <>
             <Button variant="ghost" onClick={() => { setReserveTrophy(null); setReserveCompId('') }}>{t('common.cancel')}</Button>

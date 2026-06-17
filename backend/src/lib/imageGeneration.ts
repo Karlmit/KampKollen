@@ -114,9 +114,10 @@ function randomFrom<T>(arr: T[]): T {
 export async function generateRandomProfileImage(userId: string): Promise<void> {
   const opts = await getImageOptions()
 
-  const subject = randomFrom(opts.subjects)
-  const clothes = randomFrom(opts.clothes)
-  const accessory = randomFrom(opts.accessories)
+  // Always build the prompt from the English value; Swedish labels are UI-only.
+  const subject = randomFrom(opts.subjects).en
+  const clothes = randomFrom(opts.clothes).en
+  const accessory = randomFrom(opts.accessories).en
 
   const wearingPart = clothes === 'None' ? '' : `, wearing ${clothes}`
   const accPart = accessory === 'None' ? '' : (clothes === 'None' ? ` with ${accessory}` : ` and ${accessory}`)

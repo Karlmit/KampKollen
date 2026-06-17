@@ -9,7 +9,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useGroup } from '../contexts/GroupContext'
 import { BoldText } from '../components/ui/BoldText'
 import { api } from '../api/client'
-import { formatDate, formatScore } from '../utils'
+import { formatDate, formatScore, trophyTitle } from '../utils'
 import { useTranslation } from 'react-i18next'
 
 type View = 'competitions' | 'challenges' | 'awards' | 'quizHistory'
@@ -17,7 +17,7 @@ type View = 'competitions' | 'challenges' | 'awards' | 'quizHistory'
 export function GlobalLeaderboard() {
   const { user } = useAuth()
   const { activeGroupId, setActiveGroupId } = useGroup()
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
   const view = (searchParams.get('view') as View) ?? 'competitions'
   const setView = (v: View) => setSearchParams({ view: v }, { replace: true })
@@ -287,11 +287,11 @@ export function GlobalLeaderboard() {
                       >
                         <img
                           src={trophy.imageUrl}
-                          alt={trophy.title}
+                          alt={trophyTitle(trophy, i18n.language)}
                           style={{ width: 40, height: 40, objectFit: 'contain', borderRadius: 'var(--radius-sm)', flexShrink: 0 }}
                         />
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>{trophy.title}</p>
+                          <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px' }}>{trophyTitle(trophy, i18n.language)}</p>
                           {trophy.subtitle && (
                             <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px', lineHeight: 1.4 }}><BoldText text={trophy.subtitle} /></p>
                           )}

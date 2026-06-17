@@ -3,35 +3,41 @@ import { useQuery } from '@tanstack/react-query'
 import { Button } from './ui/Button'
 import { api } from '../api/client'
 import { useTranslation } from 'react-i18next'
+import { pickLocalized, type LocalizedName } from '../utils'
 
-const FALLBACK_SUBJECTS = [
+const FALLBACK_SUBJECTS: LocalizedName[] = [
   'Farmyard Animal', 'Forest Animal', 'Fish', 'Fruit',
   'Vegetable', 'Finance Symbol', 'Yellow Bear',
-]
+].map(en => ({ en }))
 
-const FALLBACK_CLOTHES = [
+const FALLBACK_CLOTHES: LocalizedName[] = [
   'None', 'a T-shirt', 'a suit and tie', 'a hoodie', 'a lab coat',
   'a cowboy outfit', 'a superhero cape', "a chef's apron",
   'viking armor', 'a tuxedo', 'a sports jersey',
   'a pirate costume', 'a wizard robe', 'a ninja outfit',
   'a space suit', 'a Hawaiian shirt',
-]
+].map(en => ({ en }))
 
-const FALLBACK_ACCESSORIES = [
+const FALLBACK_ACCESSORIES: LocalizedName[] = [
   'None', 'a top hat', 'a bow tie', 'a crown', 'a scarf',
   'a monocle', 'a party hat', 'a pair of headphones', 'a wizard hat',
   'a pirate hat', 'a santa hat', 'a cowboy hat', 'a flower crown',
   'a cape', 'a pair of sunglasses', 'a magnifying glass',
   'a skateboard', 'a briefcase', 'a tiny umbrella',
-]
+].map(en => ({ en }))
 
 function randomFrom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]
 }
 
-function randomNonNone(arr: string[]): string {
-  const options = arr.filter(v => v !== 'None')
-  return options.length > 0 ? randomFrom(options) : arr[0]
+// The English value is always what feeds the (English) generation prompt.
+function randomEn(arr: LocalizedName[]): string {
+  return arr.length > 0 ? randomFrom(arr).en : ''
+}
+
+function randomNonNoneEn(arr: LocalizedName[]): string {
+  const options = arr.filter(v => v.en !== 'None')
+  return options.length > 0 ? randomFrom(options).en : (arr[0]?.en ?? '')
 }
 
 const selectStyle: React.CSSProperties = {
@@ -66,7 +72,7 @@ const textareaStyle: React.CSSProperties = {
 export function ProfileImageGenerator({ onGenerate }: {
   onGenerate: (prompt: string) => Promise<string>
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { data: optData } = useQuery({
     queryKey: ['image-options'],
     queryFn: () => api.imageOptions.get(),
@@ -77,10 +83,15 @@ export function ProfileImageGenerator({ onGenerate }: {
   const clothesList = optData?.clothes ?? FALLBACK_CLOTHES
   const accessories = optData?.accessories ?? FALLBACK_ACCESSORIES
 
+  // Label for a select option: Swedish when available, English otherwise.
+  // "None" is a control value, so it gets a dedicated translation.
+  const label = (opt: LocalizedName) => opt.en === 'None' ? t('profileImage.none') : pickLocalized(opt, i18n.language)
+
   const [mode, setMode] = useState<'help' | 'custom'>('help')
-  const [subject, setSubject] = useState(() => randomFrom(FALLBACK_SUBJECTS))
-  const [clothes, setClothes] = useState(() => randomNonNone(FALLBACK_CLOTHES))
-  const [accessory, setAccessory] = useState(() => randomFrom(FALLBACK_ACCESSORIES))
+  // State holds the English value (which builds the prompt); selects display labels.
+  const [subject, setSubject] = useState(() => randomEn(FALLBACK_SUBJECTS))
+  const [clothes, setClothes] = useState(() => randomNonNoneEn(FALLBACK_CLOTHES))
+  const [accessory, setAccessory] = useState(() => randomEn(FALLBACK_ACCESSORIES))
   const [customPrompt, setCustomPrompt] = useState('')
 
   // Re-randomize once when server options first arrive (may include options beyond the fallback list)
@@ -88,9 +99,9 @@ export function ProfileImageGenerator({ onGenerate }: {
   useEffect(() => {
     if (!seededFromServer.current && optData) {
       seededFromServer.current = true
-      setSubject(randomFrom(optData.subjects))
-      setClothes(randomNonNone(optData.clothes))
-      setAccessory(randomFrom(optData.accessories))
+      setSubject(randomEn(optData.subjects))
+      setClothes(randomNonNoneEn(optData.clothes))
+      setAccessory(randomEn(optData.accessories))
     }
   }, [optData])
   const [loading, setLoading] = useState(false)
@@ -144,19 +155,19 @@ export function ProfileImageGenerator({ onGenerate }: {
         }}>
           <span>{t('profileImage.aFun')} </span>
           <select value={subject} onChange={e => setSubject(e.target.value)} style={selectStyle}>
-            {subjects.map(s => <option key={s}>{s}</option>)}
+            {subjects.map(s => <option key={s.en} value={s.en}>{label(s)}</option>)}
           </select>
           <span> {t('profileImage.avatar')}</span>
           {clothes !== 'None' && <span>, {t('profileImage.wearing')} </span>}
           {clothes === 'None' && <span> </span>}
           <select value={clothes} onChange={e => setClothes(e.target.value)} style={selectStyle}>
-            {clothesList.map(c => <option key={c}>{c}</option>)}
+            {clothesList.map(c => <option key={c.en} value={c.en}>{label(c)}</option>)}
           </select>
           {accessory !== 'None' && (
             <span>{clothes === 'None' ? ` ${t('profileImage.with')} ` : ` ${t('profileImage.and')} `}</span>
           )}
           <select value={accessory} onChange={e => setAccessory(e.target.value)} style={selectStyle}>
-            {accessories.map(a => <option key={a}>{a}</option>)}
+            {accessories.map(a => <option key={a.en} value={a.en}>{label(a)}</option>)}
           </select>
           <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>.</span>
         </div>

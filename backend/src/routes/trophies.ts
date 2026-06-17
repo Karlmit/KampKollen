@@ -3,45 +3,8 @@ import { prisma } from '../db.js'
 import { requireAuth, requireAdmin } from '../middleware/auth.js'
 import { generateImage } from '../lib/imageGeneration.js'
 import { getGeneratingCount, getActiveCompetitionNeeds, ensureForCompetition } from '../lib/awardTrophies.js'
+import { getTrophyWords, normalizeTrophyWords, randomFrom, wordToTitle, TrophyWord } from '../lib/trophyWords.js'
 import { GlobalRole } from '@prisma/client'
-
-const DEFAULT_TROPHY_WORDS = [
-  'Old rocking horse', 'Teddy bear with one missing eye', 'Pristine fountain pen',
-  'Shiny red apple', 'Cracked porcelain duck', 'Golden banana', 'Tiny wizard hat',
-  'Rusty bicycle bell', 'Suspicious pineapple', 'Fancy teaspoon', 'Broken alarm clock',
-  'Very proud potato', 'Plastic crown', 'Rubber duck in sunglasses', 'Ancient office chair',
-  'Glorious traffic cone', 'Half-melted candle', 'Tiny wooden stool', 'Fancy monocle',
-  'Bent silver spoon', 'Emotional support cactus', 'Slightly haunted sandwich',
-  'Golden toilet brush', 'Dusty trophy cup', 'Tiny garden gnome', 'Royal-looking cabbage',
-  'Sock with a medal', 'Miniature pirate ship', 'Sad balloon', 'Heroic meatball',
-  'Crystal doorknob', 'Wobbly chess knight', 'Suspicious egg', 'Majestic cheese wheel',
-  'Lonely mitten', 'Fancy umbrella', 'Tiny dragon statue', 'Broken snow globe',
-  'Glittery snail shell', 'Old TV remote', 'Ceremonial frying pan', 'Stuffed moose head',
-  'Tiny treasure chest', 'Extremely normal rock', 'Banana peel on a pedestal',
-  'Wooden spoon of destiny', 'Noble rubber boot', 'Golden stapler', 'Mysterious key',
-  'Fancy teacup', 'Angry-looking lemon', 'Tiny accordion', 'Dusty violin',
-  'Heroic garden shovel', 'Sparkly fishbowl', 'Old captain\'s hat', 'Royal egg cup',
-  'Crooked picture frame', 'Tiny cannon', 'Very serious pumpkin', 'Broken compass',
-  'Majestic toothbrush', 'Antique door knocker', 'Golden mushroom', 'Sleepy owl figurine',
-  'Trophy-shaped sandwich', 'Fancy feather quill', 'Crowned frog statue', 'Tiny train engine',
-  'Melancholy cupcake', 'Ancient calculator', 'Wooden duck on wheels', 'Plastic dinosaur',
-  'Dramatic cape', 'Tiny lighthouse', 'Lucky horseshoe', 'Golden carrot',
-  'Confused chicken statue', 'Silver waffle iron', 'Tiny bathtub', 'Worn-out boxing glove',
-  'Fancy jam jar', 'Noble soup ladle', 'Crystal pineapple', 'Broken magic wand',
-  'Tiny castle tower', 'Golden rolling pin', 'Mysterious blue bottle', 'Old leather boot',
-  'Tiny scarecrow', 'Decorative fish', 'Bronze acorn', 'Fancy biscuit tin',
-  'Tiny astronaut helmet', 'Royal lunchbox', 'Glittering onion', 'Old typewriter key',
-  'Miniature windmill', 'Golden popcorn bucket',
-]
-
-async function getTrophyWords(): Promise<string[]> {
-  const row = await prisma.setting.findUnique({ where: { key: 'trophy_words' } })
-  return row ? JSON.parse(row.value) : DEFAULT_TROPHY_WORDS
-}
-
-function randomFrom<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)]
-}
 
 export async function trophyWordRoutes(app: FastifyInstance) {
   app.get('/', { preHandler: requireAdmin }, async () => {
@@ -49,14 +12,18 @@ export async function trophyWordRoutes(app: FastifyInstance) {
   })
 
   app.put('/', { preHandler: requireAdmin }, async (request, reply) => {
-    const body = request.body as { words?: string[] }
+    const body = request.body as { words?: unknown }
     if (!Array.isArray(body.words) || body.words.length === 0) {
       return reply.status(400).send({ error: 'words must be a non-empty array' })
     }
+    const words = normalizeTrophyWords(body.words)
+    if (words.length === 0) {
+      return reply.status(400).send({ error: 'words must contain at least one English name' })
+    }
     await prisma.setting.upsert({
       where: { key: 'trophy_words' },
-      update: { value: JSON.stringify(body.words) },
-      create: { key: 'trophy_words', value: JSON.stringify(body.words) },
+      update: { value: JSON.stringify(words) },
+      create: { key: 'trophy_words', value: JSON.stringify(words) },
     })
     return { success: true }
   })
@@ -115,7 +82,7 @@ export async function trophyRoutes(app: FastifyInstance) {
             ...(activeGroupIds.length > 0 ? { groupId: { in: activeGroupIds } } : {}),
           },
           orderBy: { sentAt: 'desc' },
-          select: { id: true, title: true, subtitle: true, imageUrl: true, sentAt: true },
+          select: { id: true, title: true, titleSv: true, subtitle: true, imageUrl: true, sentAt: true },
         },
       },
     })
@@ -153,13 +120,17 @@ export async function trophyRoutes(app: FastifyInstance) {
 
   // Generate a trophy into storage (optional specific word)
   app.post('/generate', { preHandler: requireAdmin }, async (request) => {
-    const body = request.body as { word?: string }
+    const body = request.body as { word?: string; wordSv?: string }
     const words = await getTrophyWords()
-    const title = body.word?.trim() || randomFrom(words)
+    const chosen: TrophyWord = body.word?.trim()
+      ? { en: body.word.trim(), sv: body.wordSv?.trim() || undefined }
+      : randomFrom(words)
+    const { title, titleSv } = wordToTitle(chosen)
+    // The image generator always works from the English name.
     const prompt = `A flat 2D cartoon illustration of "${title}". Pure white background, exactly #ffffff, no off-white or cream. Object centered, bold outlines, bright colors. No text, no shadows, no gradients.`
     const result = await generateImage({ prompt }, 'trophies')
     const trophy = await prisma.trophy.create({
-      data: { title, imageUrl: result.publicUrl },
+      data: { title, titleSv, imageUrl: result.publicUrl },
     })
     return { trophy }
   })
@@ -194,11 +165,11 @@ export async function trophyRoutes(app: FastifyInstance) {
 
     const recipientGroupId = user.groups[0]?.groupId ?? null
     const words = await getTrophyWords()
-    const title = randomFrom(words)
+    const { title, titleSv } = wordToTitle(randomFrom(words))
     const prompt = `A flat 2D cartoon illustration of "${title}". Pure white background, exactly #ffffff, no off-white or cream. Object centered, bold outlines, bright colors. No text, no shadows, no gradients.`
     const result = await generateImage({ prompt }, 'trophies')
     const trophy = await prisma.trophy.create({
-      data: { title, imageUrl: result.publicUrl, userId: body.userId, sentAt: new Date(), ...(recipientGroupId ? { groupId: recipientGroupId } : {}) },
+      data: { title, titleSv, imageUrl: result.publicUrl, userId: body.userId, sentAt: new Date(), ...(recipientGroupId ? { groupId: recipientGroupId } : {}) },
     })
     return { trophy }
   })

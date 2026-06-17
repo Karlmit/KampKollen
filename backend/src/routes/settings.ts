@@ -4,9 +4,45 @@ import { prisma } from '../db.js'
 import { requireAdmin } from '../middleware/auth.js'
 import { config } from '../config.js'
 
-const DEFAULT_SUBJECTS = ['Farmyard Animal', 'Forest Animal', 'Fish', 'Fruit', 'Vegetable', 'Finance Symbol', 'Yellow Bear']
-const DEFAULT_CLOTHES = ['None', 'a T-shirt', 'a suit and tie', 'a hoodie', 'a lab coat', 'a cowboy outfit', 'a superhero cape', "a chef's apron", 'viking armor', 'a tuxedo', 'a sports jersey', 'a pirate costume', 'a wizard robe', 'a ninja outfit', 'a space suit', 'a Hawaiian shirt']
-const DEFAULT_ACCESSORIES = ['None', 'a top hat', 'a bow tie', 'a crown', 'a scarf', 'a monocle', 'a party hat', 'a pair of headphones', 'a wizard hat', 'a pirate hat', 'a santa hat', 'a cowboy hat', 'a flower crown', 'a cape', 'a pair of sunglasses', 'a magnifying glass', 'a skateboard', 'a briefcase', 'a tiny umbrella']
+// An image-prompt option with an English value and an optional Swedish label.
+// The English value is always used to build the (English) generation prompt;
+// the Swedish label is only shown in the UI, falling back to English when absent.
+export interface LocalizedOption {
+  en: string
+  sv?: string
+}
+
+const DEFAULT_SUBJECTS: LocalizedOption[] = ['Farmyard Animal', 'Forest Animal', 'Fish', 'Fruit', 'Vegetable', 'Finance Symbol', 'Yellow Bear'].map(en => ({ en }))
+const DEFAULT_CLOTHES: LocalizedOption[] = ['None', 'a T-shirt', 'a suit and tie', 'a hoodie', 'a lab coat', 'a cowboy outfit', 'a superhero cape', "a chef's apron", 'viking armor', 'a tuxedo', 'a sports jersey', 'a pirate costume', 'a wizard robe', 'a ninja outfit', 'a space suit', 'a Hawaiian shirt'].map(en => ({ en }))
+const DEFAULT_ACCESSORIES: LocalizedOption[] = ['None', 'a top hat', 'a bow tie', 'a crown', 'a scarf', 'a monocle', 'a party hat', 'a pair of headphones', 'a wizard hat', 'a pirate hat', 'a santa hat', 'a cowboy hat', 'a flower crown', 'a cape', 'a pair of sunglasses', 'a magnifying glass', 'a skateboard', 'a briefcase', 'a tiny umbrella'].map(en => ({ en }))
+
+// Accept both legacy (array of strings) and new (array of { en, sv }) formats.
+function normalizeOptions(parsed: unknown, fallback: LocalizedOption[]): LocalizedOption[] {
+  if (!Array.isArray(parsed)) return fallback
+  const out = parsed
+    .map((o): LocalizedOption => {
+      if (typeof o === 'string') return { en: o.trim() }
+      const en = String((o as any)?.en ?? '').trim()
+      const sv = String((o as any)?.sv ?? '').trim()
+      return sv ? { en, sv } : { en }
+    })
+    .filter(o => o.en.length > 0)
+  return out.length > 0 ? out : fallback
+}
+
+// Ensure a "None" option exists (sentinel for "no clothing/accessory").
+function ensureNone(options: LocalizedOption[]): LocalizedOption[] {
+  return options.some(o => o.en === 'None') ? options : [{ en: 'None' }, ...options]
+}
+
+function parseOption(value: string | undefined, fallback: LocalizedOption[]): LocalizedOption[] {
+  if (!value) return fallback
+  try {
+    return normalizeOptions(JSON.parse(value), fallback)
+  } catch {
+    return fallback
+  }
+}
 
 export const SETTING_KEYS = [
   'azure_image_endpoint',
@@ -33,44 +69,37 @@ const updateSchema = z.object({
   azure_image_model: z.string().optional(),
 })
 
-export async function getImageOptions(): Promise<{ subjects: string[]; clothes: string[]; accessories: string[] }> {
+export async function getImageOptions(): Promise<{ subjects: LocalizedOption[]; clothes: LocalizedOption[]; accessories: LocalizedOption[] }> {
   const rows = await prisma.setting.findMany({
     where: { key: { in: ['image_subjects', 'image_clothes', 'image_accessories'] } },
   })
   const db: Record<string, string> = Object.fromEntries(rows.map(r => [r.key, r.value]))
   return {
-    subjects: db['image_subjects'] ? JSON.parse(db['image_subjects']) : DEFAULT_SUBJECTS,
-    clothes: db['image_clothes'] ? JSON.parse(db['image_clothes']) : DEFAULT_CLOTHES,
-    accessories: db['image_accessories'] ? JSON.parse(db['image_accessories']) : DEFAULT_ACCESSORIES,
+    subjects: parseOption(db['image_subjects'], DEFAULT_SUBJECTS),
+    clothes: parseOption(db['image_clothes'], DEFAULT_CLOTHES),
+    accessories: parseOption(db['image_accessories'], DEFAULT_ACCESSORIES),
   }
 }
 
 export async function imageOptionRoutes(app: FastifyInstance) {
   app.get('/', async () => {
-    const rows = await prisma.setting.findMany({
-      where: { key: { in: ['image_subjects', 'image_clothes', 'image_accessories'] } },
-    })
-    const db: Record<string, string> = Object.fromEntries(rows.map(r => [r.key, r.value]))
-    return {
-      subjects: db['image_subjects'] ? JSON.parse(db['image_subjects']) : DEFAULT_SUBJECTS,
-      clothes: db['image_clothes'] ? JSON.parse(db['image_clothes']) : DEFAULT_CLOTHES,
-      accessories: db['image_accessories'] ? JSON.parse(db['image_accessories']) : DEFAULT_ACCESSORIES,
-    }
+    return getImageOptions()
   })
 
   app.put('/', { preHandler: requireAdmin }, async (request) => {
-    const body = request.body as { subjects?: string[]; clothes?: string[]; accessories?: string[] }
+    const body = request.body as { subjects?: unknown; clothes?: unknown; accessories?: unknown }
     const updates: Array<{ key: string; value: string }> = []
 
     if (Array.isArray(body.subjects) && body.subjects.length > 0) {
-      updates.push({ key: 'image_subjects', value: JSON.stringify(body.subjects) })
+      const subjects = normalizeOptions(body.subjects, DEFAULT_SUBJECTS)
+      updates.push({ key: 'image_subjects', value: JSON.stringify(subjects) })
     }
     if (Array.isArray(body.clothes)) {
-      const clothes = body.clothes.includes('None') ? body.clothes : ['None', ...body.clothes]
+      const clothes = ensureNone(normalizeOptions(body.clothes, DEFAULT_CLOTHES))
       updates.push({ key: 'image_clothes', value: JSON.stringify(clothes) })
     }
     if (Array.isArray(body.accessories)) {
-      const accessories = body.accessories.includes('None') ? body.accessories : ['None', ...body.accessories]
+      const accessories = ensureNone(normalizeOptions(body.accessories, DEFAULT_ACCESSORIES))
       updates.push({ key: 'image_accessories', value: JSON.stringify(accessories) })
     }
 

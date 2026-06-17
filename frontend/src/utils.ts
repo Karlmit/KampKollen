@@ -18,6 +18,25 @@ export function extractScoreValue(score: any, scoreType: string): number | null 
   return score.rawScore ?? null
 }
 
+// A value with an English name and an optional Swedish name.
+export interface LocalizedName {
+  en: string
+  sv?: string
+}
+
+// Pick the name for the active language, falling back to English when the
+// Swedish name is missing.
+export function pickLocalized(opt: { en?: string; sv?: string | null }, lang: string): string {
+  if (lang?.startsWith('sv') && opt.sv && opt.sv.trim()) return opt.sv
+  return opt.en ?? ''
+}
+
+// Resolve a trophy's display title for the active language (titleSv → title).
+export function trophyTitle(trophy: { title?: string; titleSv?: string | null }, lang: string): string {
+  if (lang?.startsWith('sv') && trophy.titleSv && trophy.titleSv.trim()) return trophy.titleSv
+  return trophy.title ?? ''
+}
+
 export function formatDate(iso: string) {
   const d = new Date(iso)
   const day = d.getUTCDate().toString().padStart(2, '0')

@@ -78,6 +78,7 @@ model User {
 model Trophy {
   id                       String       @id @default(cuid())
   title                    String
+  titleSv                  String?
   subtitle                 String?
   imageUrl                 String
   userId                   String?
