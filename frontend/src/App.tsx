@@ -15,6 +15,7 @@ import { GlobalLeaderboard } from './pages/GlobalLeaderboard'
 import { ChallengeAllTimePage } from './pages/ChallengeAllTime'
 import { MyTeamPage } from './pages/MyTeam'
 import { ScorekeeperPage } from './pages/Scorekeeper'
+import { ScorePicker } from './pages/ScorePicker'
 import { AdminCompetitions } from './pages/admin/Competitions'
 import { AdminCompetitionManage } from './pages/admin/CompetitionManage'
 import { AdminChallenges } from './pages/admin/Challenges'
@@ -63,6 +64,7 @@ function AppRoutes() {
       <Route path="/competitions/:id/leaderboard" element={<CompetitionLeaderboardPage />} />
       <Route path="/competitions/:id/leaderboard/individual" element={<IndividualLeaderboardPage />} />
       <Route path="/competitions/:competitionId/team/:teamId" element={<RequireAuth><MyTeamPage /></RequireAuth>} />
+      <Route path="/scores" element={<RequireAuth><ScorePicker /></RequireAuth>} />
       <Route path="/competitions/:id/scores" element={<RequireAuth><ScorekeeperPage /></RequireAuth>} />
       <Route path="/leaderboard" element={<GlobalLeaderboard />} />
       <Route path="/leaderboard/challenge/:challengeId" element={<ChallengeAllTimePage />} />

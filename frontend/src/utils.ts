@@ -54,3 +54,21 @@ export function formatDate(iso: string) {
   const month = (d.getUTCMonth() + 1).toString().padStart(2, '0')
   return `${day}-${month}-${d.getUTCFullYear()}`
 }
+
+// Statuses a competition can hold once it is no longer scoreable.
+const NON_SCORABLE_STATUSES = ['COMPLETED', 'ARCHIVED', 'TEMPLATE']
+
+// A competition is scoreable by the current user when it is still ongoing and
+// the user is allowed to enter scores for it: a global admin/scorekeeper, or a
+// team leader/scorekeeper within that competition. Mirrors the gate in
+// Scorekeeper.tsx so the picker never offers a competition that would bounce.
+export function scorableCompetitions(
+  competitions: any[],
+  opts: { isAdmin: boolean; isScorekeeper: boolean },
+): any[] {
+  return competitions.filter((c: any) => {
+    if (NON_SCORABLE_STATUSES.includes(c.status)) return false
+    if (opts.isAdmin || opts.isScorekeeper) return true
+    return !!(c.myPlayer?.isTeamLeader || c.myPlayer?.isScorekeeper)
+  })
+}

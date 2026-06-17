@@ -184,6 +184,12 @@ const sv = {
     qmActive: '🎯 QM',
   },
 
+  scorePicker: {
+    title: 'Välj tävling',
+    subtitle: 'Välj vilken tävling du vill registrera poäng för.',
+    empty: 'Det finns inga pågående tävlingar som du kan registrera poäng för.',
+  },
+
   scorekeeper: {
     enterScores: 'Ange poäng',
     selectChallenge: 'VÄLJ UTMANING',

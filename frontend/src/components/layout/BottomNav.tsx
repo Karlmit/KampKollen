@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../contexts/AuthContext'
 import { useTranslation } from 'react-i18next'
 import { api } from '../../api/client'
+import { scorableCompetitions } from '../../utils'
 
 function matchItem(to: string, pathname: string) {
   if (to === '/') return pathname === '/'
@@ -45,13 +46,13 @@ export function BottomNav() {
 
   async function handleScoreNav() {
     const competitions = await getCompetitions()
-    const active = competitions.filter(
-      (c: any) => c.status === 'ACTIVE' || c.status === 'REGISTRATION'
-    )
-    if (active.length === 1) {
-      navigate(`/competitions/${active[0].id}/scores`)
+    const scorable = scorableCompetitions(competitions, { isAdmin, isScorekeeper })
+    // Exactly one scorable competition → jump straight into Enter Score mode.
+    // None or several → show the picker so the user can choose which to score.
+    if (scorable.length === 1) {
+      navigate(`/competitions/${scorable[0].id}/scores`)
     } else {
-      navigate('/competitions')
+      navigate('/scores')
     }
   }
 

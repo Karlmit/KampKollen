@@ -184,6 +184,12 @@ const en = {
     qmActive: '🎯 QM',
   },
 
+  scorePicker: {
+    title: 'Choose competition',
+    subtitle: 'Pick which competition you want to enter scores for.',
+    empty: 'There are no ongoing competitions for you to enter scores for.',
+  },
+
   scorekeeper: {
     enterScores: 'Enter Scores',
     selectChallenge: 'SELECT CHALLENGE',
