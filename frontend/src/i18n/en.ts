@@ -739,6 +739,9 @@ const en = {
     placement2: '🥈 **2nd place** in **{{competition}}**',
     placement3: '🥉 **3rd place** in **{{competition}}**',
     winningTeam: 'Awarded for being in the **winning team** **{{team}}** in **{{competition}}**',
+    individualLeaderboard1: '🥇 Awarded for being **top 1** in the **individual leaderboard** during **{{competition}}**',
+    individualLeaderboard2: '🥈 Awarded for being **top 2** in the **individual leaderboard** during **{{competition}}**',
+    individualLeaderboard3: '🥉 Awarded for being **top 3** in the **individual leaderboard** during **{{competition}}**',
   },
 
   globalLeaderboard: {

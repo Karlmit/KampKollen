@@ -58,7 +58,9 @@ export async function getActiveCompetitionNeeds(): Promise<CompetitionNeeds[]> {
     const maxTeamSize = c.teams.reduce((max, t) =>
       Math.max(max, t.players.filter(p => !p.user.isDummy).length), 0)
     const challengeCount = c.challenges.length
-    const winnerCount = c.isTeamCompetition ? maxTeamSize : 3
+    // Team comps award the winning team's members AND the individual-leaderboard
+    // top 3; individual comps award the top 3 players.
+    const winnerCount = c.isTeamCompetition ? maxTeamSize + 3 : 3
     return {
       id: c.id,
       name: c.name,
@@ -84,7 +86,7 @@ export async function ensureForCompetition(competitionId: string): Promise<void>
 
   const maxTeamSize = competition.teams.reduce((max, t) =>
     Math.max(max, t.players.filter(p => !p.user.isDummy).length), 0)
-  const winnerCount = competition.isTeamCompetition ? maxTeamSize : 3
+  const winnerCount = competition.isTeamCompetition ? maxTeamSize + 3 : 3
   const needed = winnerCount + competition.challenges.length
 
   // Count trophies available for this competition (reserved for it + unreserved)
@@ -224,19 +226,22 @@ async function computeWinners(competitionId: string): Promise<AwardRecipient[]> 
 
   const recipients: AwardRecipient[] = []
 
+  // Top 3 individual players by total points (non-dummy, points > 0).
+  const top3Individuals = Object.entries(playerTotalPoints)
+    .filter(([userId]) => {
+      const cp = competition.players.find(p => p.userId === userId)
+      return cp && !cp.user.isDummy
+    })
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 3)
+
+  const medals = ['🥇', '🥈', '🥉']
+
   if (!competition.isTeamCompetition) {
-    // Individual competition: top 3 players by total points
+    // Individual competition: the overall top 3 placement.
     const posLabels = ['🥇 **1st place**', '🥈 **2nd place**', '🥉 **3rd place**']
     const placementKeys = ['placement1', 'placement2', 'placement3']
-    const top3 = Object.entries(playerTotalPoints)
-      .filter(([userId]) => {
-        const cp = competition.players.find(p => p.userId === userId)
-        return cp && !cp.user.isDummy
-      })
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 3)
-
-    for (const [i, [userId, points]] of top3.entries()) {
+    for (const [i, [userId, points]] of top3Individuals.entries()) {
       if (points === 0) continue
       recipients.push({
         userId,
@@ -246,7 +251,7 @@ async function computeWinners(competitionId: string): Promise<AwardRecipient[]> 
       })
     }
   } else {
-    // Team competition: winning team members (non-dummy)
+    // Team competition: winning team members (non-dummy)...
     const sortedTeams = competition.teams
       .map(t => ({ id: t.id, name: t.name, points: teamPoints[t.id] ?? 0 }))
       .sort((a, b) => b.points - a.points)
@@ -262,6 +267,18 @@ async function computeWinners(competitionId: string): Promise<AwardRecipient[]> 
           subtitleParams: { team: winningTeam.name, competition: competition.name },
         })
       }
+    }
+
+    // ...plus the top 3 of the individual leaderboard.
+    const individualKeys = ['individualLeaderboard1', 'individualLeaderboard2', 'individualLeaderboard3']
+    for (const [i, [userId, points]] of top3Individuals.entries()) {
+      if (points === 0) continue
+      recipients.push({
+        userId,
+        subtitle: `${medals[i]} Awarded for being **top ${i + 1}** in the **individual leaderboard** during **${competition.name}**`,
+        subtitleKey: individualKeys[i],
+        subtitleParams: { competition: competition.name },
+      })
     }
   }
 
@@ -292,7 +309,25 @@ export async function awardCompetitionTrophies(competitionId: string): Promise<v
   const comp = await prisma.competition.findUnique({ where: { id: competitionId }, select: { groupId: true } })
   const trophyGroupId = comp?.groupId ?? null
 
-  await ensureForCompetition(competitionId)
+  // Make sure there is at least one award per recipient available for this
+  // competition (reserved-for-it + unreserved). Generate fresh random awards
+  // to cover any shortfall. Generation failures are tolerated so we still
+  // hand out whatever we managed to prepare.
+  const countAvailable = () => prisma.trophy.count({
+    where: { userId: null, OR: [{ reservedForCompetitionId: competitionId }, { reservedForCompetitionId: null }] },
+  })
+  const deficit = recipients.length - await countAvailable()
+  if (deficit > 0) {
+    const BATCH_SIZE = 3
+    for (let i = 0; i < deficit; i += BATCH_SIZE) {
+      const batchCount = Math.min(BATCH_SIZE, deficit - i)
+      try {
+        await Promise.all(Array.from({ length: batchCount }, () => generateOneTrophy()))
+      } catch (err) {
+        console.error('[awards] trophy generation failed during awarding:', err)
+      }
+    }
+  }
 
   // Prefer trophies reserved for this competition, then fall back to unreserved
   const [reserved, unreserved] = await Promise.all([
@@ -312,7 +347,7 @@ export async function awardCompetitionTrophies(competitionId: string): Promise<v
     .slice(0, recipients.length)
 
   if (trophyIds.length < recipients.length) {
-    console.error(`[awards] Not enough trophies: need ${recipients.length}, have ${trophyIds.length}`)
+    console.error(`[awards] Not enough trophies after generation: need ${recipients.length}, have ${trophyIds.length}`)
   }
 
   const now = new Date()

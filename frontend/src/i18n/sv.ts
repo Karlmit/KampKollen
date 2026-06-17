@@ -737,6 +737,9 @@ const sv = {
     placement2: '🥈 **2:a plats** i **{{competition}}**',
     placement3: '🥉 **3:e plats** i **{{competition}}**',
     winningTeam: 'Tilldelat för att ha varit i det **vinnande laget** **{{team}}** i **{{competition}}**',
+    individualLeaderboard1: '🥇 Tilldelat för att ha varit **topp 1** i den **individuella topplistan** under **{{competition}}**',
+    individualLeaderboard2: '🥈 Tilldelat för att ha varit **topp 2** i den **individuella topplistan** under **{{competition}}**',
+    individualLeaderboard3: '🥉 Tilldelat för att ha varit **topp 3** i den **individuella topplistan** under **{{competition}}**',
   },
 
   globalLeaderboard: {
