@@ -726,7 +726,7 @@ const sv = {
     allAnswered: ' — Alla svarade! ✓',
     nextQuestion: '→ Nästa fråga',
     startCorrection: '✅ Starta rättning',
-    startPhaseCorrection: '✅ Rätta fasen',
+    startPhaseCorrection: '✅ Nästa rättningsfas',
     nextPhase: '→ Nästa fas',
     phaseProgress: 'FAS {{current}} / {{total}}',
     correcting: 'RÄTTAR {{current}} / {{total}}',

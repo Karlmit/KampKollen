@@ -538,7 +538,7 @@ export function QuizPage() {
             const ringSize = 96
             const ringR = 42
             const circ = 2 * Math.PI * ringR
-            const progress = Math.max(0, Math.min(1, countdownSecs / 5))
+            const progress = Math.max(0, Math.min(1, countdownSecs / 3))
             const isLast = session.currentQuestionIndex >= questions.length - 1
             return (
               <div className="qz-countdown-card qz-pop-in" style={{

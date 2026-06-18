@@ -11,7 +11,7 @@ import { generateImage, DEFAULT_PROMPTS } from '../lib/imageGeneration.js'
 // ── SSE broadcast ─────────────────────────────────────────────────────────────
 const sseClients = new Map<string, Set<FastifyReply>>()
 
-// In-memory countdown state (5-second window — no need to persist to DB)
+// In-memory countdown state (3-second window — no need to persist to DB)
 const countdownMap = new Map<string, number>() // ccId → endsAt (unix ms)
 
 function broadcast(ccId: string) {
@@ -870,7 +870,7 @@ export async function quizRoutes(app: FastifyInstance) {
     return { success: true }
   })
 
-  // QM presses "Next Question" → 5-second countdown visible to everyone, then auto-advance
+  // QM presses "Next Question" → 3-second countdown visible to everyone, then auto-advance
   app.post('/:ccId/session/next-question', { preHandler: requireAuth }, async (request, reply) => {
     const { ccId } = request.params as { ccId: string }
     const me = request.user as { id: string; role: string }
@@ -879,12 +879,12 @@ export async function quizRoutes(app: FastifyInstance) {
     const session = await getOrCreateSession(ccId)
     if (session.status !== 'ACTIVE') return reply.status(400).send({ error: 'Quiz not active' })
 
-    // Start 5-second countdown — broadcast immediately so all clients show it
-    const endsAt = Date.now() + 5000
+    // Start 3-second countdown — broadcast immediately so all clients show it
+    const endsAt = Date.now() + 3000
     countdownMap.set(ccId, endsAt)
     broadcast(ccId)
 
-    // Auto-advance after 5 seconds
+    // Auto-advance after 3 seconds
     setTimeout(async () => {
       countdownMap.delete(ccId)
       try {
@@ -914,7 +914,7 @@ export async function quizRoutes(app: FastifyInstance) {
         }
       } catch { /* session may have been manually advanced */ }
       broadcast(ccId)
-    }, 5000)
+    }, 3000)
 
     return { success: true }
   })

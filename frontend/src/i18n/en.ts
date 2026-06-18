@@ -728,7 +728,7 @@ const en = {
     allAnswered: ' — All answered! ✓',
     nextQuestion: '→ Next Question',
     startCorrection: '✅ Start Correction',
-    startPhaseCorrection: '✅ Correct Phase',
+    startPhaseCorrection: '✅ Next correction phase',
     nextPhase: '→ Next Phase',
     phaseProgress: 'PHASE {{current}} / {{total}}',
     correcting: 'CORRECTING {{current}} / {{total}}',
