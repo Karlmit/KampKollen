@@ -104,8 +104,10 @@ export async function cloneQuizChallenge(
 // quiz — an exact copy the admin can later use to build new quizzes. Deduped by
 // `templateSourceId`: any existing template taken from this quiz is replaced, so
 // replaying or re-snapshotting the same quiz never piles up duplicates. Returns
-// the template Challenge, or null if the source isn't a quiz.
-export async function snapshotChallengeToTemplate(sourceChallengeId: string) {
+// the template Challenge, or null if the source isn't a quiz. An optional `name`
+// lets the caller label the template (e.g. when an admin saves one by hand);
+// when omitted, the clone keeps the source quiz's name.
+export async function snapshotChallengeToTemplate(sourceChallengeId: string, name?: string) {
   const src = await prisma.challenge.findUnique({ where: { id: sourceChallengeId }, select: { id: true, isQuiz: true } })
   if (!src || !src.isQuiz) return null
   const existing = await prisma.challenge.findMany({
@@ -113,5 +115,5 @@ export async function snapshotChallengeToTemplate(sourceChallengeId: string) {
     select: { id: true },
   })
   for (const e of existing) await prisma.challenge.delete({ where: { id: e.id } })
-  return cloneQuizChallenge(sourceChallengeId, { isGlobalTemplate: true, templateSourceId: sourceChallengeId })
+  return cloneQuizChallenge(sourceChallengeId, { name: name?.trim() || undefined, isGlobalTemplate: true, templateSourceId: sourceChallengeId })
 }

@@ -157,8 +157,8 @@ export const api = {
     getState: (ccId: string) => request<any>(`/quiz/${ccId}/state`),
     updateSettings: (challengeId: string, data: { quizPhaseCorrection: boolean }) =>
       request<{ challenge: any }>(`/quiz/challenge/${challengeId}/settings`, { method: 'PUT', body: JSON.stringify(data) }),
-    saveAsTemplate: (challengeId: string) =>
-      request<{ template: any }>(`/quiz/challenge/${challengeId}/save-as-template`, { method: 'POST', body: '{}' }),
+    saveAsTemplate: (challengeId: string, name?: string) =>
+      request<{ template: any }>(`/quiz/challenge/${challengeId}/save-as-template`, { method: 'POST', body: JSON.stringify({ name }) }),
     createQuestion: (data: { challengeId: string; text: string; description?: string; points?: number; timerSeconds?: number; isFreeText?: boolean; manusText?: string; correctionManusText?: string; phase?: number }) =>
       request<{ question: any }>('/quiz/questions', { method: 'POST', body: JSON.stringify(data) }),
     updateQuestion: (id: string, data: { text?: string; description?: string | null; points?: number; timerSeconds?: number; isFreeText?: boolean; manusText?: string; correctionManusText?: string; phase?: number; showAnswersFromQuestionIds?: string[] }) =>

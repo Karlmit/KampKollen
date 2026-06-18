@@ -254,9 +254,10 @@ export async function quizRoutes(app: FastifyInstance) {
   // bank a template (e.g. before a test play) on demand. Deduped by source.
   app.post('/challenge/:challengeId/save-as-template', { preHandler: requireAuth }, async (request, reply) => {
     const { challengeId } = request.params as { challengeId: string }
+    const { name } = (request.body ?? {}) as { name?: string }
     const me = request.user as { id: string; role: string }
     if (!await canEditQuiz(me.id, me.role, challengeId)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
-    const template = await snapshotChallengeToTemplate(challengeId)
+    const template = await snapshotChallengeToTemplate(challengeId, name)
     if (!template) return reply.status(404).send({ error: 'Quiz not found' })
     return reply.status(201).send({ template })
   })

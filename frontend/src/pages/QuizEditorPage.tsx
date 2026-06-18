@@ -10,6 +10,7 @@ import { Button } from '../components/ui/Button'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { IconButton } from '../components/quiz/IconButton'
 import { GenerateImageDialog } from '../components/quiz/GenerateImageDialog'
+import { SaveTemplateDialog } from '../components/quiz/SaveTemplateDialog'
 import { RichTextEditor } from '../components/ui/RichTextEditor'
 import { api } from '../api/client'
 import { useTranslation } from 'react-i18next'
@@ -282,9 +283,10 @@ export function QuizEditorPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz-full', challengeId] }),
   })
   const [savedTemplate, setSavedTemplate] = useState(false)
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false)
   const saveAsTemplate = useMutation({
-    mutationFn: () => api.quiz.saveAsTemplate(challengeId!),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['challenges'] }); setSavedTemplate(true); setTimeout(() => setSavedTemplate(false), 2500) },
+    mutationFn: (name: string) => api.quiz.saveAsTemplate(challengeId!, name),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['challenges'] }); setTemplateDialogOpen(false); setSavedTemplate(true); setTimeout(() => setSavedTemplate(false), 2500) },
   })
 
   // Single AI-generation dialog driven by which target the user picked.
@@ -424,7 +426,7 @@ export function QuizEditorPage() {
             variant={savedTemplate ? 'success' : 'ghost'}
             disabled={questions.length === 0 || saveAsTemplate.isPending}
             loading={saveAsTemplate.isPending}
-            onClick={() => saveAsTemplate.mutate()}
+            onClick={() => setTemplateDialogOpen(true)}
           >
             {savedTemplate ? t('admin.quizEditor.saveAsTemplateDone') : t('admin.quizEditor.saveAsTemplate')}
           </Button>
@@ -797,6 +799,14 @@ export function QuizEditorPage() {
         submitting={generating}
         onSubmit={runGenerate}
         onClose={() => { if (!generating) setGenTarget(null) }}
+      />
+
+      <SaveTemplateDialog
+        open={templateDialogOpen}
+        defaultName={challengeName}
+        submitting={saveAsTemplate.isPending}
+        onSubmit={(name) => saveAsTemplate.mutate(name)}
+        onClose={() => { if (!saveAsTemplate.isPending) setTemplateDialogOpen(false) }}
       />
     </Layout>
   )
