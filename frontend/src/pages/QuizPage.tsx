@@ -1117,13 +1117,22 @@ export function QuizPage() {
                                       aria-label={t('quiz.freeTextMaxLock')}
                                       onClick={() => !locked && maxAndLockField.mutate({ answerId: answer.id, maxPoints: field.points })}
                                       disabled={locked || maxAndLockField.isPending}
-                                      style={{ width: 30, height: 30, borderRadius: '50%', border: `1.5px solid ${locked ? 'var(--border-light)' : 'var(--accent-green)'}`, background: locked ? 'var(--surface)' : 'color-mix(in srgb, var(--accent-green) 12%, transparent)', color: locked ? 'var(--text-muted)' : 'var(--accent-green)', fontSize: '15px', cursor: locked ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: locked ? 0.3 : 1, fontWeight: 700 }}
-                                    >✓</button>
+                                      style={{
+                                        marginLeft: 'auto', padding: '4px 12px', borderRadius: 'var(--radius-sm)',
+                                        cursor: locked ? 'not-allowed' : 'pointer',
+                                        border: `1.5px solid ${locked ? 'var(--border-light)' : 'var(--accent-green)'}`,
+                                        background: locked ? 'var(--surface)' : 'color-mix(in srgb, var(--accent-green) 12%, transparent)',
+                                        color: locked ? 'var(--text-muted)' : 'var(--accent-green)',
+                                        fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px',
+                                        opacity: locked ? 0.3 : 1,
+                                        transition: 'border-color 150ms, background 150ms, color 150ms',
+                                      }}
+                                    >{t('quiz.freeTextMaxLockLabel')}</button>
                                     <button
                                       type="button"
                                       onClick={() => toggleFieldLock.mutate(answer.id)}
                                       style={{
-                                        marginLeft: 'auto', padding: '4px 12px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                                        padding: '4px 12px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
                                         border: `1.5px solid ${locked ? 'var(--accent-green)' : 'var(--border-light)'}`,
                                         background: locked ? 'color-mix(in srgb, var(--accent-green) 12%, transparent)' : 'var(--surface)',
                                         color: locked ? 'var(--accent-green)' : 'var(--text-muted)',
