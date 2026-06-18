@@ -281,6 +281,11 @@ export function QuizEditorPage() {
     mutationFn: (quizPhaseCorrection: boolean) => api.quiz.updateSettings(challengeId!, { quizPhaseCorrection }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz-full', challengeId] }),
   })
+  const [savedTemplate, setSavedTemplate] = useState(false)
+  const saveAsTemplate = useMutation({
+    mutationFn: () => api.quiz.saveAsTemplate(challengeId!),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['challenges'] }); setSavedTemplate(true); setTimeout(() => setSavedTemplate(false), 2500) },
+  })
 
   // Single AI-generation dialog driven by which target the user picked.
   const [genTarget, setGenTarget] = useState<GenTarget | null>(null)
@@ -405,6 +410,24 @@ export function QuizEditorPage() {
               </button>
             )
           })}
+        </div>
+      </Card>
+
+      {/* Save the current quiz as a reusable template (e.g. before a test play) */}
+      <Card padding="14px" style={{ marginBottom: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', marginBottom: 2 }}>{t('admin.quizEditor.saveAsTemplate')}</p>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>{t('admin.quizEditor.saveAsTemplateHint')}</p>
+          </div>
+          <Button
+            variant={savedTemplate ? 'success' : 'ghost'}
+            disabled={questions.length === 0 || saveAsTemplate.isPending}
+            loading={saveAsTemplate.isPending}
+            onClick={() => saveAsTemplate.mutate()}
+          >
+            {savedTemplate ? t('admin.quizEditor.saveAsTemplateDone') : t('admin.quizEditor.saveAsTemplate')}
+          </Button>
         </div>
       </Card>
 

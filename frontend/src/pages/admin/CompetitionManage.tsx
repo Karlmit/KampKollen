@@ -74,6 +74,7 @@ export function AdminCompetitionManage() {
   const [selectedUserId, setSelectedUserId] = useState('')
   const [selectedChallengeId, setSelectedChallengeId] = useState('')
   const [selectedQuizId, setSelectedQuizId] = useState('')
+  const [templateQuizName, setTemplateQuizName] = useState('')
   const [newQuizName, setNewQuizName] = useState('')
   const [deletingQuizTemplate, setDeletingQuizTemplate] = useState<any>(null)
   const [deleteQuizTemplateError, setDeleteQuizTemplateError] = useState<string | null>(null)
@@ -136,11 +137,12 @@ export function AdminCompetitionManage() {
   })
 
   const addQuizMutation = useMutation({
-    mutationFn: (templateId: string) => api.competitions.addQuiz(id!, { templateId }),
+    mutationFn: ({ templateId, name }: { templateId: string; name: string }) => api.competitions.addQuiz(id!, { templateId, name }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['competition', id] })
       setAddQuizOpen(false)
       setSelectedQuizId('')
+      setTemplateQuizName('')
     },
   })
 
@@ -383,7 +385,7 @@ export function AdminCompetitionManage() {
         <>
           <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
             <Button size="sm" onClick={() => setAddChallengeOpen(true)}>{t('admin.manage.addChallenge')}</Button>
-            <Button size="sm" variant="ghost" onClick={() => { setAddQuizOpen(true); setSelectedQuizId(''); setNewQuizName('') }}>{t('admin.manage.addQuiz')}</Button>
+            <Button size="sm" variant="ghost" onClick={() => { setAddQuizOpen(true); setSelectedQuizId(''); setTemplateQuizName(''); setNewQuizName('') }}>{t('admin.manage.addQuiz')}</Button>
           </div>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={localChallenges.map(c => c.id)} strategy={verticalListSortingStrategy}>
@@ -692,7 +694,7 @@ export function AdminCompetitionManage() {
       </Modal>
 
       {/* Add Quiz modal */}
-      <Modal open={addQuizOpen} onClose={() => { setAddQuizOpen(false); setSelectedQuizId(''); setNewQuizName('') }} title={t('admin.manage.addQuizModal')}>
+      <Modal open={addQuizOpen} onClose={() => { setAddQuizOpen(false); setSelectedQuizId(''); setTemplateQuizName(''); setNewQuizName('') }} title={t('admin.manage.addQuizModal')}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {/* Existing quiz templates */}
           {allQuizTemplates.length > 0 && (
@@ -743,13 +745,27 @@ export function AdminCompetitionManage() {
           )}
 
           {selectedQuizId && (
-            <Button
-              fullWidth
-              onClick={() => addQuizMutation.mutate(selectedQuizId)}
-              loading={addQuizMutation.isPending}
-            >
-              {t('admin.manage.addSelectedQuiz')}
-            </Button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                {t('admin.manage.templateNameHint')}
+              </p>
+              <input
+                value={templateQuizName}
+                onChange={e => setTemplateQuizName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && templateQuizName.trim()) addQuizMutation.mutate({ templateId: selectedQuizId, name: templateQuizName.trim() }) }}
+                placeholder={t('admin.manage.quizNamePlaceholder')}
+                autoFocus
+                style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--border-light)', fontSize: '14px', fontFamily: 'var(--font-ui)' }}
+              />
+              <Button
+                fullWidth
+                disabled={!templateQuizName.trim()}
+                onClick={() => addQuizMutation.mutate({ templateId: selectedQuizId, name: templateQuizName.trim() })}
+                loading={addQuizMutation.isPending}
+              >
+                {t('admin.manage.addSelectedQuiz')}
+              </Button>
+            </div>
           )}
 
           {/* Create new quiz template */}

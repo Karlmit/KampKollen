@@ -151,6 +151,10 @@ model Challenge {
   // phase is corrected right after it's answered, so the leaderboard fills up
   // progressively during the quiz.
   quizPhaseCorrection  Boolean       @default(false)
+  // For a global quiz template (isGlobalTemplate=true) snapshotted when a quiz is
+  // played: the id of the competition quiz it was copied from. Lets a replay
+  // refresh that one template instead of spawning a duplicate each time.
+  templateSourceId     String?
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
 

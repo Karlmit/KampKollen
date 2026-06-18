@@ -6,6 +6,7 @@ import { requireAuth, requireAdmin, optionalAuth } from '../middleware/auth.js'
 import { generateImage, DEFAULT_PROMPTS, generateRandomProfileImage } from '../lib/imageGeneration.js'
 import { hashPassword, validateUsername } from '../lib/auth.js'
 import { preGenerateTrophies, awardCompetitionTrophies } from '../lib/awardTrophies.js'
+import { cloneQuizChallenge } from '../lib/quizClone.js'
 
 const scoringModeEnum = z.enum(['raw_sum', 'placement_points'])
 const tieBreakingModeEnum = z.enum(['best_rank', 'average', 'worst_rank'])
@@ -275,16 +276,19 @@ export async function competitionRoutes(app: FastifyInstance) {
     return reply.status(201).send({ competitionChallenge: cc })
   })
 
-  // Add a quiz to a competition by cloning a template or creating a fresh one.
-  // The clone is competition-specific (isGlobalTemplate: false) so the template
-  // has no direct FK link to the competition and can be safely deleted later.
+  // Add a quiz to a competition. A `name` is always required — a quiz is never
+  // reused directly; it's always a fresh copy under its own name. With a
+  // `templateId` the new quiz is an exact deep copy of that template; without
+  // one it's an empty quiz the admin fills in via the editor. Either way the
+  // result is competition-specific (isGlobalTemplate: false). Reusable global
+  // templates are created automatically when a quiz is first played (see the
+  // quiz session-start route), not here.
   app.post('/:id/challenges/quiz', { preHandler: requireAdmin }, async (request, reply) => {
     const { id } = request.params as { id: string }
     const body = z.object({
       templateId: z.string().optional(),
-      name: z.string().min(1).max(128).optional(),
-    }).refine(d => d.templateId || d.name, { message: 'templateId or name is required' })
-      .safeParse(request.body)
+      name: z.string().min(1).max(128),
+    }).safeParse(request.body)
     if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
 
     const comp = await prisma.competition.findUnique({
@@ -297,112 +301,21 @@ export async function competitionRoutes(app: FastifyInstance) {
       ? Math.max(...comp.challenges.map((c: any) => c.order))
       : -1
 
-    let newTemplate: any = null
-    let cloneData: any
-    // For "find the red thread" references: per cloned question, the `order`s of
-    // the template questions it points at. Bridged to new ids after creation.
-    let refsByOrder: { order: number; refOrders: number[] }[] = []
-
+    let clone
     if (body.data.templateId) {
-      const template = await prisma.challenge.findUnique({
-        where: { id: body.data.templateId },
-        include: {
-          quizQuestions: {
-            include: {
-              options: { orderBy: { order: 'asc' } },
-              fields: { orderBy: { order: 'asc' } },
-            },
-            orderBy: { order: 'asc' },
-          },
-        },
-      })
-      if (!template) return reply.status(404).send({ error: 'Template not found' })
-
-      // Map each template question id → its order, so references (stored as ids)
-      // can be re-expressed as orders that survive the clone.
-      const orderById = new Map(template.quizQuestions.map((q: any) => [q.id, q.order]))
-      refsByOrder = template.quizQuestions
-        .filter((q: any) => (q.showAnswersFromQuestionIds ?? []).length > 0)
-        .map((q: any) => ({
-          order: q.order,
-          refOrders: (q.showAnswersFromQuestionIds as string[])
-            .map(id => orderById.get(id))
-            .filter((o): o is number => o !== undefined),
-        }))
-
-      cloneData = {
-        name: template.name,
-        description: template.description ?? undefined,
-        scoreType: template.scoreType,
-        defaultTeamScoreMode: template.defaultTeamScoreMode,
-        bestNPlayers: template.bestNPlayers ?? undefined,
-        isGlobalTemplate: false,
-        isQuiz: true,
-        quizQuestions: {
-          create: template.quizQuestions.map((q: any) => ({
-            text: q.text,
-            description: q.description ?? undefined,
-            points: q.points,
-            timerSeconds: q.timerSeconds,
-            isFreeText: q.isFreeText,
-            order: q.order,
-            imageUrl: q.imageUrl ?? undefined,
-            // References are remapped to the cloned question ids after creation
-            // (see below) — copying the template ids verbatim would dangle.
-            showAnswersFromQuestionIds: [],
-            options: {
-              create: q.options.map((o: any) => ({
-                text: o.text,
-                isCorrect: o.isCorrect,
-                order: o.order,
-                imageUrl: o.imageUrl ?? undefined,
-              })),
-            },
-            fields: {
-              create: q.fields.map((f: any) => ({
-                label: f.label,
-                points: f.points,
-                order: f.order,
-              })),
-            },
-          })),
-        },
-      }
+      clone = await cloneQuizChallenge(body.data.templateId, { name: body.data.name, isGlobalTemplate: false })
+      if (!clone) return reply.status(404).send({ error: 'Template not found' })
     } else {
-      // Create a new persistent template (so admin can reuse it later)
-      newTemplate = await prisma.challenge.create({
+      // Fresh, empty quiz — admin adds questions via the quiz editor.
+      clone = await prisma.challenge.create({
         data: {
-          name: body.data.name!,
-          isGlobalTemplate: true,
+          name: body.data.name,
+          isGlobalTemplate: false,
           isQuiz: true,
           scoreType: 'manual_points',
           defaultTeamScoreMode: 'sum_all_players',
         },
       })
-      // Clone is initially empty (admin edits questions via quiz editor)
-      cloneData = {
-        name: body.data.name!,
-        isGlobalTemplate: false,
-        isQuiz: true,
-        scoreType: 'manual_points',
-        defaultTeamScoreMode: 'sum_all_players',
-      }
-    }
-
-    const clone = await prisma.challenge.create({ data: cloneData })
-
-    // Remap "find the red thread" references onto the freshly cloned question
-    // ids. Questions keep their `order` (unique per challenge), so we bridge
-    // old→new through it.
-    if (refsByOrder.length > 0) {
-      const cloned = await prisma.quizQuestion.findMany({ where: { challengeId: clone.id }, select: { id: true, order: true } })
-      const idByOrder = new Map(cloned.map(q => [q.order, q.id]))
-      await Promise.all(refsByOrder.map(({ order, refOrders }) => {
-        const targetId = idByOrder.get(order)
-        if (!targetId) return Promise.resolve()
-        const newRefs = refOrders.map(o => idByOrder.get(o)).filter((x): x is string => !!x)
-        return prisma.quizQuestion.update({ where: { id: targetId }, data: { showAnswersFromQuestionIds: newRefs } })
-      }))
     }
 
     const cc = await prisma.competitionChallenge.create({
@@ -410,7 +323,7 @@ export async function competitionRoutes(app: FastifyInstance) {
       include: { challenge: true },
     })
 
-    return reply.status(201).send({ competitionChallenge: cc, template: newTemplate })
+    return reply.status(201).send({ competitionChallenge: cc })
   })
 
   app.delete('/:id/challenges/:challengeId', { preHandler: requireAdmin }, async (request) => {

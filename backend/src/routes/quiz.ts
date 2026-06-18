@@ -7,6 +7,7 @@ import path from 'path'
 import fs from 'fs'
 import { config } from '../config.js'
 import { generateImage, DEFAULT_PROMPTS } from '../lib/imageGeneration.js'
+import { snapshotChallengeToTemplate } from '../lib/quizClone.js'
 
 // ── SSE broadcast ─────────────────────────────────────────────────────────────
 const sseClients = new Map<string, Set<FastifyReply>>()
@@ -246,6 +247,18 @@ export async function quizRoutes(app: FastifyInstance) {
     if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
     const challenge = await prisma.challenge.update({ where: { id: challengeId }, data: { quizPhaseCorrection: body.data.quizPhaseCorrection } })
     return { challenge }
+  })
+
+  // ── Save a quiz as a reusable template, without playing it ───────────────────
+  // Mirrors the automatic snapshot taken when a quiz starts, so an admin/QM can
+  // bank a template (e.g. before a test play) on demand. Deduped by source.
+  app.post('/challenge/:challengeId/save-as-template', { preHandler: requireAuth }, async (request, reply) => {
+    const { challengeId } = request.params as { challengeId: string }
+    const me = request.user as { id: string; role: string }
+    if (!await canEditQuiz(me.id, me.role, challengeId)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
+    const template = await snapshotChallengeToTemplate(challengeId)
+    if (!template) return reply.status(404).send({ error: 'Quiz not found' })
+    return reply.status(201).send({ template })
   })
 
   // ── Quiz cover image (challenge logo) — shown in the challenge list & lobby ──
@@ -870,6 +883,14 @@ export async function quizRoutes(app: FastifyInstance) {
       create: { competitionChallengeId: ccId, status: 'ACTIVE', currentQuestionIndex: 0, questionLocked: false },
       update: { status: 'ACTIVE', currentQuestionIndex: 0, questionLocked: false, lobbyAnnounced: false },
     })
+
+    // Snapshot the (now fully-built) quiz to a reusable global template so it can
+    // be used to build new quizzes later. Best-effort — never block the start.
+    try {
+      const cc = await prisma.competitionChallenge.findUnique({ where: { id: ccId }, select: { challengeId: true } })
+      if (cc?.challengeId) await snapshotChallengeToTemplate(cc.challengeId)
+    } catch { /* template snapshot is non-critical */ }
+
     broadcast(ccId)
     return { success: true }
   })
