@@ -216,6 +216,7 @@ export function QuizPage() {
   const [submitted, setSubmitted] = useState(false)
   const [freeTextInputs, setFreeTextInputs] = useState<Record<string, string>>({})
   const [confirmStart, setConfirmStart] = useState(false)
+  const [confirmAdvance, setConfirmAdvance] = useState(false)
   const [countdownSecs, setCountdownSecs] = useState<number | null>(null)
   const [showFullResults, setShowFullResults] = useState(false)
 
@@ -356,6 +357,15 @@ export function QuizPage() {
   const myTeam = competition.teams.find((t: any) => t.id === myTeamId)
   const currentQ = questions[session.currentQuestionIndex]
   const correctionQ = questions[session.correctionIndex]
+
+  // How many teams/players have answered the current question — drives the QM's
+  // "are you sure?" guard before advancing while answers are still outstanding.
+  const answeredCount = isTeamComp
+    ? competition.teams.filter((t: any) => currentQ?.answeredTeams?.includes(t.id)).length
+    : (currentQ?.answeredUserIds?.length ?? 0)
+  const totalToAnswer = isTeamComp ? competition.teams.length : competition.players.length
+  const everyoneAnswered = totalToAnswer > 0 && answeredCount >= totalToAnswer
+  const advanceQuestion = () => qmMutate(() => api.quiz.nextQuestion(ccId!))
 
   const readyIds = new Set((session.readyEntries ?? []).map((r: any) => r.teamId ?? r.userId))
   const amReady = isTeamComp ? readyIds.has(myTeamId) : readyIds.has(user?.id)
@@ -536,6 +546,25 @@ export function QuizPage() {
       >
         <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
           {t('quiz.startQuizDesc')}
+        </p>
+      </Modal>
+
+      {/* Advance-while-not-everyone-answered confirmation */}
+      <Modal
+        open={confirmAdvance}
+        onClose={() => setConfirmAdvance(false)}
+        title={t('quiz.advanceEarlyTitle')}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirmAdvance(false)}>{t('common.cancel')}</Button>
+            <Button onClick={() => { setConfirmAdvance(false); advanceQuestion() }}>
+              {t('quiz.advanceEarlyConfirm')}
+            </Button>
+          </>
+        }
+      >
+        <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+          {t('quiz.advanceEarlyDesc', { answered: answeredCount, total: totalToAnswer })}
         </p>
       </Modal>
 
@@ -907,7 +936,7 @@ export function QuizPage() {
                 <Button
                   size="sm"
                   disabled={countdownSecs !== null}
-                  onClick={() => qmMutate(() => api.quiz.nextQuestion(ccId!))}
+                  onClick={() => everyoneAnswered ? advanceQuestion() : setConfirmAdvance(true)}
                 >
                   {countdownSecs !== null
                     ? t('quiz.countdown5s', { count: countdownSecs })
