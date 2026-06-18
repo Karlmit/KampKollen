@@ -960,14 +960,14 @@ export function QuizPage() {
                     className={isCorrect ? 'qz-correct-burst' : isWrong ? 'qz-wrong-shake' : undefined}
                     style={{
                       padding: '12px 14px', borderRadius: 'var(--radius)', position: 'relative', overflow: 'hidden',
-                      border: `2px solid ${isCorrect ? 'var(--accent-green)' : isMine ? 'var(--accent)' : 'var(--border-light)'}`,
-                      background: isCorrect ? 'color-mix(in srgb, var(--accent-green) 8%, transparent)' : 'var(--background)',
-                      boxShadow: isCorrect ? '0 0 0 3px color-mix(in srgb, var(--accent-green) 25%, transparent)' : 'none',
+                      border: `2px solid ${isCorrect ? 'var(--accent-green)' : isWrong ? 'var(--accent-warm)' : isMine ? 'var(--accent)' : 'var(--border-light)'}`,
+                      background: isCorrect ? 'color-mix(in srgb, var(--accent-green) 8%, transparent)' : isWrong ? 'color-mix(in srgb, var(--accent-warm) 8%, transparent)' : 'var(--background)',
+                      boxShadow: isCorrect ? '0 0 0 3px color-mix(in srgb, var(--accent-green) 25%, transparent)' : isWrong ? '0 0 0 3px color-mix(in srgb, var(--accent-warm) 25%, transparent)' : 'none',
                       transition: 'border-color 300ms var(--ease-out), box-shadow 300ms var(--ease-out)',
                     }}
                   >
                     {session.correctAnswerVisible && (
-                      <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: `${pct}%`, background: isCorrect ? 'color-mix(in srgb, var(--accent-green) 12%, transparent)' : 'color-mix(in srgb, var(--text-muted) 8%, transparent)', transition: 'width 650ms var(--ease-out)' }} />
+                      <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: `${pct}%`, background: isCorrect ? 'color-mix(in srgb, var(--accent-green) 12%, transparent)' : isWrong ? 'color-mix(in srgb, var(--accent-warm) 12%, transparent)' : 'color-mix(in srgb, var(--text-muted) 8%, transparent)', transition: 'width 650ms var(--ease-out)' }} />
                     )}
 
                     <div style={{ position: 'relative' }}>
@@ -982,7 +982,7 @@ export function QuizPage() {
                           {isWrong && <span style={{ marginLeft: 8 }}>❌</span>}
                         </p>
                         {session.correctAnswerVisible && (
-                          <CountUp value={pct} suffix="%" duration={650} style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', color: isCorrect ? 'var(--accent-green)' : 'var(--text-muted)', flexShrink: 0 }} />
+                          <CountUp value={pct} suffix="%" duration={650} style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', color: isCorrect ? 'var(--accent-green)' : isWrong ? 'var(--accent-warm)' : 'var(--text-muted)', flexShrink: 0 }} />
                         )}
                       </div>
                     </div>
@@ -994,8 +994,8 @@ export function QuizPage() {
                           return (
                             <span key={teamId} style={{
                               padding: '2px 8px', borderRadius: '99px', fontSize: '11px', fontFamily: 'var(--font-ui)', fontWeight: 600,
-                              background: isCorrect ? 'color-mix(in srgb, var(--accent-green) 20%, transparent)' : 'var(--surface)',
-                              color: isCorrect ? 'var(--accent-green)' : 'var(--text-muted)',
+                              background: isCorrect ? 'color-mix(in srgb, var(--accent-green) 20%, transparent)' : isWrong ? 'color-mix(in srgb, var(--accent-warm) 20%, transparent)' : 'var(--surface)',
+                              color: isCorrect ? 'var(--accent-green)' : isWrong ? 'var(--accent-warm)' : 'var(--text-muted)',
                             }}>
                               {teamObj?.name ?? teamId}
                             </span>
