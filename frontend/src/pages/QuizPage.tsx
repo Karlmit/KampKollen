@@ -21,7 +21,7 @@ function QuestionDescription({ html }: { html?: string | null }) {
   return (
     <div
       className="rte-content"
-      style={{ fontFamily: 'var(--font-ui)', fontSize: '14px', lineHeight: 1.5, color: 'var(--text-muted)', marginTop: 8 }}
+      style={{ fontFamily: 'var(--font-ui)', fontSize: '16px', lineHeight: 1.55, color: 'var(--text-muted)', marginTop: 8 }}
       dangerouslySetInnerHTML={{ __html: clean }}
     />
   )

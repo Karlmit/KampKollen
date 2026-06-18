@@ -91,5 +91,9 @@ export function sanitizeRichText(html: string | null | undefined): string {
     // Strip attributes from the allowed opening tags.
     .replace(/<\s*(b|i|u)\b[^>]*>/gi, (_m, tag: string) => `<${tag.toLowerCase()}>`)
     .replace(/<\s*br\b[^>]*\/?>/gi, '<br>')
+    // Drop leading/trailing line breaks (and the whitespace around them) so a
+    // stray empty line in the editor doesn't leave dead space under the text.
+    .replace(/^(?:\s|<br>)+/i, '')
+    .replace(/(?:\s|<br>)+$/i, '')
     .trim()
 }
