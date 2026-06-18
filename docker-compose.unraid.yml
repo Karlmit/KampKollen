@@ -39,7 +39,11 @@ services:
     restart: unless-stopped
 
   kampkollen-db:
-    image: postgres:16-alpine
+    # Pinned to a fixed digest so Unraid stops flagging routine upstream
+    # postgres:16-alpine patches as "update ready". To take a newer Postgres
+    # 16 patch, update this digest (or revert to the plain 16-alpine tag),
+    # then run: docker compose pull && docker compose up -d
+    image: postgres:16-alpine@sha256:e013e867e712fec275706a6c51c966f0bb0c93cfa8f51000f85a15f9865a28cb
     container_name: kampkollen-db
     environment:
       POSTGRES_USER: kampkollen
