@@ -518,6 +518,19 @@ export function QuizEditorPage() {
                             />
                           </div>
 
+                          {/* QM-only "manus" / script notes — shown to the quiz
+                              master while CORRECTING, never to players */}
+                          <div style={{ marginBottom: '12px' }}>
+                            <p style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, fontFamily: 'var(--font-ui)' }}>{t('admin.quizEditor.correctionManus')}</p>
+                            <textarea
+                              defaultValue={q.correctionManusText ?? ''}
+                              onBlur={e => { if (e.target.value !== (q.correctionManusText ?? '')) updateQ.mutate({ id: q.id, correctionManusText: e.target.value }) }}
+                              rows={2}
+                              style={{ width: '100%', minWidth: 0, boxSizing: 'border-box', fontFamily: 'var(--font-ui)', fontSize: '14px', border: '1px dashed var(--border-light)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', outline: 'none', resize: 'vertical', minHeight: 48, lineHeight: 1.4, color: 'var(--text-primary)', padding: '10px 12px' }}
+                              placeholder={t('admin.quizEditor.correctionManusPlaceholder')}
+                            />
+                          </div>
+
                           {/* Image preview */}
                           {q.imageUrl && (
                             <div style={{ position: 'relative', display: 'inline-block', width: '100%', maxWidth: 240, marginBottom: 12 }}>

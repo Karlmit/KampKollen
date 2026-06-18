@@ -639,6 +639,8 @@ const en = {
       fieldAnswerHint: 'Correct answer — only shown to the quiz master when correcting.',
       manus: 'Script notes (only shown to you)',
       manusPlaceholder: 'Notes for you as quiz master — what to say. Never shown to players.',
+      correctionManus: 'Correction script notes (only shown to you)',
+      correctionManusPlaceholder: 'Notes for you as quiz master while correcting — what to say. Never shown to players.',
       // Correction mode toggle (top of the editor)
       correctionMode: 'Correction mode',
       correctionModeEnd: 'Quiz first, then correction',
@@ -742,6 +744,7 @@ const en = {
     expectedAnswer: 'Correct answer',
     correctAnswer: 'Correct answer',
     manus: 'Script',
+    correctionManus: 'Script (correction)',
     nextCorrection: '→ Next Correction',
     completeQuiz: '🏁 Complete Quiz',
     quizComplete: 'Quiz Complete!',

@@ -61,6 +61,7 @@ export async function cloneQuizChallenge(
           order: q.order,
           phase: q.phase,
           manusText: q.manusText,
+          correctionManusText: q.correctionManusText,
           imageUrl: q.imageUrl ?? undefined,
           // Remapped to the cloned question ids once they exist (see below).
           showAnswersFromQuestionIds: [],

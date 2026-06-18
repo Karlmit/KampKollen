@@ -493,6 +493,8 @@ export async function quizRoutes(app: FastifyInstance) {
         isFreeText: q.isFreeText,
         // QM-only script notes — only while presenting this question (ACTIVE).
         manusText: (isQM && isCurrentQuestion) ? q.manusText : null,
+        // QM-only script notes — only while correcting this question.
+        correctionManusText: (isQM && isBeingCorrected) ? q.correctionManusText : null,
         showAnswersFromQuestionIds: q.showAnswersFromQuestionIds,
         priorAnswers,
         options: (!q.isFreeText && showOptions) ? q.options.map(o => ({
@@ -573,6 +575,7 @@ export async function quizRoutes(app: FastifyInstance) {
       timerSeconds: z.number().int().min(0).default(0),
       isFreeText: z.boolean().default(false),
       manusText: z.string().optional(),
+      correctionManusText: z.string().optional(),
       phase: z.number().int().min(0).optional(),
       showAnswersFromQuestionIds: z.array(z.string()).optional(),
     }).safeParse(request.body)
@@ -600,6 +603,7 @@ export async function quizRoutes(app: FastifyInstance) {
       timerSeconds: z.number().int().min(0).optional(),
       isFreeText: z.boolean().optional(),
       manusText: z.string().optional(),
+      correctionManusText: z.string().optional(),
       phase: z.number().int().min(0).optional(),
       showAnswersFromQuestionIds: z.array(z.string()).optional(),
     }).safeParse(request.body)

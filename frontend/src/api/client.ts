@@ -159,9 +159,9 @@ export const api = {
       request<{ challenge: any }>(`/quiz/challenge/${challengeId}/settings`, { method: 'PUT', body: JSON.stringify(data) }),
     saveAsTemplate: (challengeId: string) =>
       request<{ template: any }>(`/quiz/challenge/${challengeId}/save-as-template`, { method: 'POST', body: '{}' }),
-    createQuestion: (data: { challengeId: string; text: string; description?: string; points?: number; timerSeconds?: number; isFreeText?: boolean; manusText?: string; phase?: number }) =>
+    createQuestion: (data: { challengeId: string; text: string; description?: string; points?: number; timerSeconds?: number; isFreeText?: boolean; manusText?: string; correctionManusText?: string; phase?: number }) =>
       request<{ question: any }>('/quiz/questions', { method: 'POST', body: JSON.stringify(data) }),
-    updateQuestion: (id: string, data: { text?: string; description?: string | null; points?: number; timerSeconds?: number; isFreeText?: boolean; manusText?: string; phase?: number; showAnswersFromQuestionIds?: string[] }) =>
+    updateQuestion: (id: string, data: { text?: string; description?: string | null; points?: number; timerSeconds?: number; isFreeText?: boolean; manusText?: string; correctionManusText?: string; phase?: number; showAnswersFromQuestionIds?: string[] }) =>
       request<{ question: any }>(`/quiz/questions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteQuestion: (id: string) => request(`/quiz/questions/${id}`, { method: 'DELETE' }),
     reorderQuestions: (order: string[]) => request('/quiz/questions/reorder', { method: 'PUT', body: JSON.stringify({ order }) }),

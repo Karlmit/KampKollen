@@ -1009,6 +1009,21 @@ export function QuizPage() {
             {correctionQ.imageUrl && <img src={correctionQ.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginTop: 8, display: 'block' }} />}
           </Card>
 
+          {/* QM-only "manus" for the correction phase — the script the quiz
+              master reads aloud while correcting/scoring this question */}
+          {isQM && correctionQ.correctionManusText && (
+            <div style={{
+              padding: '12px 14px', borderRadius: 'var(--radius)',
+              background: 'color-mix(in srgb, var(--accent-warm) 7%, var(--surface))',
+              border: '1.5px dashed color-mix(in srgb, var(--accent-warm) 35%, transparent)',
+            }}>
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--accent-warm)', marginBottom: 6, textTransform: 'uppercase' }}>
+                {t('quiz.correctionManus')}
+              </p>
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '14px', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{correctionQ.correctionManusText}</p>
+            </div>
+          )}
+
           {/* Answer options / free text answers */}
           {correctionQ.isFreeText ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>

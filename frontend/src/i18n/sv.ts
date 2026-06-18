@@ -637,6 +637,8 @@ const sv = {
       fieldAnswerHint: 'Rätt svar – visas bara för quizvärden vid rättning.',
       manus: 'Manus (visas bara för dig)',
       manusPlaceholder: 'Stödtext för dig som quizvärd – vad du ska säga. Visas aldrig för deltagarna.',
+      correctionManus: 'Manus vid rättning (visas bara för dig)',
+      correctionManusPlaceholder: 'Stödtext för dig som quizvärd under rättningen – vad du ska säga. Visas aldrig för deltagarna.',
       // Correction mode toggle (top of the editor)
       correctionMode: 'Rättningsläge',
       correctionModeEnd: 'Quiz först, sedan rättning',
@@ -740,6 +742,7 @@ const sv = {
     expectedAnswer: 'Rätt svar',
     correctAnswer: 'Rätt svar',
     manus: 'Manus',
+    correctionManus: 'Manus (rättning)',
     nextCorrection: '→ Nästa rättning',
     completeQuiz: '🏁 Avsluta quiz',
     quizComplete: 'Quiz klart!',
