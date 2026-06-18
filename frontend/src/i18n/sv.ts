@@ -748,6 +748,7 @@ const sv = {
     freeTextUnlock: 'Lås upp',
     freeTextLockedStatus: '✓ Låst',
     freeTextLockAllFirst: 'Lås alla svar innan du går vidare',
+    freeTextLockAll: 'Lås alla svar',
   },
 
   profileImage: {

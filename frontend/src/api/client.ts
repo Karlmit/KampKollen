@@ -212,6 +212,8 @@ export const api = {
       request(`/quiz/${ccId}/field-answers/${answerId}/points`, { method: 'PUT', body: JSON.stringify({ points }) }),
     toggleFieldLock: (ccId: string, answerId: string) =>
       request(`/quiz/${ccId}/field-answers/${answerId}/lock`, { method: 'PUT', body: '{}' }),
+    lockAllFields: (ccId: string) =>
+      request(`/quiz/${ccId}/field-answers/lock-all`, { method: 'PUT', body: '{}' }),
     setQuizMaster: (compId: string, userId: string, isQuizMaster: boolean) =>
       request(`/quiz/competition/${compId}/players/${userId}/quiz-master`, { method: 'PUT', body: JSON.stringify({ isQuizMaster }) }),
     history: (groupId?: string | null) =>

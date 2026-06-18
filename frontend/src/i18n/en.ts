@@ -750,6 +750,7 @@ const en = {
     freeTextUnlock: 'Unlock',
     freeTextLockedStatus: '✓ Locked',
     freeTextLockAllFirst: 'Lock all answers before proceeding',
+    freeTextLockAll: 'Lock all answers',
   },
 
   profileImage: {

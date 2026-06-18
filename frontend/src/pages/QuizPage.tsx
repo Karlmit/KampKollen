@@ -267,6 +267,11 @@ export function QuizPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz', ccId] }),
   })
 
+  const lockAllFields = useMutation({
+    mutationFn: () => api.quiz.lockAllFields(ccId!),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz', ccId] }),
+  })
+
   const readyMutation = useMutation({
     mutationFn: (teamId?: string) => api.quiz.markReady(ccId!, teamId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz', ccId] }),
@@ -1058,9 +1063,16 @@ export function QuizPage() {
               <p style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '4px' }}>{t('quiz.quizMaster')}</p>
               <div style={{ display: 'flex', gap: '8px' }}>
                 {correctionQ.isFreeText ? (() => {
+                  const allAnswers = (correctionQ.fields ?? []).flatMap((f: any) => f.answers ?? [])
+                  const hasUnlocked = allAnswers.some((a: any) => !a.locked)
                   const allLocked = allFieldAnswersLocked(correctionQ)
                   return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {hasUnlocked && (
+                        <Button size="sm" variant="success" disabled={lockAllFields.isPending} onClick={() => lockAllFields.mutate()}>
+                          {t('quiz.freeTextLockAll')}
+                        </Button>
+                      )}
                       <Button size="sm" disabled={!allLocked} onClick={() => qmMutate(() => api.quiz.nextCorrection(ccId!))}>
                         {session.correctionIndex >= questions.length - 1 ? t('quiz.completeQuiz') : t('quiz.nextCorrection')}
                       </Button>

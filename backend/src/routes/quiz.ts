@@ -88,6 +88,15 @@ async function ensureDefaultField(questionId: string) {
   }
 }
 
+// A free-text question's max points is the sum of its fields' points. Keep the
+// question's own `points` (the field used for "1, X, 2" questions) in sync so
+// every points display and the scoring fall back to one consistent value.
+async function syncFreeTextQuestionPoints(questionId: string) {
+  const agg = await prisma.quizField.aggregate({ where: { questionId }, _sum: { points: true } })
+  const total = agg._sum.points ?? 0
+  await prisma.quizQuestion.update({ where: { id: questionId }, data: { points: Math.max(1, total) } })
+}
+
 // Best-effort delete of a stored upload from disk. Handles both the upload
 // ("/uploads/quiz/…") and generated ("uploads/quiz/…") forms; ignores remote
 // placeholder URLs and missing files.
@@ -186,7 +195,7 @@ export async function quizRoutes(app: FastifyInstance) {
     // Lazily give every free-text question a default field so legacy questions
     // created before multi-field support still edit cleanly.
     const freeTextIds = await prisma.quizQuestion.findMany({ where: { challengeId, isFreeText: true }, select: { id: true } })
-    for (const { id } of freeTextIds) await ensureDefaultField(id)
+    for (const { id } of freeTextIds) { await ensureDefaultField(id); await syncFreeTextQuestionPoints(id) }
     const questions = await prisma.quizQuestion.findMany({
       where: { challengeId },
       orderBy: { order: 'asc' },
@@ -544,6 +553,7 @@ export async function quizRoutes(app: FastifyInstance) {
     const field = await prisma.quizField.create({
       data: { questionId, label: body.data.label, points: body.data.points, order: (maxOrder._max.order ?? -1) + 1 },
     })
+    await syncFreeTextQuestionPoints(questionId)
     return reply.status(201).send({ field })
   })
 
@@ -555,6 +565,7 @@ export async function quizRoutes(app: FastifyInstance) {
     const body = z.object({ label: z.string().optional(), points: z.number().int().min(1).optional() }).safeParse(request.body)
     if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
     const field = await prisma.quizField.update({ where: { id }, data: body.data })
+    if (body.data.points !== undefined) await syncFreeTextQuestionPoints(field.questionId)
     return { field }
   })
 
@@ -570,6 +581,7 @@ export async function quizRoutes(app: FastifyInstance) {
       if (count <= 1) return reply.status(400).send({ error: 'A free-text question must keep at least one field' })
     }
     await prisma.quizField.delete({ where: { id } })
+    if (field) await syncFreeTextQuestionPoints(field.questionId)
     return { success: true }
   })
 
@@ -1023,6 +1035,29 @@ export async function quizRoutes(app: FastifyInstance) {
     if (!answer) return reply.status(404).send({ error: 'Answer not found' })
 
     await prisma.quizFieldAnswer.update({ where: { id: answerId }, data: { locked: !answer.locked } })
+    broadcast(ccId)
+    return { success: true }
+  })
+
+  // ── Lock every field answer for the question being corrected (QM only) ───────
+  app.put('/:ccId/field-answers/lock-all', { preHandler: requireAuth }, async (request, reply) => {
+    const { ccId } = request.params as { ccId: string }
+    const me = request.user as { id: string; role: string }
+    if (!await isQM(me.id, ccId)) return reply.status(403).send({ error: 'QM or admin required' })
+
+    const session = await getOrCreateSession(ccId)
+    if (session.status !== 'CORRECTING') return reply.status(400).send({ error: 'Not in correction mode' })
+
+    const cc = await prisma.competitionChallenge.findUnique({ where: { id: ccId }, select: { challengeId: true } })
+    const question = await prisma.quizQuestion.findFirst({
+      where: { challengeId: cc!.challengeId },
+      orderBy: { order: 'asc' },
+      skip: session.correctionIndex,
+      select: { id: true },
+    })
+    if (!question) return reply.status(404).send({ error: 'Question not found' })
+
+    await prisma.quizFieldAnswer.updateMany({ where: { field: { questionId: question.id } }, data: { locked: true } })
     broadcast(ccId)
     return { success: true }
   })

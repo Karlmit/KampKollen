@@ -437,12 +437,21 @@ export function QuizEditorPage() {
 
                           {/* Meta: points · timer · free-text toggle */}
                           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px', marginBottom: '12px', fontSize: '13px', color: 'var(--text-muted)' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              {t('admin.quizEditor.points')}
-                              <input type="number" min={1} defaultValue={q.points}
-                                onBlur={e => updateQ.mutate({ id: q.id, points: parseInt(e.target.value) || 1 })}
-                                style={{ width: 62, height: 34, padding: '0 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)', background: 'var(--background)', fontSize: '14px', color: 'var(--text-primary)' }} />
-                            </label>
+                            {q.isFreeText ? (
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                {t('admin.quizEditor.points')}
+                                <strong style={{ color: 'var(--text-primary)', fontSize: '14px' }}>
+                                  {(q.fields ?? []).reduce((sum: number, f: any) => sum + (f.points ?? 0), 0)}
+                                </strong>
+                              </span>
+                            ) : (
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                {t('admin.quizEditor.points')}
+                                <input type="number" min={1} defaultValue={q.points}
+                                  onBlur={e => updateQ.mutate({ id: q.id, points: parseInt(e.target.value) || 1 })}
+                                  style={{ width: 62, height: 34, padding: '0 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)', background: 'var(--background)', fontSize: '14px', color: 'var(--text-primary)' }} />
+                              </label>
+                            )}
                             <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               {t('admin.quizEditor.timer')}
                               <input type="number" min={0} defaultValue={q.timerSeconds}
