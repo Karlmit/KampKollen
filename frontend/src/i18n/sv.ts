@@ -60,6 +60,7 @@ const sv = {
     createAccount: 'Skapa konto',
     alreadyHaveAccount: 'Har du redan ett konto?',
     pleaseSelectGroup: 'Välj minst en grupp',
+    autoJoinGroup: 'Du läggs automatiskt till i {{group}}.',
     registrationFailed: 'Registrering misslyckades',
     logIn2: 'Logga in',
   },
@@ -515,6 +516,14 @@ const sv = {
       version: 'KampKollen version',
       setViaEnv: 'Angiven via miljövariabel',
       enterApiKey: 'Ange API-nyckel',
+      registration: 'Registrering',
+      registrationDesc: 'Styr hur nya användare väljer grupp när de skapar ett konto.',
+      singleGroupMode: 'Enkel grupp-registrering',
+      singleGroupModeDesc: 'När detta är på får nya användare inte välja grupp — de läggs automatiskt till i gruppen du anger nedan. Praktiskt under ett specifikt grupp-event.',
+      singleGroupSelect: 'Grupp för nya användare',
+      singleGroupSelectDesc: 'Alla som registrerar sig läggs automatiskt till i den här gruppen.',
+      singleGroupSelectPlaceholder: 'Välj en grupp…',
+      singleGroupNeedsGroup: 'Välj en grupp för att aktivera enkel grupp-registrering.',
     },
 
     manage: {

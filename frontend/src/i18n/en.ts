@@ -60,6 +60,7 @@ const en = {
     createAccount: 'Create account',
     alreadyHaveAccount: 'Already have an account?',
     pleaseSelectGroup: 'Please select at least one group',
+    autoJoinGroup: "You'll automatically be added to {{group}}.",
     registrationFailed: 'Registration failed',
     logIn2: 'Log in',
   },
@@ -517,6 +518,14 @@ const en = {
       version: 'KampKollen version',
       setViaEnv: 'Set via environment variable',
       enterApiKey: 'Enter API key',
+      registration: 'Registration',
+      registrationDesc: 'Control how new users pick a group when they create an account.',
+      singleGroupMode: 'Single-group registration',
+      singleGroupModeDesc: 'When on, new users no longer choose a group — they are automatically added to the group you set below. Handy during a specific group event.',
+      singleGroupSelect: 'Group for new users',
+      singleGroupSelectDesc: 'Everyone who registers is automatically added to this group.',
+      singleGroupSelectPlaceholder: 'Select a group…',
+      singleGroupNeedsGroup: 'Pick a group to enable single-group registration.',
     },
 
     manage: {

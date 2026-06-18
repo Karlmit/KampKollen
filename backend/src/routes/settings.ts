@@ -48,9 +48,22 @@ export const SETTING_KEYS = [
   'azure_image_endpoint',
   'azure_image_api_key',
   'azure_image_model',
+  'single_group_mode',
+  'single_group_id',
 ] as const
 
 export type SettingKey = typeof SETTING_KEYS[number]
+
+// Registration config: when single-group mode is on, new users skip the group
+// chooser and are automatically placed in the configured group.
+export async function getRegistrationConfig(): Promise<{ singleGroupMode: boolean; singleGroupId: string | null }> {
+  const rows = await prisma.setting.findMany({ where: { key: { in: ['single_group_mode', 'single_group_id'] } } })
+  const db: Record<string, string> = Object.fromEntries(rows.map(r => [r.key, r.value]))
+  return {
+    singleGroupMode: db['single_group_mode'] === 'true',
+    singleGroupId: db['single_group_id'] || null,
+  }
+}
 
 // Read Azure image config: DB values take priority over env vars
 export async function getAzureConfig(): Promise<{ endpoint: string; apiKey: string; model: string }> {
@@ -67,6 +80,8 @@ const updateSchema = z.object({
   azure_image_endpoint: z.string().optional(),
   azure_image_api_key: z.string().optional(),
   azure_image_model: z.string().optional(),
+  single_group_mode: z.string().optional(),
+  single_group_id: z.string().optional(),
 })
 
 export async function getImageOptions(): Promise<{ subjects: LocalizedOption[]; clothes: LocalizedOption[]; accessories: LocalizedOption[] }> {
@@ -119,6 +134,8 @@ export async function settingsRoutes(app: FastifyInstance) {
         azure_image_endpoint: db['azure_image_endpoint'] ?? '',
         azure_image_api_key: db['azure_image_api_key'] ?? '',
         azure_image_model: db['azure_image_model'] ?? '',
+        single_group_mode: db['single_group_mode'] ?? 'false',
+        single_group_id: db['single_group_id'] ?? '',
       },
       // Indicate which values are coming from env (so UI can show placeholders)
       envDefaults: {

@@ -10,6 +10,7 @@ export function Register() {
   const [form, setForm] = useState({ username: '', password: '', realName: '' })
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([])
   const [availableGroups, setAvailableGroups] = useState<{ id: string; name: string }[]>([])
+  const [singleGroupId, setSingleGroupId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const { register } = useAuth()
@@ -17,8 +18,16 @@ export function Register() {
   const { t } = useTranslation()
 
   useEffect(() => {
-    api.groups.listPublic().then(r => setAvailableGroups(r.groups)).catch(() => {})
+    api.groups.listPublic().then(r => {
+      setAvailableGroups(r.groups)
+      // In single-group mode the admin has picked the group everyone joins,
+      // so we hide the chooser and auto-assign it.
+      setSingleGroupId(r.singleGroupMode && r.singleGroupId ? r.singleGroupId : null)
+    }).catch(() => {})
   }, [])
+
+  // The group everyone is auto-assigned to when single-group mode is active.
+  const forcedGroup = singleGroupId ? availableGroups.find(g => g.id === singleGroupId) ?? null : null
 
   const set = (key: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [key]: e.target.value }))
@@ -31,7 +40,9 @@ export function Register() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (selectedGroupIds.length === 0) {
+    // In single-group mode the group is forced; otherwise require a selection.
+    const groupIds = forcedGroup ? [forcedGroup.id] : selectedGroupIds
+    if (groupIds.length === 0) {
       setError(t('auth.pleaseSelectGroup'))
       return
     }
@@ -42,7 +53,7 @@ export function Register() {
         username: form.username,
         password: form.password,
         realName: form.realName || undefined,
-        groupIds: selectedGroupIds,
+        groupIds,
       })
       navigate('/')
     } catch (err) {
@@ -96,7 +107,26 @@ export function Register() {
             placeholder={t('auth.realNamePlaceholder')}
           />
 
-          {availableGroups.length > 0 && (
+          {forcedGroup ? (
+            <div>
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, marginBottom: '8px' }}>
+                {t('auth.group')}
+              </p>
+              <div style={{
+                padding: '12px 14px', borderRadius: 'var(--radius)',
+                border: '2px solid var(--accent)',
+                background: 'color-mix(in srgb, var(--accent) 8%, transparent)',
+                fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: '14px',
+                display: 'flex', alignItems: 'center', gap: '8px',
+              }}>
+                <span aria-hidden style={{ color: 'var(--accent)' }}>✓</span>
+                {forcedGroup.name}
+              </div>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '6px' }}>
+                {t('auth.autoJoinGroup', { group: forcedGroup.name })}
+              </p>
+            </div>
+          ) : availableGroups.length > 0 && (
             <div>
               <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, marginBottom: '8px' }}>
                 {t('auth.group')} * <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>{t('auth.groupHelper')}</span>

@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { prisma } from '../db.js'
 import { requireAdmin, requireAuth } from '../middleware/auth.js'
 import { GlobalRole } from '@prisma/client'
+import { getRegistrationConfig } from './settings.js'
 
 export async function groupRoutes(app: FastifyInstance) {
   // List groups — admin sees all with member counts, player sees only their own
@@ -23,13 +24,18 @@ export async function groupRoutes(app: FastifyInstance) {
     return { groups }
   })
 
-  // Public list of group names for registration (no auth required)
+  // Public list of group names for registration (no auth required).
+  // Also exposes whether single-group registration mode is active, so the
+  // sign-up page can skip the group chooser and auto-assign the set group.
   app.get('/public', async () => {
-    const groups = await prisma.group.findMany({
-      select: { id: true, name: true },
-      orderBy: { name: 'asc' },
-    })
-    return { groups }
+    const [groups, registration] = await Promise.all([
+      prisma.group.findMany({
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+      }),
+      getRegistrationConfig(),
+    ])
+    return { groups, ...registration }
   })
 
   // Create group — admin only

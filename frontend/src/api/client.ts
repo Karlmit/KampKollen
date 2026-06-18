@@ -220,7 +220,7 @@ export const api = {
 
   // Groups
   groups: {
-    listPublic: () => request<{ groups: any[] }>('/groups/public'),
+    listPublic: () => request<{ groups: { id: string; name: string }[]; singleGroupMode: boolean; singleGroupId: string | null }>('/groups/public'),
     list: () => request<{ groups: any[] }>('/groups'),
     create: (name: string) => request<{ group: any }>('/groups', { method: 'POST', body: JSON.stringify({ name }) }),
     members: (groupId: string) => request<{ members: any[] }>(`/groups/${groupId}/members`),

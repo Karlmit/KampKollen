@@ -3,12 +3,15 @@ import { z } from 'zod'
 import { prisma } from '../db.js'
 import { hashPassword, verifyPassword, validatePassword, validateUsername } from '../lib/auth.js'
 import { generateRandomProfileImage } from '../lib/imageGeneration.js'
+import { getRegistrationConfig } from './settings.js'
 
 const registerSchema = z.object({
   username: z.string().min(2).max(32),
   password: z.string().min(4).max(128),
   realName: z.string().max(128).optional(),
-  groupIds: z.array(z.string()).min(1, 'You must join at least one group'),
+  // Optional: when single-group mode is enabled the server picks the group,
+  // so the client is not required to send any group IDs.
+  groupIds: z.array(z.string()).optional(),
 })
 
 const loginSchema = z.object({
@@ -23,7 +26,7 @@ export async function authRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: body.error.issues[0].message })
     }
 
-    const { username, password, realName, groupIds } = body.data
+    const { username, password, realName } = body.data
 
     const usernameError = validateUsername(username)
     if (usernameError) return reply.status(400).send({ error: usernameError })
@@ -34,6 +37,19 @@ export async function authRoutes(app: FastifyInstance) {
     const existing = await prisma.user.findUnique({ where: { username } })
     if (existing) {
       return reply.status(409).send({ error: 'Username already taken' })
+    }
+
+    // Determine which group(s) the new user joins. In single-group mode the
+    // admin-configured group is forced regardless of what the client sends.
+    const { singleGroupMode, singleGroupId } = await getRegistrationConfig()
+    let groupIds: string[]
+    if (singleGroupMode && singleGroupId) {
+      groupIds = [singleGroupId]
+    } else {
+      groupIds = body.data.groupIds ?? []
+      if (groupIds.length === 0) {
+        return reply.status(400).send({ error: 'You must join at least one group' })
+      }
     }
 
     // Validate all group IDs exist
