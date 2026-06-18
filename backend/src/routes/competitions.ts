@@ -299,6 +299,9 @@ export async function competitionRoutes(app: FastifyInstance) {
 
     let newTemplate: any = null
     let cloneData: any
+    // For "find the red thread" references: per cloned question, the `order`s of
+    // the template questions it points at. Bridged to new ids after creation.
+    let refsByOrder: { order: number; refOrders: number[] }[] = []
 
     if (body.data.templateId) {
       const template = await prisma.challenge.findUnique({
@@ -314,6 +317,18 @@ export async function competitionRoutes(app: FastifyInstance) {
         },
       })
       if (!template) return reply.status(404).send({ error: 'Template not found' })
+
+      // Map each template question id → its order, so references (stored as ids)
+      // can be re-expressed as orders that survive the clone.
+      const orderById = new Map(template.quizQuestions.map((q: any) => [q.id, q.order]))
+      refsByOrder = template.quizQuestions
+        .filter((q: any) => (q.showAnswersFromQuestionIds ?? []).length > 0)
+        .map((q: any) => ({
+          order: q.order,
+          refOrders: (q.showAnswersFromQuestionIds as string[])
+            .map(id => orderById.get(id))
+            .filter((o): o is number => o !== undefined),
+        }))
 
       cloneData = {
         name: template.name,
@@ -332,6 +347,9 @@ export async function competitionRoutes(app: FastifyInstance) {
             isFreeText: q.isFreeText,
             order: q.order,
             imageUrl: q.imageUrl ?? undefined,
+            // References are remapped to the cloned question ids after creation
+            // (see below) — copying the template ids verbatim would dangle.
+            showAnswersFromQuestionIds: [],
             options: {
               create: q.options.map((o: any) => ({
                 text: o.text,
@@ -372,6 +390,20 @@ export async function competitionRoutes(app: FastifyInstance) {
     }
 
     const clone = await prisma.challenge.create({ data: cloneData })
+
+    // Remap "find the red thread" references onto the freshly cloned question
+    // ids. Questions keep their `order` (unique per challenge), so we bridge
+    // old→new through it.
+    if (refsByOrder.length > 0) {
+      const cloned = await prisma.quizQuestion.findMany({ where: { challengeId: clone.id }, select: { id: true, order: true } })
+      const idByOrder = new Map(cloned.map(q => [q.order, q.id]))
+      await Promise.all(refsByOrder.map(({ order, refOrders }) => {
+        const targetId = idByOrder.get(order)
+        if (!targetId) return Promise.resolve()
+        const newRefs = refOrders.map(o => idByOrder.get(o)).filter((x): x is string => !!x)
+        return prisma.quizQuestion.update({ where: { id: targetId }, data: { showAnswersFromQuestionIds: newRefs } })
+      }))
+    }
 
     const cc = await prisma.competitionChallenge.create({
       data: { competitionId: id, challengeId: clone.id, order: maxOrder + 1 },

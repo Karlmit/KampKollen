@@ -293,6 +293,29 @@ export async function quizRoutes(app: FastifyInstance) {
     const myTeamId = myPlayer?.teamId ?? null
     const isTeamComp = cc.competition.isTeamCompetition
 
+    // Lookup of every question by id so a "red thread" question can resolve the
+    // earlier questions it references when building each player's prior answers.
+    const allQuestions = cc.challenge.quizQuestions
+    const questionById = new Map(allQuestions.map(q => [q.id, q]))
+
+    // This player's/team's own answer to an earlier referenced question, as a
+    // small display structure. Returns null for guests (no identity to scope to).
+    function myPriorAnswer(rq: (typeof allQuestions)[number]) {
+      if (!me) return null
+      if (rq.isFreeText) {
+        const fields = rq.fields
+          .map(f => {
+            const mine = isTeamComp ? f.answers.find(a => a.teamId === myTeamId) : f.answers.find(a => a.userId === me.id)
+            return { label: f.label, answer: mine?.answer ?? null }
+          })
+          .filter(e => e.answer != null && e.answer.trim() !== '')
+        return { questionId: rq.id, questionText: rq.text, order: rq.order, isFreeText: true, fields, optionText: null }
+      }
+      const mine = isTeamComp ? rq.answers.find(a => a.teamId === myTeamId) : rq.answers.find(a => a.userId === me.id)
+      const opt = mine?.optionId ? rq.options.find(o => o.id === mine.optionId) : null
+      return { questionId: rq.id, questionText: rq.text, order: rq.order, isFreeText: false, fields: [] as { label: string; answer: string | null }[], optionText: opt?.text ?? null }
+    }
+
     // Build questions visible to this player based on session state
     const questions = cc.challenge.quizQuestions.map((q, idx) => {
       const isCurrentQuestion = session.status === 'ACTIVE' && idx === session.currentQuestionIndex
@@ -377,6 +400,18 @@ export async function quizRoutes(app: FastifyInstance) {
         ? [...new Set(q.fields.flatMap(f => f.answers.map(a => a.userId).filter(Boolean)))]
         : []
 
+      // "Find the red thread": this player's/team's own answers to the earlier
+      // questions this one references. Only earlier questions (order < this one)
+      // are resolved, so a misconfiguration can never leak a later question.
+      const priorAnswers = me
+        ? q.showAnswersFromQuestionIds
+            .map(id => questionById.get(id))
+            .filter((rq): rq is NonNullable<typeof rq> => !!rq && rq.order < q.order)
+            .sort((a, b) => a.order - b.order)
+            .map(myPriorAnswer)
+            .filter(Boolean)
+        : []
+
       return {
         id: q.id,
         text: showOptions ? q.text : null,
@@ -386,6 +421,8 @@ export async function quizRoutes(app: FastifyInstance) {
         timerSeconds: q.timerSeconds,
         order: q.order,
         isFreeText: q.isFreeText,
+        showAnswersFromQuestionIds: q.showAnswersFromQuestionIds,
+        priorAnswers,
         options: (!q.isFreeText && showOptions) ? q.options.map(o => ({
           id: o.id,
           text: o.text,
@@ -441,6 +478,7 @@ export async function quizRoutes(app: FastifyInstance) {
       points: z.number().int().min(1).default(3),
       timerSeconds: z.number().int().min(0).default(0),
       isFreeText: z.boolean().default(false),
+      showAnswersFromQuestionIds: z.array(z.string()).optional(),
     }).safeParse(request.body)
     if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
     if (!await canEditQuiz(me.id, me.role, body.data.challengeId)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
@@ -465,6 +503,7 @@ export async function quizRoutes(app: FastifyInstance) {
       points: z.number().int().min(1).optional(),
       timerSeconds: z.number().int().min(0).optional(),
       isFreeText: z.boolean().optional(),
+      showAnswersFromQuestionIds: z.array(z.string()).optional(),
     }).safeParse(request.body)
     if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
     const question = await prisma.quizQuestion.update({ where: { id }, data: body.data, include: { options: true } })

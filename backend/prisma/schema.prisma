@@ -318,6 +318,10 @@ model QuizQuestion {
   order        Int       @default(0)
   timerSeconds Int       @default(0)
   isFreeText   Boolean   @default(false)
+  // IDs of earlier questions in the same quiz whose answers should be shown back
+  // to each team/player while they answer this question (a team/player only ever
+  // sees their own prior answers). Drives the "find the red thread" question type.
+  showAnswersFromQuestionIds String[] @default([])
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 

@@ -461,6 +461,61 @@ export function QuizEditorPage() {
                             </label>
                           </div>
 
+                          {/* "Find the red thread": show this team's/player's own
+                              answers from earlier questions while they answer this one. */}
+                          {(() => {
+                            const earlier = questions.slice(0, qi)
+                            const selected: string[] = q.showAnswersFromQuestionIds ?? []
+                            const toggle = (id: string) => {
+                              const next = selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id]
+                              updateQ.mutate({ id: q.id, showAnswersFromQuestionIds: next })
+                            }
+                            return (
+                              <div style={{ marginBottom: '12px' }}>
+                                <p style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, fontFamily: 'var(--font-ui)' }}>
+                                  {t('admin.quizEditor.showPriorAnswers')}
+                                </p>
+                                <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: earlier.length ? 8 : 0 }}>
+                                  {t('admin.quizEditor.showPriorAnswersHint')}
+                                </p>
+                                {earlier.length === 0 ? (
+                                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                    {t('admin.quizEditor.showPriorAnswersNone')}
+                                  </p>
+                                ) : (
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                    {earlier.map((eq: any, ei: number) => {
+                                      const on = selected.includes(eq.id)
+                                      const snippet = (eq.text ?? '').trim() || t('admin.quizEditor.untitledQuestion')
+                                      return (
+                                        <button
+                                          key={eq.id}
+                                          type="button"
+                                          onClick={() => toggle(eq.id)}
+                                          title={snippet}
+                                          style={{
+                                            display: 'inline-flex', alignItems: 'center', gap: '6px', maxWidth: '100%',
+                                            padding: '5px 10px', borderRadius: '99px', cursor: 'pointer',
+                                            border: `1.5px solid ${on ? 'var(--accent)' : 'var(--border-light)'}`,
+                                            background: on ? 'color-mix(in srgb, var(--accent) 10%, transparent)' : 'var(--background)',
+                                            color: on ? 'var(--accent)' : 'var(--text-muted)',
+                                            fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px',
+                                            transition: 'border-color 150ms, background 150ms, color 150ms',
+                                          }}
+                                        >
+                                          <span style={{ flexShrink: 0 }}>{on ? '✓' : ''} {t('admin.quizEditor.questionNumber', { number: ei + 1 })}</span>
+                                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160, fontWeight: 500 }}>
+                                            {snippet}
+                                          </span>
+                                        </button>
+                                      )
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })()}
+
                           <hr style={{ height: 1, background: 'var(--border-light)', border: 'none', margin: '0 0 12px' }} />
 
                           {q.isFreeText ? (

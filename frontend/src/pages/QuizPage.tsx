@@ -141,6 +141,44 @@ function respondentPoints(entries: { field: any; answer: any }[]) {
   return entries.reduce((sum, e) => sum + (e.answer.points ?? 0), 0)
 }
 
+// "Find the red thread": shows this team's/player's own answers to the earlier
+// questions the current question references, so they can spot the common theme.
+function PriorAnswersCard({ priorAnswers }: { priorAnswers: any[] }) {
+  const { t } = useTranslation()
+  if (!priorAnswers?.length) return null
+  return (
+    <Card padding="14px" style={{ background: 'color-mix(in srgb, var(--accent) 5%, var(--surface))', border: '1px solid color-mix(in srgb, var(--accent) 25%, transparent)' }}>
+      <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', color: 'var(--accent)', marginBottom: 10 }}>
+        🧵 {t('quiz.priorAnswersTitle')}
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {priorAnswers.map((pa: any, i: number) => {
+          const hasAnswer = pa.isFreeText ? (pa.fields ?? []).length > 0 : !!pa.optionText
+          return (
+            <div key={pa.questionId} style={{ display: 'flex', flexDirection: 'column', gap: 3, paddingTop: i === 0 ? 0 : 10, borderTop: i === 0 ? 'none' : '1px solid var(--border-light)' }}>
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>{pa.questionText}</p>
+              {!hasAnswer ? (
+                <p style={{ fontFamily: 'var(--font-ui)', fontSize: '14px', color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('quiz.priorAnswersNone')}</p>
+              ) : pa.isFreeText ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {(pa.fields ?? []).map((f: any, fi: number) => (
+                    <p key={fi} style={{ fontFamily: 'var(--font-ui)', fontSize: '14px' }}>
+                      {f.label && <span style={{ color: 'var(--text-muted)', marginRight: 6 }}>{f.label}:</span>}
+                      <span style={{ fontWeight: 700 }}>{f.answer}</span>
+                    </p>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ fontFamily: 'var(--font-ui)', fontSize: '14px', fontWeight: 700 }}>{pa.optionText}</p>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </Card>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export function QuizPage() {
   const { competitionId, ccId } = useParams<{ competitionId: string; ccId: string }>()
@@ -506,6 +544,11 @@ export function QuizPage() {
               <img src={currentQ.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginTop: 10, display: 'block' }} />
             )}
           </Card>
+
+          {/* "Find the red thread" — this player's/team's own earlier answers */}
+          {!isQM && !isGuest && (currentQ.priorAnswers?.length ?? 0) > 0 && (
+            <PriorAnswersCard priorAnswers={currentQ.priorAnswers} />
+          )}
 
           {/* Options — QM sees live distribution, guests see read-only, players see answer buttons */}
           {isQM ? (
