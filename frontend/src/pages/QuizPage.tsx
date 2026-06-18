@@ -724,12 +724,12 @@ export function QuizPage() {
                         <span style={{ fontWeight: 400 }}>{t('quiz.points', { count: f.points })}</span>
                       </label>
                     )}
-                    <input
+                    <textarea
                       value={freeTextInputs[f.id] ?? ''}
                       onChange={e => setFreeTextInputs(prev => ({ ...prev, [f.id]: e.target.value }))}
-                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleSubmitFreeText() } }}
+                      rows={3}
                       placeholder={t('quiz.freeTextPlaceholder')}
-                      style={{ width: '100%', height: 46, padding: '0 12px', borderRadius: 'var(--radius)', border: '2px solid var(--border-light)', fontSize: '15px', fontFamily: 'var(--font-ui)', boxSizing: 'border-box', outline: 'none' }}
+                      style={{ width: '100%', minHeight: 84, padding: '10px 12px', borderRadius: 'var(--radius)', border: '2px solid var(--border-light)', fontSize: '15px', fontFamily: 'var(--font-ui)', boxSizing: 'border-box', outline: 'none', resize: 'vertical', lineHeight: 1.4 }}
                     />
                   </div>
                 ))}
