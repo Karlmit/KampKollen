@@ -107,6 +107,34 @@ function removeStoredImage(imageUrl: string | null | undefined) {
   try { fs.unlinkSync(path.join(config.uploadsDir, rel)) } catch { /* already gone */ }
 }
 
+// Phase segments for a quiz in "phase correction" mode. Walks the questions in
+// `order` and groups every maximal contiguous run of equal `phase` value into a
+// segment { start, end } of inclusive question indices (which equal `order`,
+// since orders are kept contiguous 0..n-1). In the default end-correction mode
+// this still returns one segment per run, but callers only consult it when the
+// challenge has quizPhaseCorrection enabled.
+async function getPhaseSegments(challengeId: string): Promise<{ start: number; end: number }[]> {
+  const qs = await prisma.quizQuestion.findMany({
+    where: { challengeId },
+    orderBy: { order: 'asc' },
+    select: { phase: true },
+  })
+  const segments: { start: number; end: number }[] = []
+  let start = 0
+  for (let i = 1; i <= qs.length; i++) {
+    if (i === qs.length || qs[i].phase !== qs[i - 1].phase) {
+      segments.push({ start, end: i - 1 })
+      start = i
+    }
+  }
+  return segments
+}
+
+// The phase segment that contains a given question index.
+function segmentContaining(segments: { start: number; end: number }[], idx: number) {
+  return segments.find(s => idx >= s.start && idx <= s.end) ?? { start: idx, end: idx }
+}
+
 async function computeAndSaveScores(ccId: string, actorId: string) {
   const cc = await prisma.competitionChallenge.findUnique({
     where: { id: ccId },
@@ -205,6 +233,19 @@ export async function quizRoutes(app: FastifyInstance) {
       },
     })
     return { challenge, questions }
+  })
+
+  // ── Quiz-level settings the QM may change (correction mode) ─────────────────
+  // Admin OR a QM of any competition using this challenge can flip the quiz
+  // between end-correction and phase-correction.
+  app.put('/challenge/:challengeId/settings', { preHandler: requireAuth }, async (request, reply) => {
+    const { challengeId } = request.params as { challengeId: string }
+    const me = request.user as { id: string; role: string }
+    if (!await canEditQuiz(me.id, me.role, challengeId)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
+    const body = z.object({ quizPhaseCorrection: z.boolean() }).safeParse(request.body)
+    if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
+    const challenge = await prisma.challenge.update({ where: { id: challengeId }, data: { quizPhaseCorrection: body.data.quizPhaseCorrection } })
+    return { challenge }
   })
 
   // ── Quiz cover image (challenge logo) — shown in the challenge list & lobby ──
@@ -435,6 +476,7 @@ export async function quizRoutes(app: FastifyInstance) {
         points: q.points,
         timerSeconds: q.timerSeconds,
         order: q.order,
+        phase: q.phase,
         isFreeText: q.isFreeText,
         // QM-only script notes — only while presenting this question (ACTIVE).
         manusText: (isQM && isCurrentQuestion) ? q.manusText : null,
@@ -470,6 +512,7 @@ export async function quizRoutes(app: FastifyInstance) {
       },
       isQM,
       isTeamComp,
+      phaseCorrection: cc.challenge.quizPhaseCorrection,
       myTeamId,
       myIsTeamLeader: myPlayer?.isTeamLeader ?? false,
       myIsScorekeeper: myPlayer?.isScorekeeper ?? false,
@@ -496,6 +539,7 @@ export async function quizRoutes(app: FastifyInstance) {
       timerSeconds: z.number().int().min(0).default(0),
       isFreeText: z.boolean().default(false),
       manusText: z.string().optional(),
+      phase: z.number().int().min(0).optional(),
       showAnswersFromQuestionIds: z.array(z.string()).optional(),
     }).safeParse(request.body)
     if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
@@ -522,6 +566,7 @@ export async function quizRoutes(app: FastifyInstance) {
       timerSeconds: z.number().int().min(0).optional(),
       isFreeText: z.boolean().optional(),
       manusText: z.string().optional(),
+      phase: z.number().int().min(0).optional(),
       showAnswersFromQuestionIds: z.array(z.string()).optional(),
     }).safeParse(request.body)
     if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
@@ -845,13 +890,27 @@ export async function quizRoutes(app: FastifyInstance) {
       try {
         const s = await getOrCreateSession(ccId)
         if (s.status !== 'ACTIVE') { broadcast(ccId); return }
-        const cc = await prisma.competitionChallenge.findUnique({ where: { id: ccId }, select: { challengeId: true } })
-        const qCount = await prisma.quizQuestion.count({ where: { challengeId: cc!.challengeId } })
-        const nextIdx = s.currentQuestionIndex + 1
-        if (nextIdx >= qCount) {
-          await prisma.quizSession.update({ where: { id: s.id }, data: { status: 'CORRECTING', questionLocked: true, correctionIndex: 0, correctAnswerVisible: false } })
+        const cc = await prisma.competitionChallenge.findUnique({ where: { id: ccId }, select: { challengeId: true, challenge: { select: { quizPhaseCorrection: true } } } })
+        const challengeId = cc!.challengeId
+        const qCount = await prisma.quizQuestion.count({ where: { challengeId } })
+
+        if (cc!.challenge.quizPhaseCorrection) {
+          // Phase mode: advance within the current phase; once the phase's last
+          // question is reached, start correcting that phase (not the whole quiz).
+          const segments = await getPhaseSegments(challengeId)
+          const seg = segmentContaining(segments, s.currentQuestionIndex)
+          if (s.currentQuestionIndex < seg.end) {
+            await prisma.quizSession.update({ where: { id: s.id }, data: { currentQuestionIndex: s.currentQuestionIndex + 1, questionLocked: false } })
+          } else {
+            await prisma.quizSession.update({ where: { id: s.id }, data: { status: 'CORRECTING', questionLocked: true, correctionIndex: seg.start, correctAnswerVisible: false } })
+          }
         } else {
-          await prisma.quizSession.update({ where: { id: s.id }, data: { currentQuestionIndex: nextIdx, questionLocked: false } })
+          const nextIdx = s.currentQuestionIndex + 1
+          if (nextIdx >= qCount) {
+            await prisma.quizSession.update({ where: { id: s.id }, data: { status: 'CORRECTING', questionLocked: true, correctionIndex: 0, correctAnswerVisible: false } })
+          } else {
+            await prisma.quizSession.update({ where: { id: s.id }, data: { currentQuestionIndex: nextIdx, questionLocked: false } })
+          }
         }
       } catch { /* session may have been manually advanced */ }
       broadcast(ccId)
@@ -880,11 +939,29 @@ export async function quizRoutes(app: FastifyInstance) {
     const session = await getOrCreateSession(ccId)
     if (session.status !== 'CORRECTING') return reply.status(400).send({ error: 'Not in correction mode' })
 
-    const cc = await prisma.competitionChallenge.findUnique({ where: { id: ccId }, select: { challengeId: true } })
-    const qCount = await prisma.quizQuestion.count({ where: { challengeId: cc!.challengeId } })
+    const cc = await prisma.competitionChallenge.findUnique({ where: { id: ccId }, select: { challengeId: true, challenge: { select: { quizPhaseCorrection: true } } } })
+    const challengeId = cc!.challengeId
+    const qCount = await prisma.quizQuestion.count({ where: { challengeId } })
     const nextIdx = session.correctionIndex + 1
 
-    if (nextIdx >= qCount) {
+    if (cc!.challenge.quizPhaseCorrection) {
+      // Phase mode: correct each question of the current phase. When the phase is
+      // fully corrected, save scores so the leaderboard fills up now, then either
+      // hand back to answering the next phase or finish the quiz.
+      const segments = await getPhaseSegments(challengeId)
+      const seg = segmentContaining(segments, session.correctionIndex)
+      if (nextIdx <= seg.end) {
+        await prisma.quizSession.update({ where: { id: session.id }, data: { correctionIndex: nextIdx, correctAnswerVisible: false } })
+      } else {
+        await computeAndSaveScores(ccId, me.id)
+        if (seg.end >= qCount - 1) {
+          await prisma.quizSession.update({ where: { id: session.id }, data: { status: 'COMPLETED', correctAnswerVisible: false } })
+        } else {
+          // Back to answering — start the next phase at its first question.
+          await prisma.quizSession.update({ where: { id: session.id }, data: { status: 'ACTIVE', currentQuestionIndex: seg.end + 1, questionLocked: false, correctAnswerVisible: false } })
+        }
+      }
+    } else if (nextIdx >= qCount) {
       // All corrected — mark completed and compute scores
       await prisma.quizSession.update({ where: { id: session.id }, data: { status: 'COMPLETED', correctAnswerVisible: false } })
       await computeAndSaveScores(ccId, me.id)

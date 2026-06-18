@@ -298,7 +298,23 @@ export function QuizPage() {
   if (isLoading) return <Layout title={t('quiz.title')} back={`/competitions/${competitionId}`}><LoadingSpinner /></Layout>
   if (!data) return <Layout title={t('quiz.title')} back={`/competitions/${competitionId}`}><p>{t('quiz.notFound')}</p></Layout>
 
-  const { session, isQM, isTeamComp, myTeamId, myIsTeamLeader, myIsScorekeeper, competition, questions, challengeId, challengeLogoUrl } = data
+  const { session, isQM, isTeamComp, phaseCorrection, myTeamId, myIsTeamLeader, myIsScorekeeper, competition, questions, challengeId, challengeLogoUrl } = data
+
+  // Phase segments (contiguous runs of equal `phase`) — only meaningful when the
+  // quiz runs in phase-correction mode. Used for phase-aware QM button labels and
+  // the "Phase X / Y" indicators.
+  const phaseSegments: { start: number; end: number }[] = []
+  {
+    let start = 0
+    for (let i = 1; i <= questions.length; i++) {
+      if (i === questions.length || questions[i].phase !== questions[i - 1].phase) {
+        phaseSegments.push({ start, end: i - 1 })
+        start = i
+      }
+    }
+  }
+  const segOf = (idx: number) => phaseSegments.find(s => idx >= s.start && idx <= s.end) ?? { start: idx, end: idx }
+  const phaseNumOf = (idx: number) => phaseSegments.findIndex(s => idx >= s.start && idx <= s.end) + 1
   const isGuest = !user
   // In team mode: leaders, scorekeepers, and non-QM admins can act; individual mode: everyone (guests never act)
   const canAct = !isGuest && (!isTeamComp || myIsTeamLeader || myIsScorekeeper || (isAdmin && !isQM))
@@ -493,9 +509,16 @@ export function QuizPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {/* Progress */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
-              {t('quiz.question', { current: session.currentQuestionIndex + 1, total: questions.length })}
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+              {phaseCorrection && phaseSegments.length > 1 && (
+                <span style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 800, letterSpacing: '0.06em', color: 'var(--accent)', background: 'color-mix(in srgb, var(--accent) 12%, transparent)', padding: '3px 8px', borderRadius: '99px', flexShrink: 0 }}>
+                  {t('quiz.phaseProgress', { current: phaseNumOf(session.currentQuestionIndex), total: phaseSegments.length })}
+                </span>
+              )}
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
+                {t('quiz.question', { current: session.currentQuestionIndex + 1, total: questions.length })}
+              </p>
+            </div>
             <span className="qz-points" style={{
               padding: '3px 10px', borderRadius: '99px',
               background: 'var(--accent)', color: '#fff',
@@ -847,7 +870,12 @@ export function QuizPage() {
                 >
                   {countdownSecs !== null
                     ? t('quiz.countdown5s', { count: countdownSecs })
-                    : session.currentQuestionIndex >= questions.length - 1 ? t('quiz.startCorrection') : t('quiz.nextQuestion')}
+                    : (() => {
+                        const atIdx = session.currentQuestionIndex
+                        const lastOverall = atIdx >= questions.length - 1
+                        if (phaseCorrection && atIdx >= segOf(atIdx).end && !lastOverall) return t('quiz.startPhaseCorrection')
+                        return lastOverall ? t('quiz.startCorrection') : t('quiz.nextQuestion')
+                      })()}
                 </Button>
               </div>
             </div>
@@ -877,6 +905,15 @@ export function QuizPage() {
 
         const showHappy = (revealed && (iGotItRight || (isObserver && !iGotItWrong))) || freeTextGotMax
         const showSad = (revealed && iGotItWrong) || freeTextGotZero
+
+        // Label for the QM "advance" button. In phase mode the phase's last
+        // question hands back to answering the next phase (or finishes the quiz),
+        // so the wording changes from "next correction" accordingly.
+        const corrIdx = session.correctionIndex
+        const lastOverall = corrIdx >= questions.length - 1
+        const correctionAdvanceLabel = phaseCorrection
+          ? (corrIdx >= segOf(corrIdx).end ? (lastOverall ? t('quiz.completeQuiz') : t('quiz.nextPhase')) : t('quiz.nextCorrection'))
+          : (lastOverall ? t('quiz.completeQuiz') : t('quiz.nextCorrection'))
         return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', position: 'relative' }}>
           {/* Win → confetti + coins. Loss → red flash + ❌ rain. */}
@@ -905,9 +942,16 @@ export function QuizPage() {
           />
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
-              {t('quiz.correcting', { current: session.correctionIndex + 1, total: questions.length })}
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+              {phaseCorrection && phaseSegments.length > 1 && (
+                <span style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 800, letterSpacing: '0.06em', color: 'var(--accent)', background: 'color-mix(in srgb, var(--accent) 12%, transparent)', padding: '3px 8px', borderRadius: '99px', flexShrink: 0 }}>
+                  {t('quiz.phaseProgress', { current: phaseNumOf(session.correctionIndex), total: phaseSegments.length })}
+                </span>
+              )}
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
+                {t('quiz.correcting', { current: session.correctionIndex + 1, total: questions.length })}
+              </p>
+            </div>
             <span className="qz-points" style={{
               padding: '3px 10px', borderRadius: '99px',
               background: 'var(--accent)', color: '#fff',
@@ -1141,7 +1185,7 @@ export function QuizPage() {
                         <p style={{ fontSize: '11px', color: 'var(--accent-green)', fontFamily: 'var(--font-ui)', fontWeight: 700 }}>{t('quiz.answerShownToAll')}</p>
                       )}
                       <Button size="sm" disabled={!allLocked} onClick={() => qmMutate(() => api.quiz.nextCorrection(ccId!))}>
-                        {session.correctionIndex >= questions.length - 1 ? t('quiz.completeQuiz') : t('quiz.nextCorrection')}
+                        {correctionAdvanceLabel}
                       </Button>
                       {!allLocked && (
                         <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-ui)' }}>{t('quiz.freeTextLockAllFirst')}</p>
@@ -1157,7 +1201,7 @@ export function QuizPage() {
                     )}
                     {session.correctAnswerVisible && (
                       <Button size="sm" onClick={() => qmMutate(() => api.quiz.nextCorrection(ccId!))}>
-                        {session.correctionIndex >= questions.length - 1 ? t('quiz.completeQuiz') : t('quiz.nextCorrection')}
+                        {correctionAdvanceLabel}
                       </Button>
                     )}
                   </>

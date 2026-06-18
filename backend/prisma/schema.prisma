@@ -145,6 +145,12 @@ model Challenge {
   attemptLabel         String        @default("attempt")
   isGlobalTemplate     Boolean       @default(false)
   isQuiz               Boolean       @default(false)
+  // Quiz correction mode. false = "quiz then correction" (answer every question,
+  // then correct them all at the end — the original flow). true = "phase
+  // correction": questions are grouped into phases (QuizQuestion.phase) and each
+  // phase is corrected right after it's answered, so the leaderboard fills up
+  // progressively during the quiz.
+  quizPhaseCorrection  Boolean       @default(false)
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
 
@@ -316,6 +322,12 @@ model QuizQuestion {
   imageUrl     String?
   points       Int       @default(1)
   order        Int       @default(0)
+  // Phase / group this question belongs to, used only when the challenge has
+  // quizPhaseCorrection enabled. Questions sharing a contiguous run of the same
+  // phase value (walking by `order`) are answered together and then corrected
+  // together before the next phase starts. Ignored in the default end-correction
+  // mode.
+  phase        Int       @default(0)
   timerSeconds Int       @default(0)
   isFreeText   Boolean   @default(false)
   // QM-only "script" notes shown to the quiz master while presenting this

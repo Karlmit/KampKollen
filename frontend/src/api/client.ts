@@ -155,9 +155,11 @@ export const api = {
   // Quiz
   quiz: {
     getState: (ccId: string) => request<any>(`/quiz/${ccId}/state`),
-    createQuestion: (data: { challengeId: string; text: string; description?: string; points?: number; timerSeconds?: number; isFreeText?: boolean; manusText?: string }) =>
+    updateSettings: (challengeId: string, data: { quizPhaseCorrection: boolean }) =>
+      request<{ challenge: any }>(`/quiz/challenge/${challengeId}/settings`, { method: 'PUT', body: JSON.stringify(data) }),
+    createQuestion: (data: { challengeId: string; text: string; description?: string; points?: number; timerSeconds?: number; isFreeText?: boolean; manusText?: string; phase?: number }) =>
       request<{ question: any }>('/quiz/questions', { method: 'POST', body: JSON.stringify(data) }),
-    updateQuestion: (id: string, data: { text?: string; description?: string | null; points?: number; timerSeconds?: number; isFreeText?: boolean; manusText?: string; showAnswersFromQuestionIds?: string[] }) =>
+    updateQuestion: (id: string, data: { text?: string; description?: string | null; points?: number; timerSeconds?: number; isFreeText?: boolean; manusText?: string; phase?: number; showAnswersFromQuestionIds?: string[] }) =>
       request<{ question: any }>(`/quiz/questions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteQuestion: (id: string) => request(`/quiz/questions/${id}`, { method: 'DELETE' }),
     reorderQuestions: (order: string[]) => request('/quiz/questions/reorder', { method: 'PUT', body: JSON.stringify({ order }) }),

@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type ReactNode } from 'react'
+import { Fragment, useState, type CSSProperties, type ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core'
@@ -277,6 +277,10 @@ export function QuizEditorPage() {
     mutationFn: () => api.quiz.removeQuizImage(challengeId!),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['quiz-full', challengeId] }); qc.invalidateQueries({ queryKey: ['competitions'] }) },
   })
+  const updateSettings = useMutation({
+    mutationFn: (quizPhaseCorrection: boolean) => api.quiz.updateSettings(challengeId!, { quizPhaseCorrection }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz-full', challengeId] }),
+  })
 
   // Single AI-generation dialog driven by which target the user picked.
   const [genTarget, setGenTarget] = useState<GenTarget | null>(null)
@@ -313,6 +317,19 @@ export function QuizEditorPage() {
   const questions: any[] = data?.questions ?? []
   const challengeName = data?.challenge?.name ?? 'Quiz'
   const quizImageUrl: string | null = data?.challenge?.logoUrl ?? null
+  const phaseMode = !!data?.challenge?.quizPhaseCorrection
+
+  // 1-based phase group number per question index — a new group starts wherever
+  // the `phase` value changes between consecutive questions. Drives the group
+  // dividers shown in the editor when phase correction is on.
+  const phaseGroupOf: number[] = []
+  {
+    let g = 0
+    questions.forEach((q, i) => {
+      if (i === 0 || questions[i - 1].phase !== q.phase) g++
+      phaseGroupOf[i] = g
+    })
+  }
   const quizImgRemoving = removeQuizImg.isPending
   const quizImgGenerating = genQuizImg.isPending
 
@@ -350,8 +367,50 @@ export function QuizEditorPage() {
         </div>
       </Card>
 
+      {/* Correction mode — quiz-then-correction (default) vs. phase correction */}
+      <Card padding="14px" style={{ marginBottom: '16px' }}>
+        <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', color: 'var(--text-muted)', marginBottom: 10 }}>
+          {t('admin.quizEditor.correctionMode')}
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {([
+            { value: false, label: t('admin.quizEditor.correctionModeEnd'), hint: t('admin.quizEditor.correctionModeEndHint') },
+            { value: true, label: t('admin.quizEditor.correctionModePhase'), hint: t('admin.quizEditor.correctionModePhaseHint') },
+          ] as const).map(opt => {
+            const active = phaseMode === opt.value
+            return (
+              <button
+                key={String(opt.value)}
+                type="button"
+                disabled={updateSettings.isPending}
+                onClick={() => { if (!active) updateSettings.mutate(opt.value) }}
+                style={{
+                  display: 'flex', alignItems: 'flex-start', gap: '10px', textAlign: 'left', width: '100%',
+                  padding: '12px 14px', borderRadius: 'var(--radius)', cursor: active ? 'default' : 'pointer',
+                  border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border-light)'}`,
+                  background: active ? 'color-mix(in srgb, var(--accent) 8%, transparent)' : 'var(--background)',
+                  transition: 'border-color 150ms var(--ease-out), background 150ms var(--ease-out)',
+                }}
+              >
+                <span style={{
+                  width: 20, height: 20, borderRadius: '50%', flexShrink: 0, marginTop: 1,
+                  border: `2px solid ${active ? 'var(--accent)' : 'var(--border-light)'}`,
+                  background: active ? 'var(--accent)' : 'transparent',
+                  color: '#fff', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>{active ? '✓' : ''}</span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: 'block', fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', color: 'var(--text-primary)' }}>{opt.label}</span>
+                  <span style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5, marginTop: 2 }}>{opt.hint}</span>
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </Card>
+
       <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px', maxWidth: '60ch', lineHeight: 1.55 }}>
         {t('admin.quizEditor.questionsCount', { count: questions.length })} {t('admin.quizEditor.reorderHint')}
+        {phaseMode && <> {t('admin.quizEditor.phaseHint')}</>}
       </p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -372,8 +431,18 @@ export function QuizEditorPage() {
               {questions.map((q: any, qi: number) => {
                 const genPending = genQImg.isPending && genQImg.variables?.id === q.id
                 const hasText = !!q.text?.trim()
+                const startsPhase = phaseMode && (qi === 0 || questions[qi - 1].phase !== q.phase)
                 return (
-                  <SortableQuestion key={q.id} id={q.id}>
+                  <Fragment key={q.id}>
+                  {startsPhase && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: qi === 0 ? '0 0 -6px' : '6px 0 -6px' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', height: 24, padding: '0 12px', borderRadius: 'var(--radius-full)', background: 'color-mix(in srgb, var(--accent) 12%, transparent)', color: 'var(--accent)', fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '11px', letterSpacing: '0.06em', textTransform: 'uppercase', flexShrink: 0 }}>
+                        {t('admin.quizEditor.phaseGroup', { number: phaseGroupOf[qi] })}
+                      </span>
+                      <span style={{ flex: 1, height: 1, background: 'var(--border-light)' }} />
+                    </div>
+                  )}
+                  <SortableQuestion id={q.id}>
                     {({ setNodeRef, style, handleProps }) => (
                       <div ref={setNodeRef} style={style}>
                         <Card padding="14px">
@@ -484,6 +553,15 @@ export function QuizEditorPage() {
                                 style={{ width: 62, height: 34, padding: '0 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)', background: 'var(--background)', fontSize: '14px', color: 'var(--text-primary)' }} />
                               <span style={{ fontSize: '11px' }}>{t('admin.quizEditor.noLimit')}</span>
                             </label>
+                            {phaseMode && (
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                {t('admin.quizEditor.phaseField')}
+                                <input type="number" min={0} defaultValue={q.phase ?? 0}
+                                  key={`phase-${q.id}-${q.phase}`}
+                                  onBlur={e => { const v = Math.max(0, parseInt(e.target.value) || 0); if (v !== (q.phase ?? 0)) updateQ.mutate({ id: q.id, phase: v }) }}
+                                  style={{ width: 56, height: 34, padding: '0 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)', background: 'var(--background)', fontSize: '14px', color: 'var(--text-primary)' }} />
+                              </label>
+                            )}
                             <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', marginLeft: 'auto' }}>
                               <input
                                 type="checkbox"
@@ -648,6 +726,7 @@ export function QuizEditorPage() {
                       </div>
                     )}
                   </SortableQuestion>
+                  </Fragment>
                 )
               })}
             </div>

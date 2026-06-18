@@ -23,6 +23,7 @@ const challengeSchema = z.object({
   attemptLabel: z.string().min(1).max(32).optional(),
   isGlobalTemplate: z.boolean().optional(),
   isQuiz: z.boolean().optional(),
+  quizPhaseCorrection: z.boolean().optional(),
 })
 
 export async function challengeRoutes(app: FastifyInstance) {
