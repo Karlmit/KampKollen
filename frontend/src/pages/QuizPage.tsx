@@ -80,6 +80,9 @@ function runningScoreMap(questions: any[], opts: { isTeamComp: boolean; correcti
     if (q.isFreeText) {
       for (const f of q.fields ?? []) {
         for (const a of f.answers ?? []) {
+          // Only locked answers count — while the QM is still adjusting points
+          // (before locking) they aren't final and mustn't move the leaderboard.
+          if (!a.locked) continue
           const pts = a.points ?? 0
           if (pts <= 0) continue
           const id = isTeamComp ? a.teamId : a.userId
