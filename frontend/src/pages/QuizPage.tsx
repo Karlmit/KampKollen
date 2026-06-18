@@ -896,8 +896,10 @@ export function QuizPage() {
         // Free-text: the QM locking the answer is the reveal moment for the team.
         // Full marks across every field → happy confetti; a flat zero → sad rain.
         const myFields = (correctionQ.fields ?? []).filter((f: any) => f.myAnswer != null)
+        // A locked field is fully resolved — unscored counts as 0 (myFreeTextTotal
+        // coerces null → 0), so a locked-at-zero answer still triggers the reveal.
         const freeTextResolved = correctionQ.isFreeText && !isObserver && myFields.length > 0
-          && myFields.every((f: any) => f.myLocked && f.myPoints !== null)
+          && myFields.every((f: any) => f.myLocked)
         const myFreeTextTotal = myFields.reduce((sum: number, f: any) => sum + (f.myPoints ?? 0), 0)
         const freeTextMax = (correctionQ.fields ?? []).reduce((sum: number, f: any) => sum + (f.points ?? 0), 0)
         const freeTextGotMax = freeTextResolved && freeTextMax > 0 && myFreeTextTotal >= freeTextMax

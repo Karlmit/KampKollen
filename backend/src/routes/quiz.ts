@@ -1121,7 +1121,14 @@ export async function quizRoutes(app: FastifyInstance) {
     const answer = await prisma.quizFieldAnswer.findUnique({ where: { id: answerId } })
     if (!answer) return reply.status(404).send({ error: 'Answer not found' })
 
-    await prisma.quizFieldAnswer.update({ where: { id: answerId }, data: { locked: !answer.locked } })
+    // Locking finalises scoring: an answer the QM never touched counts as 0.
+    // Persisting 0 (instead of leaving null) lets the reveal treat it as scored,
+    // so a locked-at-zero answer triggers the "fail" animation and shows "0 / N".
+    const willLock = !answer.locked
+    await prisma.quizFieldAnswer.update({
+      where: { id: answerId },
+      data: { locked: willLock, ...(willLock && answer.points == null ? { points: 0 } : {}) },
+    })
     broadcast(ccId)
     return { success: true }
   })
@@ -1144,6 +1151,8 @@ export async function quizRoutes(app: FastifyInstance) {
     })
     if (!question) return reply.status(404).send({ error: 'Question not found' })
 
+    // Any unscored answers count as 0 once locked (see single-lock endpoint).
+    await prisma.quizFieldAnswer.updateMany({ where: { field: { questionId: question.id }, points: null }, data: { points: 0 } })
     await prisma.quizFieldAnswer.updateMany({ where: { field: { questionId: question.id } }, data: { locked: true } })
     broadcast(ccId)
     return { success: true }
