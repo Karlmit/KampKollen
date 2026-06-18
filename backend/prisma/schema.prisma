@@ -318,6 +318,10 @@ model QuizQuestion {
   order        Int       @default(0)
   timerSeconds Int       @default(0)
   isFreeText   Boolean   @default(false)
+  // QM-only "script" notes shown to the quiz master while presenting this
+  // question (the ACTIVE phase). Never sent to players — it just helps the QM
+  // know what to say so they don't need a separate paper manuscript.
+  manusText    String    @default("")
   // IDs of earlier questions in the same quiz whose answers should be shown back
   // to each team/player while they answer this question (a team/player only ever
   // sees their own prior answers). Drives the "find the red thread" question type.
@@ -340,6 +344,10 @@ model QuizField {
   label      String       @default("")
   points     Int          @default(1)
   order      Int          @default(0)
+  // Optional expected/correct answer for this field, set by the editor. Only
+  // ever revealed to the QM during the correcting phase (as a reference while
+  // scoring); the QM may then choose to show it to everyone or keep it hidden.
+  correctAnswer String    @default("")
 
   answers QuizFieldAnswer[]
 }

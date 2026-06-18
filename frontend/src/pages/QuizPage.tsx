@@ -559,6 +559,20 @@ export function QuizPage() {
             )}
           </Card>
 
+          {/* QM-only "manus" — the script the quiz master reads aloud */}
+          {isQM && currentQ.manusText && (
+            <div style={{
+              padding: '12px 14px', borderRadius: 'var(--radius)',
+              background: 'color-mix(in srgb, var(--accent-warm) 7%, var(--surface))',
+              border: '1.5px dashed color-mix(in srgb, var(--accent-warm) 35%, transparent)',
+            }}>
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--accent-warm)', marginBottom: 6, textTransform: 'uppercase' }}>
+                {t('quiz.manus')}
+              </p>
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '14px', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{currentQ.manusText}</p>
+            </div>
+          )}
+
           {/* "Find the red thread" — this player's/team's own earlier answers */}
           {!isQM && !isGuest && (currentQ.priorAnswers?.length ?? 0) > 0 && (
             <PriorAnswersCard priorAnswers={currentQ.priorAnswers} />
@@ -918,15 +932,23 @@ export function QuizPage() {
                   <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--text-muted)', marginBottom: 6 }}>{t('quiz.yourAnswer')}</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {(correctionQ.fields ?? []).map((f: any) => (
-                      <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
-                        <p style={{ fontFamily: 'var(--font-ui)', fontSize: '15px' }}>
-                          {f.label && <span style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', marginRight: 6 }}>{f.label}:</span>}
-                          <span style={{ fontWeight: 700 }}>{f.myAnswer}</span>
-                        </p>
-                        {f.myLocked && f.myPoints !== null && (
-                          <span style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', color: 'var(--accent-green)', fontWeight: 700, flexShrink: 0 }}>
-                            {t('quiz.freeTextPointsAwarded', { points: f.myPoints, max: f.points })}
-                          </span>
+                      <div key={f.id} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+                          <p style={{ fontFamily: 'var(--font-ui)', fontSize: '15px' }}>
+                            {f.label && <span style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', marginRight: 6 }}>{f.label}:</span>}
+                            <span style={{ fontWeight: 700 }}>{f.myAnswer}</span>
+                          </p>
+                          {f.myLocked && f.myPoints !== null && (
+                            <span style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', color: 'var(--accent-green)', fontWeight: 700, flexShrink: 0 }}>
+                              {t('quiz.freeTextPointsAwarded', { points: f.myPoints, max: f.points })}
+                            </span>
+                          )}
+                        </div>
+                        {f.correctAnswer && (
+                          <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--accent-green)', display: 'flex', alignItems: 'baseline', gap: 5 }}>
+                            <span style={{ flexShrink: 0 }}>🔑</span>
+                            <span><span style={{ fontWeight: 700 }}>{t('quiz.correctAnswer')}:</span> {f.correctAnswer}</span>
+                          </p>
                         )}
                       </div>
                     ))}
@@ -968,6 +990,12 @@ export function QuizPage() {
                                     {field.label && <span style={{ color: 'var(--text-muted)', fontSize: '12px', fontWeight: 700, marginRight: 6 }}>{field.label}:</span>}
                                     {answer.answer || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>—</span>}
                                   </p>
+                                  {field.correctAnswer && (
+                                    <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--accent-green)', display: 'flex', alignItems: 'baseline', gap: 5 }}>
+                                      <span style={{ flexShrink: 0 }}>🔑</span>
+                                      <span><span style={{ fontWeight: 700 }}>{t('quiz.expectedAnswer')}:</span> {field.correctAnswer}</span>
+                                    </p>
+                                  )}
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <button
                                       type="button"
@@ -1094,12 +1122,23 @@ export function QuizPage() {
                   const allAnswers = (correctionQ.fields ?? []).flatMap((f: any) => f.answers ?? [])
                   const hasUnlocked = allAnswers.some((a: any) => !a.locked)
                   const allLocked = allFieldAnswersLocked(correctionQ)
+                  // Any expected answers configured for this question? If so the QM
+                  // may reveal them to everyone (otherwise there's nothing to show).
+                  const hasExpectedAnswers = (correctionQ.fields ?? []).some((f: any) => f.correctAnswer)
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       {hasUnlocked && (
                         <Button size="sm" variant="success" disabled={lockAllFields.isPending} onClick={() => lockAllFields.mutate()}>
                           {t('quiz.freeTextLockAll')}
                         </Button>
+                      )}
+                      {hasExpectedAnswers && !session.correctAnswerVisible && (
+                        <Button size="sm" variant="ghost" onClick={() => qmMutate(() => api.quiz.showAnswer(ccId!))}>
+                          {t('quiz.showAnswerToAll')}
+                        </Button>
+                      )}
+                      {hasExpectedAnswers && session.correctAnswerVisible && (
+                        <p style={{ fontSize: '11px', color: 'var(--accent-green)', fontFamily: 'var(--font-ui)', fontWeight: 700 }}>{t('quiz.answerShownToAll')}</p>
                       )}
                       <Button size="sm" disabled={!allLocked} onClick={() => qmMutate(() => api.quiz.nextCorrection(ccId!))}>
                         {session.correctionIndex >= questions.length - 1 ? t('quiz.completeQuiz') : t('quiz.nextCorrection')}

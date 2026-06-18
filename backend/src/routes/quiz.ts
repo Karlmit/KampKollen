@@ -370,6 +370,11 @@ export async function quizRoutes(app: FastifyInstance) {
       // Free text: include submitted answers (for QM and correction/completed states) with their text and points
       const showFreeTextAnswers = isQM || isBeingCorrected || isPastCorrection || isCompleted_
 
+      // The editor's expected answer for a free-text field is revealed to the QM
+      // throughout the correcting phase (a scoring reference) and to everyone
+      // once the QM chooses to show it (the same gate as multiple-choice answers).
+      const revealFieldAnswer = (isQM && (isCorrecting || isCompleted_)) || showAnswers
+
       // Per-field data for free-text questions. `myAnswer`/`myPoints`/`myLocked`
       // are this player's own submission; `answers` (the full submitted set) is
       // only exposed to the QM and during correction/completed states.
@@ -383,6 +388,7 @@ export async function quizRoutes(app: FastifyInstance) {
               label: f.label,
               points: f.points,
               order: f.order,
+              correctAnswer: revealFieldAnswer ? f.correctAnswer : null,
               myAnswer: mine?.answer ?? null,
               myPoints: mine?.points ?? null,
               myLocked: mine?.locked ?? false,
@@ -430,6 +436,8 @@ export async function quizRoutes(app: FastifyInstance) {
         timerSeconds: q.timerSeconds,
         order: q.order,
         isFreeText: q.isFreeText,
+        // QM-only script notes — only while presenting this question (ACTIVE).
+        manusText: (isQM && isCurrentQuestion) ? q.manusText : null,
         showAnswersFromQuestionIds: q.showAnswersFromQuestionIds,
         priorAnswers,
         options: (!q.isFreeText && showOptions) ? q.options.map(o => ({
@@ -487,6 +495,7 @@ export async function quizRoutes(app: FastifyInstance) {
       points: z.number().int().min(1).default(3),
       timerSeconds: z.number().int().min(0).default(0),
       isFreeText: z.boolean().default(false),
+      manusText: z.string().optional(),
       showAnswersFromQuestionIds: z.array(z.string()).optional(),
     }).safeParse(request.body)
     if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
@@ -512,6 +521,7 @@ export async function quizRoutes(app: FastifyInstance) {
       points: z.number().int().min(1).optional(),
       timerSeconds: z.number().int().min(0).optional(),
       isFreeText: z.boolean().optional(),
+      manusText: z.string().optional(),
       showAnswersFromQuestionIds: z.array(z.string()).optional(),
     }).safeParse(request.body)
     if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
@@ -547,11 +557,11 @@ export async function quizRoutes(app: FastifyInstance) {
     const me = request.user as { id: string; role: string }
     const cid = await challengeIdFromQuestion(questionId)
     if (!cid || !await canEditQuiz(me.id, me.role, cid)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
-    const body = z.object({ label: z.string().default(''), points: z.number().int().min(1).default(1) }).safeParse(request.body)
+    const body = z.object({ label: z.string().default(''), points: z.number().int().min(1).default(1), correctAnswer: z.string().default('') }).safeParse(request.body)
     if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
     const maxOrder = await prisma.quizField.aggregate({ where: { questionId }, _max: { order: true } })
     const field = await prisma.quizField.create({
-      data: { questionId, label: body.data.label, points: body.data.points, order: (maxOrder._max.order ?? -1) + 1 },
+      data: { questionId, label: body.data.label, points: body.data.points, correctAnswer: body.data.correctAnswer, order: (maxOrder._max.order ?? -1) + 1 },
     })
     await syncFreeTextQuestionPoints(questionId)
     return reply.status(201).send({ field })
@@ -562,7 +572,7 @@ export async function quizRoutes(app: FastifyInstance) {
     const me = request.user as { id: string; role: string }
     const cid = await challengeIdFromField(id)
     if (!cid || !await canEditQuiz(me.id, me.role, cid)) return reply.status(403).send({ error: 'Admin or Quiz Master required' })
-    const body = z.object({ label: z.string().optional(), points: z.number().int().min(1).optional() }).safeParse(request.body)
+    const body = z.object({ label: z.string().optional(), points: z.number().int().min(1).optional(), correctAnswer: z.string().optional() }).safeParse(request.body)
     if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
     const field = await prisma.quizField.update({ where: { id }, data: body.data })
     if (body.data.points !== undefined) await syncFreeTextQuestionPoints(field.questionId)

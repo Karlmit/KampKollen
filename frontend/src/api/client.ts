@@ -155,9 +155,9 @@ export const api = {
   // Quiz
   quiz: {
     getState: (ccId: string) => request<any>(`/quiz/${ccId}/state`),
-    createQuestion: (data: { challengeId: string; text: string; description?: string; points?: number; timerSeconds?: number; isFreeText?: boolean }) =>
+    createQuestion: (data: { challengeId: string; text: string; description?: string; points?: number; timerSeconds?: number; isFreeText?: boolean; manusText?: string }) =>
       request<{ question: any }>('/quiz/questions', { method: 'POST', body: JSON.stringify(data) }),
-    updateQuestion: (id: string, data: { text?: string; description?: string | null; points?: number; timerSeconds?: number; isFreeText?: boolean }) =>
+    updateQuestion: (id: string, data: { text?: string; description?: string | null; points?: number; timerSeconds?: number; isFreeText?: boolean; manusText?: string; showAnswersFromQuestionIds?: string[] }) =>
       request<{ question: any }>(`/quiz/questions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteQuestion: (id: string) => request(`/quiz/questions/${id}`, { method: 'DELETE' }),
     reorderQuestions: (order: string[]) => request('/quiz/questions/reorder', { method: 'PUT', body: JSON.stringify({ order }) }),
@@ -173,9 +173,9 @@ export const api = {
     generateQuizImage: (challengeId: string, prompt?: string) =>
       request<{ logoUrl: string }>(`/quiz/challenge/${challengeId}/generate-image`, { method: 'POST', body: JSON.stringify(prompt ? { prompt } : {}) }),
     removeQuizImage: (challengeId: string) => request(`/quiz/challenge/${challengeId}/image`, { method: 'DELETE' }),
-    createField: (questionId: string, data: { label?: string; points?: number }) =>
+    createField: (questionId: string, data: { label?: string; points?: number; correctAnswer?: string }) =>
       request<{ field: any }>(`/quiz/questions/${questionId}/fields`, { method: 'POST', body: JSON.stringify(data) }),
-    updateField: (id: string, data: { label?: string; points?: number }) =>
+    updateField: (id: string, data: { label?: string; points?: number; correctAnswer?: string }) =>
       request<{ field: any }>(`/quiz/fields/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteField: (id: string) => request(`/quiz/fields/${id}`, { method: 'DELETE' }),
     reorderFields: (order: string[]) => request('/quiz/fields/reorder', { method: 'PUT', body: JSON.stringify({ order }) }),

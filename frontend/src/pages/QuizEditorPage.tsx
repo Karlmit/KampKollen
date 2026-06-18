@@ -109,7 +109,7 @@ function SortableOptionRow({ option, onUpdate, onDelete, onImageUpload, onImageR
 function SortableFieldRow({ field, index, onUpdate, onDelete, canDelete }: {
   field: any
   index: number
-  onUpdate: (data: { label?: string; points?: number }) => void
+  onUpdate: (data: { label?: string; points?: number; correctAnswer?: string }) => void
   onDelete: () => void
   canDelete: boolean
 }) {
@@ -117,32 +117,44 @@ function SortableFieldRow({ field, index, onUpdate, onDelete, canDelete }: {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id })
   const style: CSSProperties = {
     transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1,
-    display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 10px',
+    display: 'flex', flexDirection: 'column', gap: '8px', padding: '9px 10px',
     borderRadius: 'var(--radius-sm)', background: 'var(--background)', border: '1.5px solid var(--border-light)',
   }
   return (
     <div ref={setNodeRef} style={style}>
-      <span {...attributes} {...listeners}
-        title={t('admin.quizEditor.reorderHint')}
-        style={{ cursor: 'grab', color: 'var(--border-light)', fontSize: '14px', flexShrink: 0, touchAction: 'none', lineHeight: 1 }}>
-        {GRIP}
-      </span>
-      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 24, height: 24, borderRadius: 'var(--radius-full)', background: 'var(--surface-raised)', color: 'var(--text-muted)', fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px', flexShrink: 0 }}>
-        {index + 1}
-      </span>
-      <input
-        defaultValue={field.label}
-        onBlur={e => { if (e.target.value !== field.label) onUpdate({ label: e.target.value }) }}
-        style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', fontSize: '14px', outline: 'none', fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--text-primary)' }}
-        placeholder={t('admin.quizEditor.fieldLabelPlaceholder')}
-      />
-      <label style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0, fontSize: '12px', color: 'var(--text-muted)' }}>
-        <input type="number" min={1} defaultValue={field.points}
-          onBlur={e => onUpdate({ points: Math.max(1, parseInt(e.target.value) || 1) })}
-          style={{ width: 52, height: 32, padding: '0 6px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)', background: 'var(--surface)', fontSize: '14px', color: 'var(--text-primary)' }} />
-        {t('admin.quizEditor.pointsShort')}
-      </label>
-      <IconButton size="sm" tone="danger" title={t('admin.quizEditor.deleteField')} disabled={!canDelete} onClick={onDelete}>×</IconButton>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <span {...attributes} {...listeners}
+          title={t('admin.quizEditor.reorderHint')}
+          style={{ cursor: 'grab', color: 'var(--border-light)', fontSize: '14px', flexShrink: 0, touchAction: 'none', lineHeight: 1 }}>
+          {GRIP}
+        </span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 24, height: 24, borderRadius: 'var(--radius-full)', background: 'var(--surface-raised)', color: 'var(--text-muted)', fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px', flexShrink: 0 }}>
+          {index + 1}
+        </span>
+        <input
+          defaultValue={field.label}
+          onBlur={e => { if (e.target.value !== field.label) onUpdate({ label: e.target.value }) }}
+          style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', fontSize: '14px', outline: 'none', fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--text-primary)' }}
+          placeholder={t('admin.quizEditor.fieldLabelPlaceholder')}
+        />
+        <label style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0, fontSize: '12px', color: 'var(--text-muted)' }}>
+          <input type="number" min={1} defaultValue={field.points}
+            onBlur={e => onUpdate({ points: Math.max(1, parseInt(e.target.value) || 1) })}
+            style={{ width: 52, height: 32, padding: '0 6px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)', background: 'var(--surface)', fontSize: '14px', color: 'var(--text-primary)' }} />
+          {t('admin.quizEditor.pointsShort')}
+        </label>
+        <IconButton size="sm" tone="danger" title={t('admin.quizEditor.deleteField')} disabled={!canDelete} onClick={onDelete}>×</IconButton>
+      </div>
+      {/* Expected answer — only ever shown to the QM while correcting */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', paddingLeft: 32 }}>
+        <span style={{ flexShrink: 0, fontSize: '13px', lineHeight: 1 }} title={t('admin.quizEditor.fieldAnswerHint')}>🔑</span>
+        <input
+          defaultValue={field.correctAnswer ?? ''}
+          onBlur={e => { if (e.target.value !== (field.correctAnswer ?? '')) onUpdate({ correctAnswer: e.target.value }) }}
+          style={{ flex: 1, minWidth: 0, height: 32, padding: '0 8px', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--border-light)', background: 'var(--surface)', fontSize: '13px', outline: 'none', fontFamily: 'var(--font-ui)', color: 'var(--text-primary)' }}
+          placeholder={t('admin.quizEditor.fieldAnswerPlaceholder')}
+        />
+      </div>
     </div>
   )
 }
@@ -246,7 +258,7 @@ export function QuizEditorPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz-full', challengeId] }),
   })
   const updateField = useMutation({
-    mutationFn: ({ id, ...rest }: { id: string; label?: string; points?: number }) => api.quiz.updateField(id, rest),
+    mutationFn: ({ id, ...rest }: { id: string; label?: string; points?: number; correctAnswer?: string }) => api.quiz.updateField(id, rest),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz-full', challengeId] }),
   })
   const deleteField = useMutation({
@@ -398,6 +410,19 @@ export function QuizEditorPage() {
                               defaultValue={q.description ?? ''}
                               placeholder={t('admin.quizEditor.descriptionPlaceholder')}
                               onCommit={html => { if (html !== (q.description ?? '')) updateQ.mutate({ id: q.id, description: html }) }}
+                            />
+                          </div>
+
+                          {/* QM-only "manus" / script notes — shown to the quiz
+                              master while presenting, never to players */}
+                          <div style={{ marginBottom: '12px' }}>
+                            <p style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, fontFamily: 'var(--font-ui)' }}>{t('admin.quizEditor.manus')}</p>
+                            <textarea
+                              defaultValue={q.manusText ?? ''}
+                              onBlur={e => { if (e.target.value !== (q.manusText ?? '')) updateQ.mutate({ id: q.id, manusText: e.target.value }) }}
+                              rows={2}
+                              style={{ width: '100%', minWidth: 0, boxSizing: 'border-box', fontFamily: 'var(--font-ui)', fontSize: '14px', border: '1px dashed var(--border-light)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', outline: 'none', resize: 'vertical', minHeight: 48, lineHeight: 1.4, color: 'var(--text-primary)', padding: '10px 12px' }}
+                              placeholder={t('admin.quizEditor.manusPlaceholder')}
                             />
                           </div>
 
