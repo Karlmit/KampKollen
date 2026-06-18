@@ -797,7 +797,7 @@ export function QuizPage() {
         const showSad = revealed && iGotItWrong
         return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', position: 'relative' }}>
-          {/* Win → confetti + coins. Loss → red flash + sad-smiley rain. */}
+          {/* Win → confetti + coins. Loss → red flash + ❌ rain. */}
           {showHappy && (
             <Confetti key={`win-${session.correctionIndex}`} count={46} emojis={['🎉', '⭐', '🪙']} />
           )}
@@ -808,9 +808,9 @@ export function QuizPage() {
                 key={`lose-${session.correctionIndex}`}
                 count={30}
                 durationBase={2000}
-                emojiChance={0.85}
+                emojiChance={1}
                 colors={['#d7283d', '#9aa3ab', '#6b7480']}
-                emojis={['😢', '😭', '💧', '💔']}
+                emojis={['❌']}
               />
             </>
           )}

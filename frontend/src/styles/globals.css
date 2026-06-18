@@ -604,15 +604,27 @@ img {
 }
 .qz-correct-burst { animation: qzCorrectBurst 850ms var(--ease-out); }
 
-/* Reveal — wrong answer shake */
+/* Reveal — wrong answer "damage" shake. Modelled on the trauma-based screen
+   shake games use for negative feedback: a high-frequency jitter across X, Y
+   and a little rotation, with the amplitude decaying to zero so it feels like
+   an impact settling rather than a metronome. Linear timing keeps the
+   hand-authored decay intact. */
 @keyframes qzWrongShake {
-  0%, 100% { transform: translateX(0); }
-  20%      { transform: translateX(-8px); }
-  40%      { transform: translateX(7px); }
-  60%      { transform: translateX(-5px); }
-  80%      { transform: translateX(3px); }
+  0%   { transform: translate(0, 0) rotate(0deg); }
+  8%   { transform: translate(-10px, 3px) rotate(-1.4deg); }
+  17%  { transform: translate(9px, -3px) rotate(1.2deg); }
+  25%  { transform: translate(-8px, 2px) rotate(-1deg); }
+  33%  { transform: translate(7px, -2px) rotate(0.9deg); }
+  42%  { transform: translate(-6px, 2px) rotate(-0.7deg); }
+  50%  { transform: translate(5px, -1px) rotate(0.6deg); }
+  58%  { transform: translate(-4px, 1px) rotate(-0.45deg); }
+  67%  { transform: translate(3px, -1px) rotate(0.35deg); }
+  75%  { transform: translate(-2px, 1px) rotate(-0.22deg); }
+  83%  { transform: translate(1px, 0) rotate(0.12deg); }
+  92%  { transform: translate(-1px, 0) rotate(-0.05deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
 }
-.qz-wrong-shake { animation: qzWrongShake 520ms var(--ease-out); }
+.qz-wrong-shake { animation: qzWrongShake 640ms linear both; }
 
 /* Attention pulse — start CTA */
 @keyframes qzCta {
@@ -671,16 +683,16 @@ img {
 }
 .qz-banner-in { animation: qzBannerIn 540ms var(--ease-out) both; }
 
-/* Wrong-answer red flash — a quick vignette wash across the screen */
+/* Wrong-answer red flash — a vignette wash that eases in and back out */
 @keyframes qzRedFlash {
   0%   { opacity: 0; }
-  18%  { opacity: 1; }
+  45%  { opacity: 1; }
   100% { opacity: 0; }
 }
 .qz-red-flash {
   position: fixed; inset: 0; z-index: 48; pointer-events: none;
   background: radial-gradient(circle at center, rgba(215,40,61,0) 35%, rgba(215,40,61,0.55) 100%);
-  animation: qzRedFlash 720ms var(--ease-out) both;
+  animation: qzRedFlash 1300ms var(--ease-in-out) both;
 }
 
 /* Countdown card — gentle breathing so it draws the eye between questions */
