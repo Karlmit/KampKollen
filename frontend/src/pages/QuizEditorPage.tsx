@@ -160,6 +160,47 @@ function SortableFieldRow({ field, index, onUpdate, onDelete, canDelete }: {
   )
 }
 
+// A subtle "+" affordance rendered between question cards so a new question can
+// be inserted at a given position without dragging it up from the bottom.
+function InsertQuestionButton({ onClick, busy, label }: { onClick: () => void; busy: boolean; label: string }) {
+  const [hover, setHover] = useState(false)
+  const lineStyle: CSSProperties = {
+    flex: 1, height: 2, borderRadius: 2,
+    background: hover ? 'var(--accent)' : 'transparent',
+    transition: 'background 150ms var(--ease-out)',
+  }
+  return (
+    <div
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{ display: 'flex', alignItems: 'center', gap: '10px', height: 16, margin: '-8px 0' }}
+    >
+      <span style={lineStyle} />
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={busy}
+        title={label}
+        aria-label={label}
+        style={{
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          width: 26, height: 26, borderRadius: 'var(--radius-full)', flexShrink: 0, padding: 0,
+          border: `1.5px solid ${hover ? 'var(--accent)' : 'var(--border-light)'}`,
+          background: hover ? 'var(--accent)' : 'var(--surface)',
+          color: hover ? '#fff' : 'var(--text-muted)',
+          fontSize: 18, lineHeight: 1, fontWeight: 700,
+          cursor: busy ? 'not-allowed' : 'pointer',
+          opacity: busy ? 0.5 : hover ? 1 : 0.6,
+          transition: 'border-color 150ms var(--ease-out), background 150ms var(--ease-out), color 150ms var(--ease-out), opacity 150ms var(--ease-out)',
+        }}
+      >
+        +
+      </button>
+      <span style={lineStyle} />
+    </div>
+  )
+}
+
 // Wraps a question card so it can be dragged by its grip handle while the rest
 // of the card (inputs, the nested option DnD) stays interactive.
 function SortableQuestion({ id, children }: {
@@ -204,6 +245,19 @@ export function QuizEditorPage() {
   const createQ = useMutation({
     mutationFn: () => api.quiz.createQuestion({ challengeId: challengeId!, text: newQText.trim() }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['quiz-full', challengeId] }); setNewQText('') },
+  })
+  // Insert a new question at a specific position: the backend always appends, so
+  // we create it and then reorder it into place. The new question inherits the
+  // phase of the question it follows so it lands inside the right phase group.
+  const insertQ = useMutation({
+    mutationFn: async ({ index, questions: qs }: { index: number; questions: any[] }) => {
+      const inheritPhase = qs[index - 1]?.phase ?? qs[index]?.phase ?? 0
+      const res = await api.quiz.createQuestion({ challengeId: challengeId!, text: t('admin.quizEditor.newQuestionDefault'), phase: inheritPhase })
+      const ids = qs.map((q: any) => q.id)
+      ids.splice(index, 0, res.question.id)
+      await api.quiz.reorderQuestions(ids)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz-full', challengeId] }),
   })
   const updateQ = useMutation({
     mutationFn: ({ id, ...rest }: any) => api.quiz.updateQuestion(id, rest),
@@ -459,6 +513,11 @@ export function QuizEditorPage() {
                 const startsPhase = phaseMode && (qi === 0 || questions[qi - 1].phase !== q.phase)
                 return (
                   <Fragment key={q.id}>
+                  <InsertQuestionButton
+                    busy={insertQ.isPending}
+                    label={t('admin.quizEditor.insertQuestion')}
+                    onClick={() => insertQ.mutate({ index: qi, questions })}
+                  />
                   {startsPhase && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: qi === 0 ? '0 0 -6px' : '6px 0 -6px' }}>
                       <span style={{ display: 'inline-flex', alignItems: 'center', height: 24, padding: '0 12px', borderRadius: 'var(--radius-full)', background: 'color-mix(in srgb, var(--accent) 12%, transparent)', color: 'var(--accent)', fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '11px', letterSpacing: '0.06em', textTransform: 'uppercase', flexShrink: 0 }}>

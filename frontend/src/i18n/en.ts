@@ -617,6 +617,8 @@ const en = {
       addOption: '+ Option',
       newQuestionPlaceholder: 'New question… (Enter to add)',
       addQuestion: '+ Add Question',
+      insertQuestion: 'Insert a question here',
+      newQuestionDefault: 'New question',
       questionPlaceholder: 'Question text…',
       answerPlaceholder: 'Answer text…',
       markCorrect: 'Mark as correct',

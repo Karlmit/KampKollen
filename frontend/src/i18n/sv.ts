@@ -615,6 +615,8 @@ const sv = {
       addOption: '+ Alternativ',
       newQuestionPlaceholder: 'Ny fråga… (Enter för att lägga till)',
       addQuestion: '+ Lägg till fråga',
+      insertQuestion: 'Infoga en fråga här',
+      newQuestionDefault: 'Ny fråga',
       questionPlaceholder: 'Frågetext…',
       answerPlaceholder: 'Svarstext…',
       markCorrect: 'Markera som rätt',
