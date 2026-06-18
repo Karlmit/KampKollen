@@ -979,16 +979,29 @@ export function QuizPage() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {(correctionQ.fields ?? []).map((f: any) => (
                       <div key={f.id} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
                           <p style={{ fontFamily: 'var(--font-ui)', fontSize: '15px' }}>
                             {f.label && <span style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', marginRight: 6 }}>{f.label}:</span>}
                             <span style={{ fontWeight: 700 }}>{f.myAnswer}</span>
                           </p>
-                          {f.myLocked && f.myPoints !== null && (
-                            <span style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', color: 'var(--accent-green)', fontWeight: 700, flexShrink: 0 }}>
-                              {t('quiz.freeTextPointsAwarded', { points: f.myPoints, max: f.points })}
-                            </span>
-                          )}
+                          {f.myLocked && f.myPoints !== null && (() => {
+                            const gotPoints = (f.myPoints ?? 0) > 0
+                            const tone = gotPoints ? 'var(--accent-green)' : 'var(--accent-warm)'
+                            return (
+                              <span
+                                key={`score-${session.correctionIndex}-${f.id}`}
+                                className="qz-score-reveal"
+                                style={{
+                                  flexShrink: 0, padding: '4px 11px', borderRadius: '99px',
+                                  fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 800,
+                                  color: '#fff', background: tone, whiteSpace: 'nowrap',
+                                  ['--score-glow' as any]: tone,
+                                }}
+                              >
+                                {t('quiz.freeTextPointsAwarded', { points: f.myPoints, max: f.points })}
+                              </span>
+                            )
+                          })()}
                         </div>
                         {f.correctAnswer && (
                           <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--accent-green)', display: 'flex', alignItems: 'baseline', gap: 5 }}>

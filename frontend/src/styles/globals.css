@@ -604,6 +604,19 @@ img {
 }
 .qz-correct-burst { animation: qzCorrectBurst 850ms var(--ease-out); }
 
+/* Reveal — free-text score lock. The instant the QM locks a player's/team's
+   points the score badge mounts; this pops it in and pulses a glowing ring
+   twice so the eye jumps straight to the score on that card. */
+@keyframes qzScoreReveal {
+  0%   { transform: scale(0.3);  opacity: 0; box-shadow: 0 0 0 0  color-mix(in srgb, var(--score-glow) 55%, transparent); }
+  32%  { transform: scale(1.28); opacity: 1; }
+  48%  { transform: scale(0.95); box-shadow: 0 0 0 11px color-mix(in srgb, var(--score-glow) 0%, transparent); }
+  64%  { transform: scale(1.1);  box-shadow: 0 0 0 0  color-mix(in srgb, var(--score-glow) 50%, transparent); }
+  82%  { transform: scale(0.99); box-shadow: 0 0 0 10px color-mix(in srgb, var(--score-glow) 0%, transparent); }
+  100% { transform: scale(1);    box-shadow: 0 0 0 0  color-mix(in srgb, var(--score-glow) 0%, transparent); }
+}
+.qz-score-reveal { animation: qzScoreReveal 1150ms var(--ease-out) both; transform-origin: center; }
+
 /* Reveal — wrong answer "damage" shake. Modelled on the trauma-based screen
    shake games use for negative feedback: a high-frequency jitter across X, Y
    and a little rotation, with the amplitude decaying to zero so it feels like
@@ -749,7 +762,7 @@ img {
   .qz-selected, .qz-count-num, .qz-timer-urgent, .qz-bar-urgent,
   .qz-correct-burst, .qz-wrong-shake, .qz-cta, .qz-gold-pulse,
   .qz-platform, .qz-medal, .qz-banner-in, .qz-confetti-piece,
-  .qz-countdown-card {
+  .qz-countdown-card, .qz-score-reveal {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
