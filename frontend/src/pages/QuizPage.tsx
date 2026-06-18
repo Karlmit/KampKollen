@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Layout } from '../components/layout/Layout'
@@ -178,6 +178,19 @@ export function QuizPage() {
   const countdownEndsAt: number | null = data?.session?.countdownEndsAt ?? null
   useEffect(() => { setSelectedOption(null); setSubmitted(false); setFreeTextInputs({}) }, [currentIdx, sessionStatus])
 
+  // When the QM starts the next-question/correction countdown, auto-submit
+  // whatever free text the player currently has typed but hasn't submitted
+  // (e.g. after taking back an answer). Re-assigned each render below so it
+  // always sees the latest question and inputs.
+  const autoSubmitFreeTextRef = useRef<() => void>(() => {})
+  const prevCountdownRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (countdownEndsAt != null && prevCountdownRef.current == null) {
+      autoSubmitFreeTextRef.current()
+    }
+    prevCountdownRef.current = countdownEndsAt
+  }, [countdownEndsAt])
+
   // Live countdown tick from server-provided endsAt timestamp
   useEffect(() => {
     if (!countdownEndsAt) { setCountdownSecs(null); return }
@@ -199,7 +212,10 @@ export function QuizPage() {
   const retractAnswer = useMutation({
     mutationFn: ({ teamId }: { teamId?: string }) =>
       api.quiz.retractAnswer(ccId!, { questionId: currentQ?.id, teamId }),
-    onSuccess: () => { setSubmitted(false); setSelectedOption(null); setFreeTextInputs({}); qc.invalidateQueries({ queryKey: ['quiz', ccId] }) },
+    // Keep freeTextInputs intact so taken-back free-text answers stay in the
+    // fields (handleRetract pre-seeds them from the saved answer). The
+    // question-advance effect clears them when the question actually changes.
+    onSuccess: () => { setSubmitted(false); setSelectedOption(null); qc.invalidateQueries({ queryKey: ['quiz', ccId] }) },
   })
 
   const setFieldPoints = useMutation({
@@ -265,8 +281,29 @@ export function QuizPage() {
 
   function handleRetract() {
     if (!canAct || session.status !== 'ACTIVE' || currentQ?.locked) return
+    // Preserve the submitted free-text in the editable fields so taking back
+    // doesn't wipe what was entered. Seed from the saved answer in case the
+    // player never typed locally (e.g. after a reload).
+    if (currentQ?.isFreeText) {
+      const restored: Record<string, string> = {}
+      for (const f of currentQ.fields ?? []) {
+        if (f.myAnswer != null) restored[f.id] = f.myAnswer
+      }
+      setFreeTextInputs(prev => ({ ...restored, ...prev }))
+    }
     const teamId = isTeamComp ? myTeamId ?? undefined : undefined
     retractAnswer.mutate({ teamId })
+  }
+
+  // Keep the auto-submit callback fresh: when the QM starts the countdown, any
+  // free text typed but not yet submitted is entered as the answer.
+  autoSubmitFreeTextRef.current = () => {
+    if (!canAct || !currentQ?.isFreeText || currentQ.locked || session.status !== 'ACTIVE') return
+    if (myFreeTextSubmitted) return // already submitted — nothing to enter
+    const fields = (currentQ.fields ?? []).map((f: any) => ({ fieldId: f.id, answer: (freeTextInputs[f.id] ?? '').trim() }))
+    if (fields.length === 0 || fields.every((f: any) => !f.answer)) return
+    const teamId = isTeamComp ? myTeamId ?? undefined : undefined
+    submitAnswer.mutate({ fields, teamId })
   }
 
   // Answers can be taken back until the question is locked or the QM has started
