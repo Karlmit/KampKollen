@@ -498,6 +498,26 @@ export async function quizRoutes(app: FastifyInstance) {
       }
     })
 
+    // Standings locked in so far — the persisted Score records, which are
+    // (re)written each time a correction phase finishes. Keyed by teamId in a
+    // team competition, otherwise by userId. Drives the running top-3 podium
+    // shown above the questions in phase-correction mode once the first phase
+    // has been corrected. Always reflects only points that are already final.
+    const scoreRows = await prisma.score.findMany({
+      where: { competitionChallengeId: ccId },
+      select: { userId: true, calculatedPoints: true },
+    })
+    const standings: Record<string, number> = {}
+    if (isTeamComp) {
+      for (const row of scoreRows) {
+        const p = cc.competition.players.find(pl => pl.userId === row.userId)
+        // Members of a team all carry the team's total, so set (not add) per team.
+        if (p?.teamId) standings[p.teamId] = row.calculatedPoints ?? 0
+      }
+    } else {
+      for (const row of scoreRows) standings[row.userId] = row.calculatedPoints ?? 0
+    }
+
     return {
       session: {
         id: session.id,
@@ -513,6 +533,7 @@ export async function quizRoutes(app: FastifyInstance) {
       isQM,
       isTeamComp,
       phaseCorrection: cc.challenge.quizPhaseCorrection,
+      standings,
       myTeamId,
       myIsTeamLeader: myPlayer?.isTeamLeader ?? false,
       myIsScorekeeper: myPlayer?.isScorekeeper ?? false,

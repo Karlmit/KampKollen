@@ -65,30 +65,54 @@ function TimerBar({ seconds, onExpire }: { seconds: number; onExpire: () => void
   )
 }
 
-// ── Mini scoreboard ───────────────────────────────────────────────────────────
-function MiniScoreboard({ questions, teams, players, isTeamComp }: any) {
-  // Calculate running quiz scores up to the current correction index
-  const scores: Record<string, number> = {}
-  for (const q of questions) {
-    if (!q.answerCounts || !q.options) continue
-    const correctOpt = q.options.find((o: any) => o.isCorrect)
-    if (!correctOpt) continue
-    const correct = q.answerCounts.find((ac: any) => ac.optionId === correctOpt.id)
-    if (!correct) continue
-    if (isTeamComp) {
-      for (const teamId of correct.teams ?? []) {
-        scores[teamId] = (scores[teamId] ?? 0) + q.points
+// Running quiz scores from the questions visible so far, keyed by teamId (team
+// comp) or userId (individual). Counts both multiple-choice (correct option) and
+// free-text (QM-awarded field points), so the scoreboard works for every quiz
+// type. The question currently being corrected is included once its result is
+// in: free-text the moment any points are locked in, multiple-choice once the
+// QM reveals the answer — so the leaderboard ticks up live during a phase.
+function runningScoreMap(questions: any[], opts: { isTeamComp: boolean; correctionIndex: number; correctAnswerVisible: boolean }): Record<string, number> {
+  const { isTeamComp, correctionIndex, correctAnswerVisible } = opts
+  const map: Record<string, number> = {}
+  questions.forEach((q: any, idx: number) => {
+    if (idx > correctionIndex) return
+    const isCurrent = idx === correctionIndex
+    if (q.isFreeText) {
+      for (const f of q.fields ?? []) {
+        for (const a of f.answers ?? []) {
+          const pts = a.points ?? 0
+          if (pts <= 0) continue
+          const id = isTeamComp ? a.teamId : a.userId
+          if (id) map[id] = (map[id] ?? 0) + pts
+        }
       }
+    } else {
+      if (isCurrent && !correctAnswerVisible) return // don't spoil the current MC answer
+      const correctOpt = (q.options ?? []).find((o: any) => o.isCorrect)
+      if (!correctOpt) return
+      const entry = (q.answerCounts ?? []).find((ac: any) => ac.optionId === correctOpt.id)
+      if (!entry) return
+      const ids = isTeamComp ? (entry.teams ?? []) : (entry.users ?? [])
+      for (const id of ids) { if (id) map[id] = (map[id] ?? 0) + q.points }
     }
-  }
-  const sorted = isTeamComp
-    ? [...teams].sort((a: any, b: any) => (scores[b.id] ?? 0) - (scores[a.id] ?? 0)).slice(0, 3)
-    : []
-  if (sorted.length === 0 && !isTeamComp) return null
+  })
+  return map
+}
+
+// ── Mini scoreboard / top-3 podium ───────────────────────────────────────────
+// Compact horizontal podium of the top three. `scoreMap` is id → points and
+// `entities` the candidate rows ({ id, name, imageUrl }) — teams or players.
+function MiniScoreboard({ scoreMap, entities }: { scoreMap: Record<string, number>; entities: { id: string; name: string }[] }) {
+  const sorted = entities
+    .map(e => ({ ...e, score: scoreMap[e.id] ?? 0 }))
+    .filter(e => e.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+  if (sorted.length === 0) return null
 
   return (
     <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', overflowX: 'auto' }}>
-      {sorted.map((t: any, i: number) => (
+      {sorted.map((t, i) => (
         <div key={t.id} className={i === 0 ? 'qz-gold-pulse' : undefined} style={{
           display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 10px',
           borderRadius: 'var(--radius)', background: i === 0 ? 'var(--text-primary)' : 'var(--surface)',
@@ -98,7 +122,7 @@ function MiniScoreboard({ questions, teams, players, isTeamComp }: any) {
           <div>
             <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px', color: i === 0 ? '#fff' : undefined }}>{t.name}</p>
             <p style={{ fontSize: '11px', color: i === 0 ? 'rgba(255,255,255,0.7)' : 'var(--text-muted)' }}>
-              <CountUp value={scores[t.id] ?? 0} duration={700} /> pts
+              <CountUp value={t.score} duration={700} /> pts
             </p>
           </div>
         </div>
@@ -298,7 +322,15 @@ export function QuizPage() {
   if (isLoading) return <Layout title={t('quiz.title')} back={`/competitions/${competitionId}`}><LoadingSpinner /></Layout>
   if (!data) return <Layout title={t('quiz.title')} back={`/competitions/${competitionId}`}><p>{t('quiz.notFound')}</p></Layout>
 
-  const { session, isQM, isTeamComp, phaseCorrection, myTeamId, myIsTeamLeader, myIsScorekeeper, competition, questions, challengeId, challengeLogoUrl } = data
+  const { session, isQM, isTeamComp, phaseCorrection, standings, myTeamId, myIsTeamLeader, myIsScorekeeper, competition, questions, challengeId, challengeLogoUrl } = data
+
+  // Candidate rows for the top-3 podium — teams in a team competition, otherwise
+  // the (non-dummy) players. Names/avatars come straight from the competition.
+  const podiumEntities: { id: string; name: string }[] = isTeamComp
+    ? competition.teams.map((tm: any) => ({ id: tm.id, name: tm.name }))
+    : competition.players
+        .filter((p: any) => !p.user?.isDummy)
+        .map((p: any) => ({ id: p.userId, name: p.user?.displayName ?? p.user?.username ?? '' }))
 
   // Phase segments (contiguous runs of equal `phase`) — only meaningful when the
   // quiz runs in phase-correction mode. Used for phase-aware QM button labels and
@@ -507,6 +539,12 @@ export function QuizPage() {
       {/* ── ACTIVE ───────────────────────────────────────────────────────── */}
       {session.status === 'ACTIVE' && currentQ && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {/* Running top-3 podium — phase mode only, once the first phase has been
+              corrected and real points exist (renders nothing while all are 0) */}
+          {phaseCorrection && (
+            <MiniScoreboard scoreMap={standings ?? {}} entities={podiumEntities} />
+          )}
+
           {/* Progress */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
@@ -935,12 +973,11 @@ export function QuizPage() {
               />
             </>
           )}
-          {/* Scoreboard strip — includes current question once answer is revealed */}
+          {/* Scoreboard strip — running totals, current question counted once its
+              result is in (MC: answer revealed; free-text: points locked) */}
           <MiniScoreboard
-            questions={questions.slice(0, session.correctionIndex + (session.correctAnswerVisible ? 1 : 0))}
-            teams={competition.teams}
-            players={competition.players}
-            isTeamComp={isTeamComp}
+            scoreMap={runningScoreMap(questions, { isTeamComp, correctionIndex: session.correctionIndex, correctAnswerVisible: session.correctAnswerVisible })}
+            entities={podiumEntities}
           />
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
