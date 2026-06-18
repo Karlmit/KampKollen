@@ -841,8 +841,19 @@ export function QuizPage() {
         const iGotItWrong = iAnswered && !!myOpt && !myOpt.isCorrect
         const isObserver = isQM || isGuest
         const revealed = session.correctAnswerVisible && !correctionQ.isFreeText
-        const showHappy = revealed && (iGotItRight || (isObserver && !iGotItWrong))
-        const showSad = revealed && iGotItWrong
+
+        // Free-text: the QM locking the answer is the reveal moment for the team.
+        // Full marks across every field → happy confetti; a flat zero → sad rain.
+        const myFields = (correctionQ.fields ?? []).filter((f: any) => f.myAnswer != null)
+        const freeTextResolved = correctionQ.isFreeText && !isObserver && myFields.length > 0
+          && myFields.every((f: any) => f.myLocked && f.myPoints !== null)
+        const myFreeTextTotal = myFields.reduce((sum: number, f: any) => sum + (f.myPoints ?? 0), 0)
+        const freeTextMax = (correctionQ.fields ?? []).reduce((sum: number, f: any) => sum + (f.points ?? 0), 0)
+        const freeTextGotMax = freeTextResolved && freeTextMax > 0 && myFreeTextTotal >= freeTextMax
+        const freeTextGotZero = freeTextResolved && myFreeTextTotal === 0
+
+        const showHappy = (revealed && (iGotItRight || (isObserver && !iGotItWrong))) || freeTextGotMax
+        const showSad = (revealed && iGotItWrong) || freeTextGotZero
         return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', position: 'relative' }}>
           {/* Win → confetti + coins. Loss → red flash + ❌ rain. */}
