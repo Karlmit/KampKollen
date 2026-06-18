@@ -267,6 +267,15 @@ export function QuizPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz', ccId] }),
   })
 
+  // One-press scoring: award the field's max points and lock the answer.
+  const maxAndLockField = useMutation({
+    mutationFn: async ({ answerId, maxPoints }: { answerId: string; maxPoints: number }) => {
+      await api.quiz.setFieldPoints(ccId!, answerId, maxPoints)
+      await api.quiz.toggleFieldLock(ccId!, answerId)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz', ccId] }),
+  })
+
   const lockAllFields = useMutation({
     mutationFn: () => api.quiz.lockAllFields(ccId!),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz', ccId] }),
@@ -975,6 +984,14 @@ export function QuizPage() {
                                       disabled={locked || pts >= field.points}
                                       style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px solid var(--border-light)', background: 'var(--surface)', fontSize: '18px', cursor: (locked || pts >= field.points) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: (locked || pts >= field.points) ? 0.3 : 1, fontWeight: 700 }}
                                     >+</button>
+                                    <button
+                                      type="button"
+                                      title={t('quiz.freeTextMaxLock')}
+                                      aria-label={t('quiz.freeTextMaxLock')}
+                                      onClick={() => !locked && maxAndLockField.mutate({ answerId: answer.id, maxPoints: field.points })}
+                                      disabled={locked || maxAndLockField.isPending}
+                                      style={{ width: 30, height: 30, borderRadius: '50%', border: `1.5px solid ${locked ? 'var(--border-light)' : 'var(--accent-green)'}`, background: locked ? 'var(--surface)' : 'color-mix(in srgb, var(--accent-green) 12%, transparent)', color: locked ? 'var(--text-muted)' : 'var(--accent-green)', fontSize: '15px', cursor: locked ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: locked ? 0.3 : 1, fontWeight: 700 }}
+                                    >✓</button>
                                     <button
                                       type="button"
                                       onClick={() => toggleFieldLock.mutate(answer.id)}

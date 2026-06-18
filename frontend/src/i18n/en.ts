@@ -747,6 +747,7 @@ const en = {
     freeTextPointsAwarded: '{{points}} / {{max}} pts',
     freeTextDone: 'Done — proceed to next',
     freeTextLock: 'Lock',
+    freeTextMaxLock: 'Award full points and lock',
     freeTextUnlock: 'Unlock',
     freeTextLockedStatus: '✓ Locked',
     freeTextLockAllFirst: 'Lock all answers before proceeding',

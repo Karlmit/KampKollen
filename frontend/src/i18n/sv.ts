@@ -745,6 +745,7 @@ const sv = {
     freeTextPointsAwarded: '{{points}} / {{max}} p',
     freeTextDone: 'Klart — gå vidare till nästa',
     freeTextLock: 'Lås',
+    freeTextMaxLock: 'Ge full poäng och lås',
     freeTextUnlock: 'Lås upp',
     freeTextLockedStatus: '✓ Låst',
     freeTextLockAllFirst: 'Lås alla svar innan du går vidare',
