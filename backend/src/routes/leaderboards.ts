@@ -150,7 +150,12 @@ export async function leaderboardRoutes(app: FastifyInstance) {
 
       // Drop unassigned players' scores entirely, so they neither rank nor shift
       // anyone else's points (relevant for relative score types like ranked_points).
-      const scores = cc.scores.filter(s => individualPlayerIds.has(s.userId))
+      // Also drop empty placeholder rows: a player has only "played" once a real
+      // value is recorded. A recorded value of 0 still counts as having played and
+      // must earn last-place points — only a missing/null value means "not played".
+      const scores = cc.scores.filter(s =>
+        individualPlayerIds.has(s.userId) && getScoreValue(s, scoreType) !== null
+      )
 
       // Record participation for the "no score yet" hiding rule.
       for (const s of scores) markScored(s.userId)
@@ -203,13 +208,11 @@ export async function leaderboardRoutes(app: FastifyInstance) {
             const rankSizes: Record<number, number> = {}
             for (const item of withRanks) rankSizes[item.rank] = (rankSizes[item.rank] ?? 0) + 1
             for (const item of withRanks) {
-              if (item.score === 0) continue
               if (playerPoints[item.userId] !== undefined)
                 playerPoints[item.userId] += calcPlacementPts(item.rank, playerMaxPts, rankSizes[item.rank], tbm)
             }
           } else {
-            sortedPlayers.forEach(({ userId, score }, i) => {
-              if (score === 0) return
+            sortedPlayers.forEach(({ userId }, i) => {
               if (playerPoints[userId] !== undefined)
                 playerPoints[userId] += (numIndividualPlayers - i) * 10
             })
@@ -342,7 +345,7 @@ export async function leaderboardRoutes(app: FastifyInstance) {
           teamName: team?.name ?? null,
           score,
           rank,
-          ...(competition.scoringMode === 'placement_points' && score > 0
+          ...(competition.scoringMode === 'placement_points'
             ? { placementPoints: tbm
                 ? calcPlacementPts(rank, playerMaxPts, cpRankSizes[rank], tbm)
                 : (numIndividualPlayers - (rank - 1)) * 10 }
