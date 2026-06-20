@@ -762,6 +762,8 @@ const sv = {
     playerScores: 'Spelarpoäng',
     hideFullResults: 'Dölj alla resultat ▲',
     seeAllResults: 'Se alla {{count}} resultat ↓',
+    viewFullLeaderboard: 'Visa hela rankinglistan',
+    fullLeaderboard: 'Hela rankinglistan',
     yourAnswer: '(ditt svar)',
     answerSubmitted: '✓ Svar skickat — väntar på nästa fråga',
     takeBackAnswer: '↩ Ta tillbaka svar',

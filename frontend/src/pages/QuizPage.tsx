@@ -105,32 +105,111 @@ function runningScoreMap(questions: any[], opts: { isTeamComp: boolean; correcti
 // ── Mini scoreboard / top-3 podium ───────────────────────────────────────────
 // Compact horizontal podium of the top three. `scoreMap` is id → points and
 // `entities` the candidate rows ({ id, name, imageUrl }) — teams or players.
-function MiniScoreboard({ scoreMap, entities }: { scoreMap: Record<string, number>; entities: { id: string; name: string }[] }) {
-  const sorted = entities
+// When `myId` is given and the viewer sits outside the top three, their own
+// row is pinned to the right of the podium so they always see where they stand.
+// A button opens the full leaderboard in a modal.
+function MiniScoreboard({ scoreMap, entities, myId, isTeamComp }: {
+  scoreMap: Record<string, number>
+  entities: { id: string; name: string; imageUrl?: string | null }[]
+  myId?: string | null
+  isTeamComp?: boolean
+}) {
+  const { t } = useTranslation()
+  const [showFull, setShowFull] = useState(false)
+
+  // Full standings with tied ranks (1, 1, 3 style)
+  const allEntries = entities
     .map(e => ({ ...e, score: scoreMap[e.id] ?? 0 }))
-    .filter(e => e.score > 0)
     .sort((a, b) => b.score - a.score)
-    .slice(0, 3)
-  if (sorted.length === 0) return null
+  const ranked: Array<(typeof allEntries)[number] & { rank: number }> = []
+  let currentRank = 1
+  for (let i = 0; i < allEntries.length; i++) {
+    if (i > 0 && allEntries[i].score !== allEntries[i - 1].score) currentRank = i + 1
+    ranked.push({ ...allEntries[i], rank: currentRank })
+  }
+
+  const top3 = ranked.filter(e => e.score > 0).slice(0, 3)
+  if (top3.length === 0) return null
+
+  const medal = (rank: number) => rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'
+  // The viewer's own row — only pinned when scored and outside the visible top 3.
+  const mine = myId ? ranked.find(e => e.id === myId) : undefined
+  const showMine = !!mine && mine.score > 0 && mine.rank > 3
 
   return (
-    <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', overflowX: 'auto' }}>
-      {sorted.map((t, i) => (
-        <div key={t.id} className={i === 0 ? 'qz-gold-pulse' : undefined} style={{
-          display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 10px',
-          borderRadius: 'var(--radius)', background: i === 0 ? 'var(--text-primary)' : 'var(--surface)',
-          minWidth: 100, flexShrink: 0, transition: 'background 300ms var(--ease-out)',
-        }}>
-          <span style={{ fontSize: '14px' }}>{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'}</span>
-          <div>
-            <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px', color: i === 0 ? '#fff' : undefined }}>{t.name}</p>
-            <p style={{ fontSize: '11px', color: i === 0 ? 'rgba(255,255,255,0.7)' : 'var(--text-muted)' }}>
-              <CountUp value={t.score} duration={700} /> pts
-            </p>
-          </div>
+    <>
+      <div style={{ marginBottom: '16px' }}>
+        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto' }}>
+          {top3.map((e, i) => (
+            <div key={e.id} className={i === 0 ? 'qz-gold-pulse' : undefined} style={{
+              display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 10px',
+              borderRadius: 'var(--radius)', background: i === 0 ? 'var(--text-primary)' : 'var(--surface)',
+              minWidth: 100, flexShrink: 0, transition: 'background 300ms var(--ease-out)',
+            }}>
+              <span style={{ fontSize: '14px' }}>{medal(e.rank)}</span>
+              <div>
+                <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px', color: i === 0 ? '#fff' : undefined }}>{e.name}</p>
+                <p style={{ fontSize: '11px', color: i === 0 ? 'rgba(255,255,255,0.7)' : 'var(--text-muted)' }}>
+                  <CountUp value={e.score} duration={700} /> pts
+                </p>
+              </div>
+            </div>
+          ))}
+          {showMine && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 10px',
+              borderRadius: 'var(--radius)', background: 'color-mix(in srgb, var(--accent) 10%, var(--surface))',
+              border: '1.5px solid var(--accent)', minWidth: 100, flexShrink: 0,
+            }}>
+              <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '13px', color: 'var(--accent)' }}>#{mine!.rank}</span>
+              <div>
+                <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px', color: 'var(--accent)' }}>{mine!.name}</p>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  <CountUp value={mine!.score} duration={700} /> pts
+                </p>
+              </div>
+            </div>
+          )}
         </div>
-      ))}
-    </div>
+        {ranked.length > 3 && (
+          <button
+            type="button"
+            onClick={() => setShowFull(true)}
+            style={{
+              display: 'block', width: '100%', marginTop: '8px', padding: '6px 0',
+              background: 'none', border: 'none', cursor: 'pointer',
+              fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px',
+              color: 'var(--accent)', textAlign: 'center',
+            }}
+          >
+            {t('quiz.viewFullLeaderboard')}
+          </button>
+        )}
+      </div>
+
+      <Modal open={showFull} onClose={() => setShowFull(false)} title={t('quiz.fullLeaderboard')}>
+        <div className="stagger">
+          {ranked.map((e) => (
+            <div key={e.id} style={{
+              display: 'flex', alignItems: 'center', gap: '10px',
+              padding: '8px 10px', borderRadius: 'var(--radius-sm)',
+              background: e.id === myId ? 'color-mix(in srgb, var(--accent) 10%, transparent)' : undefined,
+            }}>
+              <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', minWidth: '30px', textAlign: 'center', flexShrink: 0 }}>
+                {e.rank <= 3 ? medal(e.rank) : `#${e.rank}`}
+              </span>
+              <Avatar src={e.imageUrl} name={e.name} size={28} style={{ flexShrink: 0, ...(isTeamComp ? { borderRadius: '50%' } : {}) }} />
+              <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: '14px', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {e.name}
+              </span>
+              <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', flexShrink: 0 }}>
+                {e.score} {t('leaderboardContent.pts')}
+              </span>
+            </div>
+          ))}
+        </div>
+      </Modal>
+    </>
   )
 }
 
@@ -330,11 +409,16 @@ export function QuizPage() {
 
   // Candidate rows for the top-3 podium — teams in a team competition, otherwise
   // the (non-dummy) players. Names/avatars come straight from the competition.
-  const podiumEntities: { id: string; name: string }[] = isTeamComp
-    ? competition.teams.map((tm: any) => ({ id: tm.id, name: tm.name }))
+  const podiumEntities: { id: string; name: string; imageUrl?: string | null }[] = isTeamComp
+    ? competition.teams.map((tm: any) => ({ id: tm.id, name: tm.name, imageUrl: tm.imageUrl }))
     : competition.players
         .filter((p: any) => !p.user?.isDummy)
-        .map((p: any) => ({ id: p.userId, name: p.user?.displayName ?? p.user?.username ?? '' }))
+        .map((p: any) => ({ id: p.userId, name: p.user?.displayName ?? p.user?.username ?? '', imageUrl: p.user?.profileImageUrl }))
+
+  // The viewer's own id within the standings — their team in a team competition,
+  // otherwise their user id. Lets the running podium surface "your" position even
+  // when you're outside the top three.
+  const myStandingId: string | null = isTeamComp ? (myTeamId ?? null) : (user?.id ?? null)
 
   // Phase segments (contiguous runs of equal `phase`) — only meaningful when the
   // quiz runs in phase-correction mode. Used for phase-aware QM button labels and
@@ -574,7 +658,7 @@ export function QuizPage() {
           {/* Running top-3 podium — phase mode only, once the first phase has been
               corrected and real points exist (renders nothing while all are 0) */}
           {phaseCorrection && (
-            <MiniScoreboard scoreMap={standings ?? {}} entities={podiumEntities} />
+            <MiniScoreboard scoreMap={standings ?? {}} entities={podiumEntities} myId={myStandingId} isTeamComp={isTeamComp} />
           )}
 
           {/* Progress */}
@@ -1010,6 +1094,8 @@ export function QuizPage() {
           <MiniScoreboard
             scoreMap={runningScoreMap(questions, { isTeamComp, correctionIndex: session.correctionIndex, correctAnswerVisible: session.correctAnswerVisible })}
             entities={podiumEntities}
+            myId={myStandingId}
+            isTeamComp={isTeamComp}
           />
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

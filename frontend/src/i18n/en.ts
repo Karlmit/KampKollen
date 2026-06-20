@@ -764,6 +764,8 @@ const en = {
     playerScores: 'Player Scores',
     hideFullResults: 'Hide full results ▲',
     seeAllResults: 'See all {{count}} results ↓',
+    viewFullLeaderboard: 'View full leaderboard',
+    fullLeaderboard: 'Full leaderboard',
     yourAnswer: '(your answer)',
     answerSubmitted: '✓ Answer submitted — waiting for next question',
     takeBackAnswer: '↩ Take back answer',
