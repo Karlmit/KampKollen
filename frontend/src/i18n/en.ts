@@ -787,6 +787,8 @@ const en = {
     priorAnswersNone: '(no answer)',
     freeTextPointsAwarded: '{{points}} / {{max}} pts',
     freeTextDone: 'Done — proceed to next',
+    preScoreHint: 'You can score answers as they come in. The points are saved and stay hidden from the teams until correction. If a team takes back and re-enters their answer, the score resets to 0.',
+    freeTextMaxLabel: 'Max',
     freeTextLock: 'Lock',
     freeTextMaxLock: 'Award full points and lock',
     freeTextMaxLockLabel: 'Lock MAX',

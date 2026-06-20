@@ -785,6 +785,8 @@ const sv = {
     priorAnswersNone: '(inget svar)',
     freeTextPointsAwarded: '{{points}} / {{max}} p',
     freeTextDone: 'Klart — gå vidare till nästa',
+    preScoreHint: 'Du kan poängsätta svaren allt eftersom de kommer in. Poängen sparas och visas inte för lagen förrän rättningen. Tar ett lag tillbaka och skriver om sitt svar nollställs poängen.',
+    freeTextMaxLabel: 'Max',
     freeTextLock: 'Lås',
     freeTextMaxLock: 'Ge full poäng och lås',
     freeTextMaxLockLabel: 'Lås MAX',

@@ -433,6 +433,10 @@ export async function quizRoutes(app: FastifyInstance) {
       // Per-field data for free-text questions. `myAnswer`/`myPoints`/`myLocked`
       // are this player's own submission; `answers` (the full submitted set) is
       // only exposed to the QM and during correction/completed states.
+      // A QM may pre-score free text live during the ACTIVE phase, but those
+      // points stay hidden from players until the correcting/completed phase —
+      // only ever reveal a player's own points once we're past answering.
+      const revealMyPoints = session.status !== 'ACTIVE'
       const fields = q.isFreeText
         ? q.fields.map(f => {
             const mine = !me ? undefined : isTeamComp
@@ -445,8 +449,8 @@ export async function quizRoutes(app: FastifyInstance) {
               order: f.order,
               correctAnswer: revealFieldAnswer ? f.correctAnswer : null,
               myAnswer: mine?.answer ?? null,
-              myPoints: mine?.points ?? null,
-              myLocked: mine?.locked ?? false,
+              myPoints: revealMyPoints ? (mine?.points ?? null) : null,
+              myLocked: revealMyPoints ? (mine?.locked ?? false) : false,
               answers: showFreeTextAnswers
                 ? f.answers.map(a => ({
                     id: a.id,
@@ -1064,17 +1068,25 @@ export async function quizRoutes(app: FastifyInstance) {
       for (const { fieldId, answer } of body.data.fields) {
         if (!validFieldIds.has(fieldId)) continue
         const text = answer.trim()
+        // If a team/player changes an answer the QM may already have pre-scored
+        // (the QM can score free text live during the ACTIVE phase), wipe that
+        // score so the new answer starts unscored. Take-back already deletes the
+        // row; this covers an in-place change (e.g. another team member resubmits).
+        const where = teamId ? { fieldId_teamId: { fieldId, teamId } } : { fieldId_userId: { fieldId, userId: me.id } }
+        const existing = await prisma.quizFieldAnswer.findUnique({ where })
+        const changed = !existing || existing.answer !== text
+        const resetScore = changed ? { points: null, locked: false } : {}
         if (teamId) {
           await prisma.quizFieldAnswer.upsert({
             where: { fieldId_teamId: { fieldId, teamId } },
             create: { fieldId, answer: text, teamId, submittedAt: new Date() },
-            update: { answer: text, submittedAt: new Date() },
+            update: { answer: text, submittedAt: new Date(), ...resetScore },
           })
         } else {
           await prisma.quizFieldAnswer.upsert({
             where: { fieldId_userId: { fieldId, userId: me.id } },
             create: { fieldId, answer: text, userId: me.id, submittedAt: new Date() },
-            update: { answer: text, submittedAt: new Date() },
+            update: { answer: text, submittedAt: new Date(), ...resetScore },
           })
         }
       }

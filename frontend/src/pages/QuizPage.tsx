@@ -762,19 +762,68 @@ export function QuizPage() {
                 <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', color: 'var(--text-muted)' }}>
                   {t('quiz.freeTextAnswers')} ({isTeamComp ? currentQ.answeredTeams?.length ?? 0 : currentQ.answeredUserIds?.length ?? 0})
                 </p>
+                {/* Pre-scoring hint: the QM can score answers as they arrive; the
+                    points are saved and stay hidden from teams until correction. */}
+                <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--text-muted)', fontStyle: 'italic', lineHeight: 1.4 }}>
+                  {t('quiz.preScoreHint')}
+                </p>
                 {(() => {
                   const respondents = groupFieldAnswers(currentQ, competition, isTeamComp)
                   if (respondents.length === 0) return <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('quiz.freeTextNoAnswers')}</p>
                   return respondents.map(r => (
                     <div key={r.key} style={{ padding: '10px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', border: '1px solid var(--border-light)' }}>
-                      <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px', color: 'var(--text-muted)', marginBottom: 6 }}>{r.name}</p>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        {r.entries.map(({ field, answer }) => (
-                          <div key={answer.id}>
-                            {field.label && <span style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--text-muted)', marginRight: 6 }}>{field.label}:</span>}
-                            <span style={{ fontFamily: 'var(--font-ui)', fontSize: '14px' }}>{answer.answer}</span>
-                          </div>
-                        ))}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px', color: 'var(--text-muted)' }}>{r.name}</p>
+                        {respondentPoints(r.entries) > 0 && (
+                          <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '12px', color: 'var(--accent)' }}>
+                            {t('quiz.points', { count: respondentPoints(r.entries) })}
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {r.entries.map(({ field, answer }) => {
+                          const pts = answer.points ?? 0
+                          return (
+                            <div key={answer.id} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '14px' }}>
+                                {field.label && <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 700, marginRight: 6 }}>{field.label}:</span>}
+                                {answer.answer || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>—</span>}
+                              </p>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => setFieldPoints.mutate({ answerId: answer.id, points: Math.max(0, pts - 1) })}
+                                  disabled={pts <= 0}
+                                  style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px solid var(--border-light)', background: 'var(--surface)', fontSize: '18px', cursor: pts <= 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: pts <= 0 ? 0.3 : 1, fontWeight: 700 }}
+                                >−</button>
+                                <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '15px', minWidth: 54, textAlign: 'center' }}>
+                                  {pts} / {field.points}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setFieldPoints.mutate({ answerId: answer.id, points: Math.min(field.points, pts + 1) })}
+                                  disabled={pts >= field.points}
+                                  style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px solid var(--border-light)', background: 'var(--surface)', fontSize: '18px', cursor: pts >= field.points ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: pts >= field.points ? 0.3 : 1, fontWeight: 700 }}
+                                >+</button>
+                                <button
+                                  type="button"
+                                  onClick={() => setFieldPoints.mutate({ answerId: answer.id, points: field.points })}
+                                  disabled={pts >= field.points}
+                                  style={{
+                                    marginLeft: 'auto', padding: '4px 12px', borderRadius: 'var(--radius-sm)',
+                                    cursor: pts >= field.points ? 'not-allowed' : 'pointer',
+                                    border: `1.5px solid ${pts >= field.points ? 'var(--border-light)' : 'var(--accent-green)'}`,
+                                    background: pts >= field.points ? 'var(--surface)' : 'color-mix(in srgb, var(--accent-green) 12%, transparent)',
+                                    color: pts >= field.points ? 'var(--text-muted)' : 'var(--accent-green)',
+                                    fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px',
+                                    opacity: pts >= field.points ? 0.3 : 1,
+                                    transition: 'border-color 150ms, background 150ms, color 150ms',
+                                  }}
+                                >{t('quiz.freeTextMaxLabel')}</button>
+                              </div>
+                            </div>
+                          )
+                        })}
                       </div>
                     </div>
                   ))
