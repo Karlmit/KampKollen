@@ -187,6 +187,12 @@ const sv = {
     teamImage: 'Lagbild',
     qm: 'QM',
     qmActive: '🎯 QM',
+    performance: 'Lagets resultat',
+    placement: 'Placering',
+    totalPts: 'poäng totalt',
+    scoresByChallenge: 'Poäng per utmaning',
+    noScoresYet: 'Inga poäng registrerade än. Lagets placering och resultat visas här så fort poäng har matats in.',
+    challengeRank: '#{{rank}} av {{count}}',
   },
 
   scorePicker: {

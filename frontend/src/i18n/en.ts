@@ -187,6 +187,12 @@ const en = {
     teamImage: 'Team Image',
     qm: 'QM',
     qmActive: '🎯 QM',
+    performance: 'Team performance',
+    placement: 'Placement',
+    totalPts: 'total points',
+    scoresByChallenge: 'Scores per challenge',
+    noScoresYet: 'No scores recorded yet. The team’s placement and results will appear here as soon as scores are entered.',
+    challengeRank: '#{{rank}} of {{count}}',
   },
 
   scorePicker: {
