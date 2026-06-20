@@ -15,6 +15,12 @@ const sseClients = new Map<string, Set<FastifyReply>>()
 // In-memory countdown state (3-second window — no need to persist to DB)
 const countdownMap = new Map<string, number>() // ccId → endsAt (unix ms)
 
+// In-memory "visual countdown" the QM starts to nudge teams/players while they
+// answer. Purely cosmetic: it never locks answers or advances the quiz, it just
+// shows a ticking ring to everyone. Not persisted — if the server restarts the
+// nudge simply disappears, which is fine.
+const visualCountdownMap = new Map<string, { endsAt: number; durationSec: number }>()
+
 function broadcast(ccId: string) {
   const clients = sseClients.get(ccId)
   if (!clients) return
@@ -550,6 +556,8 @@ export async function quizRoutes(app: FastifyInstance) {
         lobbyAnnounced: session.lobbyAnnounced,
         readyEntries: session.readyEntries,
         countdownEndsAt: countdownMap.get(ccId) ?? null,
+        visualCountdownEndsAt: visualCountdownMap.get(ccId)?.endsAt ?? null,
+        visualCountdownSeconds: visualCountdownMap.get(ccId)?.durationSec ?? null,
       },
       isQM,
       isTeamComp,
@@ -968,6 +976,48 @@ export async function quizRoutes(app: FastifyInstance) {
       broadcast(ccId)
     }, 3000)
 
+    return { success: true }
+  })
+
+  // QM starts a purely visual countdown to nudge answerers. Does NOT lock
+  // answers or advance the quiz — it only shows a ticking ring to everyone.
+  app.post('/:ccId/session/visual-countdown', { preHandler: requireAuth }, async (request, reply) => {
+    const { ccId } = request.params as { ccId: string }
+    const me = request.user as { id: string; role: string }
+    if (!await isQM(me.id, ccId)) return reply.status(403).send({ error: 'QM or admin required' })
+
+    const body = z.object({ seconds: z.number().int().min(3).max(600).default(15) }).safeParse(request.body ?? {})
+    if (!body.success) return reply.status(400).send({ error: 'Seconds must be between 3 and 600' })
+
+    const session = await getOrCreateSession(ccId)
+    if (session.status !== 'ACTIVE') return reply.status(400).send({ error: 'Quiz not active' })
+
+    const durationSec = body.data.seconds
+    const endsAt = Date.now() + durationSec * 1000
+    visualCountdownMap.set(ccId, { endsAt, durationSec })
+    broadcast(ccId)
+
+    // Auto-clear shortly after it ends so clients can briefly show "0", then it
+    // vanishes. Only clears if this is still the active countdown (a newer start
+    // or a manual stop supersedes it).
+    setTimeout(() => {
+      if (visualCountdownMap.get(ccId)?.endsAt === endsAt) {
+        visualCountdownMap.delete(ccId)
+        broadcast(ccId)
+      }
+    }, durationSec * 1000 + 1500)
+
+    return { success: true }
+  })
+
+  // QM cancels a running visual countdown early.
+  app.post('/:ccId/session/visual-countdown/stop', { preHandler: requireAuth }, async (request, reply) => {
+    const { ccId } = request.params as { ccId: string }
+    const me = request.user as { id: string; role: string }
+    if (!await isQM(me.id, ccId)) return reply.status(403).send({ error: 'QM or admin required' })
+
+    visualCountdownMap.delete(ccId)
+    broadcast(ccId)
     return { success: true }
   })
 

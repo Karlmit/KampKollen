@@ -468,6 +468,8 @@ export function QuizPage() {
   const [confirmStart, setConfirmStart] = useState(false)
   const [confirmAdvance, setConfirmAdvance] = useState(false)
   const [countdownSecs, setCountdownSecs] = useState<number | null>(null)
+  const [visualSecs, setVisualSecs] = useState<number | null>(null)
+  const [nudgeSeconds, setNudgeSeconds] = useState(15)
   const [showFullResults, setShowFullResults] = useState(false)
   const [showScoreEditor, setShowScoreEditor] = useState(false)
 
@@ -493,6 +495,8 @@ export function QuizPage() {
   const sessionStatus = data?.session?.status
   const currentIdx = data?.session?.currentQuestionIndex
   const countdownEndsAt: number | null = data?.session?.countdownEndsAt ?? null
+  const visualCountdownEndsAt: number | null = data?.session?.visualCountdownEndsAt ?? null
+  const visualCountdownSeconds: number | null = data?.session?.visualCountdownSeconds ?? null
   useEffect(() => { setSelectedOption(null); setSubmitted(false); setFreeTextInputs({}) }, [currentIdx, sessionStatus])
 
   // When the QM starts the next-question/correction countdown, auto-submit
@@ -519,6 +523,20 @@ export function QuizPage() {
     const id = setInterval(tick, 200)
     return () => clearInterval(id)
   }, [countdownEndsAt])
+
+  // Live tick for the QM's purely-visual nudge countdown. Floors to 0 so the
+  // ring can show "0" for the brief moment before the server clears it. Never
+  // touches answers — it only drives the on-screen ring.
+  useEffect(() => {
+    if (!visualCountdownEndsAt) { setVisualSecs(null); return }
+    const tick = () => {
+      const s = Math.ceil((visualCountdownEndsAt - Date.now()) / 1000)
+      setVisualSecs(Math.max(0, s))
+    }
+    tick()
+    const id = setInterval(tick, 200)
+    return () => clearInterval(id)
+  }, [visualCountdownEndsAt])
 
   const submitAnswer = useMutation({
     mutationFn: ({ optionId, fields, teamId }: { optionId?: string; fields?: { fieldId: string; answer: string }[]; teamId?: string }) =>
@@ -635,6 +653,9 @@ export function QuizPage() {
   const totalToAnswer = isTeamComp ? competition.teams.length : competition.players.length
   const everyoneAnswered = totalToAnswer > 0 && answeredCount >= totalToAnswer
   const advanceQuestion = () => qmMutate(() => api.quiz.nextQuestion(ccId!))
+  const startVisualCountdown = () => qmMutate(() => api.quiz.startVisualCountdown(ccId!, nudgeSeconds))
+  const stopVisualCountdown = () => qmMutate(() => api.quiz.stopVisualCountdown(ccId!))
+  const visualCountdownActive = visualSecs !== null
 
   const readyIds = new Set((session.readyEntries ?? []).map((r: any) => r.teamId ?? r.userId))
   const amReady = isTeamComp ? readyIds.has(myTeamId) : readyIds.has(user?.id)
@@ -935,6 +956,39 @@ export function QuizPage() {
                       })()}
                 </Button>
               </div>
+
+              {/* Visual nudge countdown — purely cosmetic timer the QM starts to
+                  hint that they're waiting. Never locks answers or advances. */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                {visualCountdownActive ? (
+                  <Button size="sm" variant="ghost" onClick={stopVisualCountdown}>
+                    {t('quiz.stopNudge', { count: visualSecs })}
+                  </Button>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--border-light)', borderRadius: '99px', overflow: 'hidden', background: 'var(--background)' }}>
+                      <button
+                        type="button"
+                        aria-label={t('quiz.nudgeLess')}
+                        onClick={() => setNudgeSeconds(s => Math.max(3, s - 5))}
+                        style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '4px 10px', fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '15px', color: 'var(--text-muted)' }}
+                      >−</button>
+                      <span style={{ minWidth: '42px', textAlign: 'center', fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '13px' }}>
+                        {nudgeSeconds}s
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={t('quiz.nudgeMore')}
+                        onClick={() => setNudgeSeconds(s => Math.min(600, s + 5))}
+                        style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '4px 10px', fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '15px', color: 'var(--text-muted)' }}
+                      >+</button>
+                    </div>
+                    <Button size="sm" variant="ghost" onClick={startVisualCountdown}>
+                      {t('quiz.startNudge')}
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
           )}
 
@@ -977,6 +1031,50 @@ export function QuizPage() {
                     {countdownSecs}
                   </span>
                 </div>
+              </div>
+            )
+          })()}
+
+          {/* Visual nudge ring — a floating, purely-cosmetic countdown the QM
+              started. Shown to EVERY role. pointer-events:none guarantees it can
+              never sit on top of an answer button or block input; it only signals
+              that the QM is waiting. Hidden while the real next-question countdown
+              is running so the two never stack. */}
+          {visualCountdownActive && countdownSecs === null && (() => {
+            const ringSize = 64
+            const ringR = 27
+            const circ = 2 * Math.PI * ringR
+            const total = visualCountdownSeconds && visualCountdownSeconds > 0 ? visualCountdownSeconds : 15
+            const progress = Math.max(0, Math.min(1, (visualSecs ?? 0) / total))
+            const urgent = (visualSecs ?? 0) <= 5
+            const color = urgent ? 'var(--accent-warm)' : 'var(--accent)'
+            return (
+              <div
+                aria-hidden="true"
+                style={{
+                  position: 'fixed', right: '16px', bottom: '88px', zIndex: 60,
+                  pointerEvents: 'none',
+                  width: ringSize, height: ringSize,
+                  borderRadius: '50%',
+                  background: 'var(--surface)',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+                }}
+                className={urgent ? 'qz-timer-urgent' : 'qz-pop-in'}
+              >
+                <svg width={ringSize} height={ringSize} style={{ transform: 'rotate(-90deg)', display: 'block' }}>
+                  <circle cx={ringSize / 2} cy={ringSize / 2} r={ringR} fill="none" strokeWidth={5}
+                    stroke="color-mix(in srgb, var(--text-muted) 18%, transparent)" />
+                  <circle cx={ringSize / 2} cy={ringSize / 2} r={ringR} fill="none" strokeWidth={5}
+                    stroke={color} strokeLinecap="round"
+                    strokeDasharray={circ} strokeDashoffset={circ * (1 - progress)}
+                    style={{ transition: 'stroke-dashoffset 220ms linear, stroke 0.3s' }} />
+                </svg>
+                <span key={visualSecs} className="qz-count-num" style={{
+                  position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '22px', color, lineHeight: 1,
+                }}>
+                  {visualSecs}
+                </span>
               </div>
             )
           })()}

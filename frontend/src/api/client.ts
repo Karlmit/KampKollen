@@ -204,6 +204,10 @@ export const api = {
     announcements: () =>
       request<{ announcements: { ccId: string; competitionId: string; competitionName: string; quizName: string }[] }>('/quiz/announcements'),
     nextQuestion: (ccId: string) => request(`/quiz/${ccId}/session/next-question`, { method: 'POST', body: '{}' }),
+    startVisualCountdown: (ccId: string, seconds: number) =>
+      request(`/quiz/${ccId}/session/visual-countdown`, { method: 'POST', body: JSON.stringify({ seconds }) }),
+    stopVisualCountdown: (ccId: string) =>
+      request(`/quiz/${ccId}/session/visual-countdown/stop`, { method: 'POST', body: '{}' }),
     lockQuestion: (ccId: string) => request(`/quiz/${ccId}/session/lock-question`, { method: 'POST', body: '{}' }),
     showAnswer: (ccId: string) => request(`/quiz/${ccId}/session/show-answer`, { method: 'POST', body: '{}' }),
     nextCorrection: (ccId: string) => request(`/quiz/${ccId}/session/next-correction`, { method: 'POST', body: '{}' }),
