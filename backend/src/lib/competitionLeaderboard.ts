@@ -1,0 +1,377 @@
+import { Prisma, ScoreType, TeamScoreMode } from '@prisma/client'
+import {
+  computeCalculatedPoints,
+  computeShootingCounted,
+  computeTeamScore,
+  computeTimeDifferenceSeconds,
+  getScoreValue,
+  isLowerBetter,
+  playerAttemptTotal,
+  tiedRanks,
+  calcPlacementPts,
+} from './scoring.js'
+
+// The Prisma include both the leaderboard endpoint and the award logic must use
+// so they operate on identical data. Keep them in lock-step by importing this.
+export const competitionLeaderboardInclude = {
+  teams: true,
+  players: {
+    include: { user: { select: { id: true, username: true, displayName: true, profileImageUrl: true, isDummy: true } } },
+  },
+  challenges: {
+    include: { challenge: true, scores: true, shots: true, teamScores: true },
+    orderBy: { order: 'asc' },
+  },
+} satisfies Prisma.CompetitionInclude
+
+export type CompetitionWithLeaderboardData = Prisma.CompetitionGetPayload<{
+  include: typeof competitionLeaderboardInclude
+}>
+
+/**
+ * Compute the team, individual and per-challenge standings for a competition.
+ *
+ * This is the single source of truth for competition scoring: the leaderboard
+ * endpoint renders it, and the award logic picks winners from it, so trophies
+ * always match what players actually see on the leaderboard.
+ */
+export function computeCompetitionLeaderboard(competition: CompetitionWithLeaderboardData) {
+  const numTeams = competition.teams.length
+
+  // In team competitions, only players assigned to a team are real participants.
+  // Unassigned (player-pool) players are excluded from the individual leaderboard
+  // and from every per-challenge score calculation.
+  const isTeamComp = competition.isTeamCompetition !== false
+  const individualPlayerIds = new Set(
+    competition.players.filter(p => !isTeamComp || p.teamId).map(p => p.userId)
+  )
+  const numIndividualPlayers = individualPlayerIds.size
+
+  const playerMaxPts = (!competition.isTeamCompetition && competition.placementMaxPoints)
+    ? competition.placementMaxPoints
+    : numIndividualPlayers * 10
+
+  // Mutable totals
+  const teamPoints: Record<string, { totalPoints: number; challengeBreakdown: Record<string, number> }> = {}
+  for (const team of competition.teams) {
+    teamPoints[team.id] = { totalPoints: 0, challengeBreakdown: {} }
+  }
+  const playerPoints: Record<string, number> = {}
+  for (const p of competition.players) {
+    if (individualPlayerIds.has(p.userId)) playerPoints[p.userId] = 0
+  }
+
+  // Track who has actually entered any score yet, so the UI can hide players
+  // and teams that have nothing recorded across every challenge.
+  const playersWithScores = new Set<string>()
+  const teamsWithScores = new Set<string>()
+  const teamByUserId = new Map(competition.players.map(p => [p.userId, p.teamId ?? null]))
+  const markScored = (userId: string) => {
+    playersWithScores.add(userId)
+    const teamId = teamByUserId.get(userId)
+    if (teamId) teamsWithScores.add(teamId)
+  }
+
+  const isDummyByUserId = new Map(competition.players.map(p => [p.userId, p.user?.isDummy ?? false]))
+
+  const challengeLeaderboards: any[] = []
+
+  for (const cc of competition.challenges) {
+    const scoreType: ScoreType = (cc.scoreTypeOverride ?? cc.challenge.scoreType) as ScoreType
+    const teamScoreMode: TeamScoreMode = (cc.teamScoreModeOverride ?? cc.challenge.defaultTeamScoreMode) as TeamScoreMode
+    const bestN = cc.bestNPlayersOverride ?? cc.challenge.bestNPlayers
+    const isShooting = scoreType === 'shooting'
+    // "Least time difference" is scored at the team level only — two recorded
+    // times per team, never any per-player rows.
+    const isTimeDiff = scoreType === 'least_time_difference'
+    const lowerBetter = isShooting ? cc.challenge.shootingLowerIsBetter : isLowerBetter(scoreType)
+
+    // Shooting challenges keep multiple shots per player (cc.shots) rather than a
+    // single Score row; only count shots from assigned players.
+    const shootingShots = isShooting
+      ? cc.shots.filter(s => individualPlayerIds.has(s.userId))
+      : []
+
+    // Drop unassigned players' scores entirely, so they neither rank nor shift
+    // anyone else's points (relevant for relative score types like ranked_points).
+    // Also drop empty placeholder rows: a player has only "played" once a real
+    // value is recorded. A recorded value of 0 still counts as having played and
+    // must earn last-place points — only a missing/null value means "not played".
+    const scores = cc.scores.filter(s =>
+      individualPlayerIds.has(s.userId) && getScoreValue(s, scoreType) !== null
+    )
+
+    // Record participation for the "no score yet" hiding rule.
+    for (const s of scores) markScored(s.userId)
+    for (const s of shootingShots) markScored(s.userId)
+    if (isTimeDiff) {
+      for (const ts of cc.teamScores) {
+        if (computeTimeDifferenceSeconds(ts.time1Ms, ts.time2Ms) !== null) teamsWithScores.add(ts.teamId)
+      }
+    }
+
+    const allScoreInputs = scores.map(s => ({
+      userId: s.userId, rawScore: s.rawScore, timeMs: s.timeMs,
+      placement: s.placement, calculatedPoints: s.calculatedPoints, teamId: null,
+    }))
+
+    // Compute raw calculated points per player for this challenge
+    const playerChallengePoints: Record<string, number> = {}
+    if (isShooting) {
+      // Individual score = sum of a player's best `minShotsPerPlayer` shots (classic
+      // shooting), or the sum of all their attempts when `sumAllAttempts` is set
+      // (Spike-style), so a player who took extra shots doesn't out-rank everyone else.
+      const shotsByUser: Record<string, number[]> = {}
+      for (const s of shootingShots) (shotsByUser[s.userId] ??= []).push(s.value)
+      for (const [userId, values] of Object.entries(shotsByUser)) {
+        playerChallengePoints[userId] = playerAttemptTotal(values, cc.challenge.sumAllAttempts, cc.challenge.minShotsPerPlayer, lowerBetter)
+      }
+    } else {
+      for (const s of scores) {
+        playerChallengePoints[s.userId] = computeCalculatedPoints(
+          { userId: s.userId, rawScore: s.rawScore, timeMs: s.timeMs, placement: s.placement, calculatedPoints: s.calculatedPoints, teamId: null },
+          allScoreInputs,
+          scoreType
+        )
+      }
+    }
+
+    // In team competitions, quiz results count only toward team scores —
+    // never toward individual totals (quizzes still appear under the team view).
+    const countForIndividual = !(cc.challenge.isQuiz && competition.isTeamCompetition !== false)
+
+    // Accumulate individual totals
+    if (countForIndividual) {
+      if (competition.scoringMode === 'placement_points') {
+        const tbm = competition.tieBreakingMode
+        const sortedPlayers = Object.entries(playerChallengePoints)
+          .sort(([, a], [, b]) => lowerBetter ? a - b : b - a)
+          .map(([userId, score]) => ({ userId, score }))
+        if (tbm) {
+          const withRanks = tiedRanks(sortedPlayers, e => e.score)
+          const rankSizes: Record<number, number> = {}
+          for (const item of withRanks) rankSizes[item.rank] = (rankSizes[item.rank] ?? 0) + 1
+          for (const item of withRanks) {
+            if (playerPoints[item.userId] !== undefined)
+              playerPoints[item.userId] += calcPlacementPts(item.rank, playerMaxPts, rankSizes[item.rank], tbm)
+          }
+        } else {
+          sortedPlayers.forEach(({ userId }, i) => {
+            if (playerPoints[userId] !== undefined)
+              playerPoints[userId] += (numIndividualPlayers - i) * 10
+          })
+        }
+      } else {
+        for (const [userId, pts] of Object.entries(playerChallengePoints)) {
+          if (playerPoints[userId] !== undefined) {
+            playerPoints[userId] += pts
+          }
+        }
+      }
+    }
+
+    // Group players by team for team scoring
+    const teamPlayerPoints: Record<string, number[]> = {}
+    for (const cp of competition.players) {
+      if (!cp.teamId) continue
+      if (!teamPlayerPoints[cp.teamId]) teamPlayerPoints[cp.teamId] = []
+      if (playerChallengePoints[cp.userId] !== undefined) {
+        teamPlayerPoints[cp.teamId].push(playerChallengePoints[cp.userId])
+      }
+    }
+
+    // Shooting: team score is the sum of the team's best `shotsPerTeam` shots
+    // (each player's minimum guaranteed), bypassing the TeamScoreMode selector.
+    const teamShots: Record<string, typeof shootingShots> = {}
+    if (isShooting) {
+      const teamByUser = new Map(competition.players.map(p => [p.userId, p.teamId ?? null]))
+      for (const s of shootingShots) {
+        const teamId = teamByUser.get(s.userId)
+        if (!teamId) continue
+        ;(teamShots[teamId] ??= []).push(s)
+      }
+    }
+
+    // Least time difference: one team-level entry holds both recorded times;
+    // the team score is the seconds between them (null until both are entered).
+    const teamTimeDiffs: Record<string, number> = {}
+    if (isTimeDiff) {
+      for (const ts of cc.teamScores) {
+        const diff = computeTimeDifferenceSeconds(ts.time1Ms, ts.time2Ms)
+        if (diff !== null) teamTimeDiffs[ts.teamId] = diff
+      }
+    }
+
+    // Calculate and rank team scores for this challenge
+    const teamChallengeScores: Array<{ teamId: string; teamName: string; score: number }> = []
+    for (const team of competition.teams) {
+      // Classic shooting: team score is the sum of the team's best `shotsPerTeam`
+      // shots. When `useTeamScoreMode` is set (Spike-style) we instead fall through
+      // to the generic team-score mode over each player's total.
+      if (isShooting && !cc.challenge.useTeamScoreMode) {
+        const res = computeShootingCounted(
+          (teamShots[team.id] ?? []).map(s => ({ id: s.id, userId: s.userId, value: s.value })),
+          cc.challenge.shotsPerTeam, cc.challenge.minShotsPerPlayer, lowerBetter
+        )
+        teamChallengeScores.push({ teamId: team.id, teamName: team.name, score: res.teamTotal })
+        continue
+      }
+      if (isTimeDiff) {
+        // Only rank teams that have both times recorded; a perfect 0 is valid.
+        if (!(team.id in teamTimeDiffs)) continue
+        teamChallengeScores.push({ teamId: team.id, teamName: team.name, score: teamTimeDiffs[team.id] })
+        continue
+      }
+      if (teamScoreMode === 'manual_team_score') continue
+      const playerPts = teamPlayerPoints[team.id] ?? []
+      teamChallengeScores.push({ teamId: team.id, teamName: team.name, score: computeTeamScore(playerPts, teamScoreMode, bestN) })
+    }
+    const rankedTeams = [...teamChallengeScores].sort((a, b) => lowerBetter ? a.score - b.score : b.score - a.score)
+
+    // Accumulate team totals
+    if (competition.scoringMode === 'placement_points') {
+      const tbm = competition.tieBreakingMode
+      const maxPts = competition.placementMaxPoints ?? numTeams * 10
+      if (tbm) {
+        const withRanks = tiedRanks(rankedTeams, t => t.score)
+        const rankSizes: Record<number, number> = {}
+        for (const item of withRanks) rankSizes[item.rank] = (rankSizes[item.rank] ?? 0) + 1
+        for (const item of withRanks) {
+          // 0 means "no score" for most types, but is a valid (perfect) result
+          // for least time difference, so those teams still earn placement points.
+          if (item.score === 0 && !isTimeDiff) continue
+          if (teamPoints[item.teamId]) {
+            const pts = calcPlacementPts(item.rank, maxPts, rankSizes[item.rank], tbm)
+            teamPoints[item.teamId].challengeBreakdown[cc.id] = pts
+            teamPoints[item.teamId].totalPoints += pts
+          }
+        }
+      } else {
+        rankedTeams.forEach((t, i) => {
+          if (t.score === 0 && !isTimeDiff) return
+          const pts = Math.max(0, maxPts - i * 10)
+          if (teamPoints[t.teamId]) {
+            teamPoints[t.teamId].challengeBreakdown[cc.id] = pts
+            teamPoints[t.teamId].totalPoints += pts
+          }
+        })
+      }
+    } else {
+      for (const ts of teamChallengeScores) {
+        if (teamPoints[ts.teamId]) {
+          teamPoints[ts.teamId].challengeBreakdown[cc.id] = ts.score
+          teamPoints[ts.teamId].totalPoints += ts.score
+        }
+      }
+    }
+
+    // Build per-player challenge breakdown (ranked by score)
+    const tbm = competition.tieBreakingMode
+    const maxPtsTeam = competition.placementMaxPoints ?? numTeams * 10
+    const sortedChallengePlayerEntries = Object.entries(playerChallengePoints)
+      .sort(([, a], [, b]) => lowerBetter ? a - b : b - a)
+      .map(([userId, score]) => ({ userId, score }))
+    const challengePlayerRanked = tbm
+      ? tiedRanks(sortedChallengePlayerEntries, e => e.score)
+      : sortedChallengePlayerEntries.map((e, i) => ({ ...e, rank: i + 1 }))
+    const cpRankSizes: Record<number, number> = {}
+    for (const item of challengePlayerRanked) cpRankSizes[item.rank] = (cpRankSizes[item.rank] ?? 0) + 1
+
+    const rankedChallengePlayers = challengePlayerRanked.map(({ userId, score, rank }) => {
+      const cp = competition.players.find(p => p.userId === userId)
+      const team = competition.teams.find(t => t.id === cp?.teamId)
+      return {
+        userId,
+        displayName: cp?.user?.displayName ?? null,
+        username: cp?.user?.username ?? null,
+        profileImageUrl: cp?.user?.profileImageUrl ?? null,
+        isDummy: cp?.user?.isDummy ?? false,
+        teamId: cp?.teamId ?? null,
+        teamName: team?.name ?? null,
+        score,
+        rank,
+        ...(competition.scoringMode === 'placement_points'
+          ? { placementPoints: tbm
+              ? calcPlacementPts(rank, playerMaxPts, cpRankSizes[rank], tbm)
+              : (numIndividualPlayers - (rank - 1)) * 10 }
+          : {}),
+      }
+    })
+
+    const rankedTeamsWithRanks = tbm
+      ? tiedRanks(rankedTeams, t => t.score)
+      : rankedTeams.map((t, i) => ({ ...t, rank: i + 1 }))
+    const teamRankSizes: Record<number, number> = {}
+    for (const item of rankedTeamsWithRanks) teamRankSizes[item.rank] = (teamRankSizes[item.rank] ?? 0) + 1
+
+    // A challenge counts as "scored" once anything has been entered for it:
+    // a per-player score/shot, or a team-level time-difference entry.
+    const challengeHasScore =
+      scores.length > 0 || shootingShots.length > 0 || Object.keys(teamTimeDiffs).length > 0
+
+    challengeLeaderboards.push({
+      challengeId: cc.challengeId,
+      competitionChallengeId: cc.id,
+      challengeName: cc.challenge.name,
+      challengeLogoUrl: cc.challenge.logoUrl,
+      isQuiz: cc.challenge.isQuiz,
+      order: cc.order,
+      scoreType,
+      teamScoreMode,
+      lowerIsBetter: lowerBetter,
+      hasScore: challengeHasScore,
+      valueUnit: isShooting ? cc.challenge.valueUnit : null,
+      teams: rankedTeamsWithRanks.map(t => ({
+        ...t,
+        ...(competition.scoringMode === 'placement_points' && (t.score > 0 || isTimeDiff)
+          ? { placementPoints: tbm
+              ? calcPlacementPts(t.rank, maxPtsTeam, teamRankSizes[t.rank], tbm)
+              : Math.max(0, maxPtsTeam - (t.rank - 1) * 10) }
+          : {}),
+      })),
+      players: rankedChallengePlayers,
+    })
+  }
+
+  const overallTbm = competition.tieBreakingMode
+
+  // Team leaderboard
+  const sortedTeams = competition.teams
+    .map(team => ({
+      teamId: team.id,
+      teamName: team.name,
+      teamImageUrl: team.imageUrl,
+      totalPoints: teamPoints[team.id]?.totalPoints ?? 0,
+      challengeBreakdown: teamPoints[team.id]?.challengeBreakdown ?? {},
+      playerCount: competition.players.filter(p => p.teamId === team.id).length,
+      hasScore: teamsWithScores.has(team.id),
+    }))
+    .sort((a, b) => b.totalPoints - a.totalPoints)
+  const teamLeaderboard = overallTbm
+    ? tiedRanks(sortedTeams, t => t.totalPoints)
+    : sortedTeams.map((t, i) => ({ ...t, rank: i + 1 }))
+
+  // Individual leaderboard — unassigned players are excluded in team competitions
+  const sortedPlayers = competition.players
+    .filter(cp => individualPlayerIds.has(cp.userId))
+    .map(cp => {
+      const team = competition.teams.find(t => t.id === cp.teamId)
+      return {
+        userId: cp.userId,
+        displayName: cp.user?.displayName ?? null,
+        username: cp.user?.username ?? null,
+        profileImageUrl: cp.user?.profileImageUrl ?? null,
+        isDummy: cp.user?.isDummy ?? false,
+        teamId: cp.teamId,
+        teamName: team?.name ?? null,
+        totalPoints: playerPoints[cp.userId] ?? 0,
+        hasScore: playersWithScores.has(cp.userId),
+      }
+    })
+    .sort((a, b) => b.totalPoints - a.totalPoints)
+  const individualLeaderboard = overallTbm
+    ? tiedRanks(sortedPlayers, p => p.totalPoints)
+    : sortedPlayers.map((p, i) => ({ ...p, rank: i + 1 }))
+
+  return { teamLeaderboard, individualLeaderboard, challengeLeaderboards, isDummyByUserId }
+}

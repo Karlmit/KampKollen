@@ -1,8 +1,7 @@
-import { ScoreType, TeamScoreMode } from '@prisma/client'
 import { prisma } from '../db.js'
 import { generateImage } from './imageGeneration.js'
-import { computeCalculatedPoints, computeTeamScore, isLowerBetter } from './scoring.js'
 import { getTrophyWords, randomFrom, wordToTitle } from './trophyWords.js'
+import { competitionLeaderboardInclude, computeCompetitionLeaderboard } from './competitionLeaderboard.js'
 
 let generatingCount = 0
 export function getGeneratingCount() { return generatingCount }
@@ -129,142 +128,23 @@ interface AwardRecipient {
 async function computeWinners(competitionId: string): Promise<AwardRecipient[]> {
   const competition = await prisma.competition.findUnique({
     where: { id: competitionId },
-    include: {
-      teams: true,
-      players: {
-        include: { user: { select: { id: true, isDummy: true } } },
-      },
-      challenges: {
-        include: { challenge: true, scores: true },
-        orderBy: { order: 'asc' },
-      },
-    },
+    include: competitionLeaderboardInclude,
   })
   if (!competition || competition.players.length === 0) return []
 
-  const numTeams = competition.teams.length
-  const numPlayers = competition.players.length
-  const teamPoints: Record<string, number> = {}
-  for (const team of competition.teams) teamPoints[team.id] = 0
-  const playerTotalPoints: Record<string, number> = {}
-  for (const cp of competition.players) playerTotalPoints[cp.userId] = 0
-
-  const challengeTopScorers: AwardRecipient[] = []
-  // Every member of the winning team of each quiz challenge (team comps only).
-  const quizTeamWinners: AwardRecipient[] = []
-
-  for (const cc of competition.challenges) {
-    if (cc.scores.length === 0) continue
-
-    const scoreType: ScoreType = (cc.scoreTypeOverride ?? cc.challenge.scoreType) as ScoreType
-    const teamScoreMode: TeamScoreMode = (cc.teamScoreModeOverride ?? cc.challenge.defaultTeamScoreMode) as TeamScoreMode
-    const bestN = cc.bestNPlayersOverride ?? cc.challenge.bestNPlayers
-    const lowerBetter = isLowerBetter(scoreType)
-
-    const allScoreInputs = cc.scores.map(s => ({
-      userId: s.userId, rawScore: s.rawScore, timeMs: s.timeMs,
-      placement: s.placement, calculatedPoints: s.calculatedPoints, teamId: null,
-    }))
-
-    const playerChallengePoints: Record<string, number> = {}
-    for (const s of cc.scores) {
-      playerChallengePoints[s.userId] = computeCalculatedPoints(
-        { userId: s.userId, rawScore: s.rawScore, timeMs: s.timeMs, placement: s.placement, calculatedPoints: s.calculatedPoints, teamId: null },
-        allScoreInputs,
-        scoreType
-      )
-    }
-
-    // Top scorer (non-dummy) per challenge
-    const sortedPlayers = Object.entries(playerChallengePoints)
-      .filter(([userId]) => {
-        const cp = competition.players.find(p => p.userId === userId)
-        return cp && !cp.user.isDummy
-      })
-      .sort(([, a], [, b]) => lowerBetter ? a - b : b - a)
-
-    if (sortedPlayers.length > 0) {
-      challengeTopScorers.push({
-        userId: sortedPlayers[0][0],
-        subtitle: `Awarded for having the **top score** in **${cc.challenge.name}** in **${competition.name}**`,
-        subtitleKey: 'topScore',
-        subtitleParams: { challenge: cc.challenge.name, competition: competition.name },
-      })
-    }
-
-    // Accumulate individual totals (mirrors leaderboard logic)
-    if (competition.scoringMode === 'placement_points') {
-      const rankedForPoints = [...sortedPlayers].sort(([, a], [, b]) => lowerBetter ? a - b : b - a)
-      rankedForPoints.forEach(([userId, score], i) => {
-        if (score === 0) return
-        if (playerTotalPoints[userId] !== undefined)
-          playerTotalPoints[userId] += (numPlayers - i) * 10
-      })
-    } else {
-      for (const [userId, pts] of Object.entries(playerChallengePoints)) {
-        if (playerTotalPoints[userId] !== undefined)
-          playerTotalPoints[userId] += pts
-      }
-    }
-
-    // Compute team scores for this challenge
-    const teamPlayerPoints: Record<string, number[]> = {}
-    for (const cp of competition.players) {
-      if (!cp.teamId) continue
-      if (!teamPlayerPoints[cp.teamId]) teamPlayerPoints[cp.teamId] = []
-      if (playerChallengePoints[cp.userId] !== undefined) {
-        teamPlayerPoints[cp.teamId].push(playerChallengePoints[cp.userId])
-      }
-    }
-
-    const teamChallengeScores = competition.teams
-      .filter(() => teamScoreMode !== 'manual_team_score')
-      .map(t => ({
-        teamId: t.id,
-        score: computeTeamScore(teamPlayerPoints[t.id] ?? [], teamScoreMode, bestN),
-      }))
-
-    // Quiz challenges additionally award every member of the quiz's winning team.
-    if (cc.challenge.isQuiz && competition.isTeamCompetition && teamChallengeScores.length > 0) {
-      const topTeam = [...teamChallengeScores].sort((a, b) => lowerBetter ? a.score - b.score : b.score - a.score)[0]
-      if (topTeam && topTeam.score > 0) {
-        const team = competition.teams.find(t => t.id === topTeam.teamId)
-        const members = competition.players.filter(p => p.teamId === topTeam.teamId && !p.user.isDummy)
-        for (const member of members) {
-          quizTeamWinners.push({
-            userId: member.userId,
-            subtitle: `Awarded for being in the **winning team** **${team?.name ?? ''}** of the quiz **${cc.challenge.name}**`,
-            subtitleKey: 'quizWinningTeam',
-            subtitleParams: { team: team?.name ?? '', quiz: cc.challenge.name },
-          })
-        }
-      }
-    }
-
-    if (competition.scoringMode === 'placement_points') {
-      const ranked = [...teamChallengeScores].sort((a, b) => lowerBetter ? a.score - b.score : b.score - a.score)
-      ranked.forEach(({ teamId, score }, i) => {
-        if (score === 0) return
-        const maxPts = competition.placementMaxPoints ?? numTeams * 10
-        teamPoints[teamId] = (teamPoints[teamId] ?? 0) + Math.max(0, maxPts - i * 10)
-      })
-    } else {
-      for (const { teamId, score } of teamChallengeScores) {
-        teamPoints[teamId] = (teamPoints[teamId] ?? 0) + score
-      }
-    }
-  }
+  // Pick winners from the SAME standings the leaderboard endpoint shows players,
+  // so a trophy always matches a player's real finishing position. (See
+  // computeCompetitionLeaderboard — the single source of truth for scoring.)
+  const { teamLeaderboard, individualLeaderboard, challengeLeaderboards } =
+    computeCompetitionLeaderboard(competition)
 
   const recipients: AwardRecipient[] = []
+  const compName = competition.name
 
-  // Top 3 individual players by total points (non-dummy, points > 0).
-  const top3Individuals = Object.entries(playerTotalPoints)
-    .filter(([userId]) => {
-      const cp = competition.players.find(p => p.userId === userId)
-      return cp && !cp.user.isDummy
-    })
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 3)
+  // Individual standings, best-first, real players only (guests never win), and
+  // only players who actually scored something.
+  const rankedIndividuals = individualLeaderboard
+    .filter(p => !p.isDummy && p.totalPoints > 0)
 
   const medals = ['🥇', '🥈', '🥉']
 
@@ -272,49 +152,70 @@ async function computeWinners(competitionId: string): Promise<AwardRecipient[]> 
     // Individual competition: the overall top 3 placement.
     const posLabels = ['🥇 **1st place**', '🥈 **2nd place**', '🥉 **3rd place**']
     const placementKeys = ['placement1', 'placement2', 'placement3']
-    for (const [i, [userId, points]] of top3Individuals.entries()) {
-      if (points === 0) continue
+    rankedIndividuals.slice(0, 3).forEach((p, i) => {
       recipients.push({
-        userId,
-        subtitle: `${posLabels[i]} in **${competition.name}**`,
+        userId: p.userId,
+        subtitle: `${posLabels[i]} in **${compName}**`,
         subtitleKey: placementKeys[i],
-        subtitleParams: { competition: competition.name },
+        subtitleParams: { competition: compName },
       })
-    }
+    })
   } else {
-    // Team competition: winning team members (non-dummy)...
-    const sortedTeams = competition.teams
-      .map(t => ({ id: t.id, name: t.name, points: teamPoints[t.id] ?? 0 }))
-      .sort((a, b) => b.points - a.points)
-
-    if (sortedTeams.length > 0 && sortedTeams[0].points > 0) {
-      const winningTeam = sortedTeams[0]
-      const members = competition.players.filter(p => p.teamId === winningTeam.id && !p.user.isDummy)
+    // Team competition: every member (non-dummy) of the winning team...
+    const winningTeam = teamLeaderboard[0]
+    if (winningTeam && winningTeam.totalPoints > 0) {
+      const members = competition.players.filter(p => p.teamId === winningTeam.teamId && !p.user.isDummy)
       for (const member of members) {
         recipients.push({
           userId: member.userId,
-          subtitle: `Awarded for being in the **winning team** **${winningTeam.name}** in **${competition.name}**`,
+          subtitle: `Awarded for being in the **winning team** **${winningTeam.teamName}** in **${compName}**`,
           subtitleKey: 'winningTeam',
-          subtitleParams: { team: winningTeam.name, competition: competition.name },
+          subtitleParams: { team: winningTeam.teamName, competition: compName },
         })
       }
     }
 
     // ...plus the top 3 of the individual leaderboard.
     const individualKeys = ['individualLeaderboard1', 'individualLeaderboard2', 'individualLeaderboard3']
-    for (const [i, [userId, points]] of top3Individuals.entries()) {
-      if (points === 0) continue
+    rankedIndividuals.slice(0, 3).forEach((p, i) => {
       recipients.push({
-        userId,
-        subtitle: `${medals[i]} Awarded for being **top ${i + 1}** in the **individual leaderboard** during **${competition.name}**`,
+        userId: p.userId,
+        subtitle: `${medals[i]} Awarded for being **top ${i + 1}** in the **individual leaderboard** during **${compName}**`,
         subtitleKey: individualKeys[i],
-        subtitleParams: { competition: competition.name },
+        subtitleParams: { competition: compName },
       })
+    })
+  }
+
+  // Top scorer (non-dummy) of each challenge that has scores.
+  for (const cl of challengeLeaderboards) {
+    const topPlayer = cl.players.find((p: { isDummy: boolean }) => !p.isDummy)
+    if (topPlayer) {
+      recipients.push({
+        userId: topPlayer.userId,
+        subtitle: `Awarded for having the **top score** in **${cl.challengeName}** in **${compName}**`,
+        subtitleKey: 'topScore',
+        subtitleParams: { challenge: cl.challengeName, competition: compName },
+      })
+    }
+
+    // Quiz challenges additionally award every member of the winning team (team comps).
+    if (cl.isQuiz && competition.isTeamCompetition) {
+      const topTeam = cl.teams[0]
+      if (topTeam && topTeam.score > 0) {
+        const members = competition.players.filter(p => p.teamId === topTeam.teamId && !p.user.isDummy)
+        for (const member of members) {
+          recipients.push({
+            userId: member.userId,
+            subtitle: `Awarded for being in the **winning team** **${topTeam.teamName}** of the quiz **${cl.challengeName}**`,
+            subtitleKey: 'quizWinningTeam',
+            subtitleParams: { team: topTeam.teamName, quiz: cl.challengeName },
+          })
+        }
+      }
     }
   }
 
-  recipients.push(...challengeTopScorers)
-  recipients.push(...quizTeamWinners)
   return recipients
 }
 

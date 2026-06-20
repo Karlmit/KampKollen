@@ -1,4 +1,4 @@
-import { ScoreType, TeamScoreMode } from '@prisma/client'
+import { ScoreType, TeamScoreMode, TieBreakingMode } from '@prisma/client'
 
 export interface PlayerScore {
   userId: string
@@ -52,6 +52,41 @@ export function computeCalculatedPoints(
     default:
       return 0
   }
+}
+
+// The single raw value a score row contributes for a given score type. Returns
+// null when nothing has been recorded yet so callers can treat the row as
+// "not played" (a recorded 0 is a real value and must NOT be null).
+export function getScoreValue(score: {
+  rawScore: number | null
+  timeMs: number | null
+  placement: number | null
+  calculatedPoints: number | null
+}, st: ScoreType): number | null {
+  if (st === 'time_fastest_wins') return score.timeMs ?? null
+  if (st === 'placement_lowest_wins') return score.placement ?? null
+  if (st === 'manual_points') return score.calculatedPoints ?? null
+  return score.rawScore ?? null
+}
+
+// Standard competition ranking (1,1,3): items must already be sorted best-first.
+export function tiedRanks<T>(sorted: T[], getScore: (item: T) => number): (T & { rank: number })[] {
+  let rank = 1
+  return sorted.map((item, i) => {
+    if (i > 0 && getScore(item) !== getScore(sorted[i - 1])) rank = i + 1
+    return { ...item, rank }
+  })
+}
+
+// Points for one entry given its tied rank and tie group size.
+export function calcPlacementPts(rank: number, maxPts: number, tieSize: number, mode: TieBreakingMode): number {
+  const step = 10
+  if (mode === TieBreakingMode.best_rank) return Math.max(0, maxPts - (rank - 1) * step)
+  if (mode === TieBreakingMode.worst_rank) return Math.max(0, maxPts - (rank + tieSize - 2) * step)
+  // average: mean of all tied positions' points
+  let total = 0
+  for (let k = 0; k < tieSize; k++) total += Math.max(0, maxPts - (rank - 1 + k) * step)
+  return total / tieSize
 }
 
 export function isLowerBetter(scoreType: ScoreType): boolean {
