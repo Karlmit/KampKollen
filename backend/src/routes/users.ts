@@ -3,18 +3,22 @@ import { z } from 'zod'
 import { GlobalRole } from '@prisma/client'
 import { prisma } from '../db.js'
 import { hashPassword, validatePassword } from '../lib/auth.js'
+import { computeDisplayName } from '../lib/displayName.js'
 import { requireAuth, requireAdmin } from '../middleware/auth.js'
 import { generateImage, DEFAULT_PROMPTS } from '../lib/imageGeneration.js'
 
 const updateUserSchema = z.object({
+  // Direct displayName override is kept for admins (used to rename dummy /
+  // leader-created players whose username is a random "_guest_…" value).
   displayName: z.string().max(64).optional(),
   realName: z.string().max(128).optional(),
+  showRealName: z.boolean().optional(),
   globalRole: z.nativeEnum(GlobalRole).optional(),
   password: z.string().min(4).max(128).optional(),
 })
 
 const userSelect = {
-  id: true, username: true, displayName: true, realName: true,
+  id: true, username: true, displayName: true, realName: true, showRealName: true,
   profileImageUrl: true, globalRole: true, createdAt: true,
   groups: { select: { groupId: true, group: { select: { id: true, name: true } } } },
 }
@@ -84,14 +88,32 @@ export async function userRoutes(app: FastifyInstance) {
     const body = updateUserSchema.safeParse(request.body)
     if (!body.success) return reply.status(400).send({ error: body.error.issues[0].message })
 
-    const { password, globalRole, ...rest } = body.data
+    const { password, globalRole, realName, showRealName, ...rest } = body.data
 
     if (globalRole !== undefined && me.role !== GlobalRole.ADMIN) {
       return reply.status(403).send({ error: 'Only admins can change roles' })
     }
 
     const data: Record<string, unknown> = { ...rest }
+    if (realName !== undefined) data.realName = realName
+    if (showRealName !== undefined) data.showRealName = showRealName
     if (globalRole !== undefined) data.globalRole = globalRole
+
+    // When the user changes their real name or the "show real name" toggle,
+    // recompute the denormalized displayName the whole app renders.
+    if (realName !== undefined || showRealName !== undefined) {
+      const current = await prisma.user.findUnique({
+        where: { id },
+        select: { username: true, realName: true, showRealName: true },
+      })
+      if (!current) return reply.status(404).send({ error: 'User not found' })
+      data.displayName = computeDisplayName({
+        username: current.username,
+        realName: realName !== undefined ? realName : current.realName,
+        showRealName: showRealName !== undefined ? showRealName : current.showRealName,
+      })
+    }
+
     if (password) {
       const err = validatePassword(password)
       if (err) return reply.status(400).send({ error: err })

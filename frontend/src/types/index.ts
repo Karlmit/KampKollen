@@ -21,6 +21,7 @@ export interface User {
   username: string
   displayName?: string
   realName?: string
+  showRealName?: boolean
   profileImageUrl?: string
   globalRole: GlobalRole
   isDummy?: boolean

@@ -22,6 +22,8 @@ const en = {
     scorekeeper: 'Scorekeeper',
     pts: 'pts',
     points: 'points',
+    on: 'On',
+    off: 'Off',
   },
 
   language: {
@@ -71,8 +73,9 @@ const en = {
     accountSettings: 'Account settings',
     edit: 'Edit',
     cancel: 'Cancel',
-    displayName: 'Display name',
     realName: 'Real name',
+    showRealName: 'Show real name',
+    showRealNameDesc: 'Show your real name instead of your username throughout the app. Your username is shown if your real name is empty.',
     newPassword: 'New password (leave blank to keep current)',
     saveChanges: 'Save changes',
     awards: 'Awards',

@@ -22,6 +22,8 @@ const sv = {
     scorekeeper: 'Resultatskrivare',
     pts: 'p',
     points: 'poäng',
+    on: 'På',
+    off: 'Av',
   },
 
   language: {
@@ -71,8 +73,9 @@ const sv = {
     accountSettings: 'Kontoinställningar',
     edit: 'Redigera',
     cancel: 'Avbryt',
-    displayName: 'Visningsnamn',
     realName: 'Riktigt namn',
+    showRealName: 'Visa riktigt namn',
+    showRealNameDesc: 'Visa ditt riktiga namn istället för ditt användarnamn i appen. Användarnamnet visas om det riktiga namnet är tomt.',
     newPassword: 'Nytt lösenord (lämna blankt för att behålla nuvarande)',
     saveChanges: 'Spara ändringar',
     awards: 'Priser',

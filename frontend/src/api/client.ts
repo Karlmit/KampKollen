@@ -28,7 +28,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   // Auth
   auth: {
-    register: (data: { username: string; password: string; displayName?: string; realName?: string }) =>
+    register: (data: { username: string; password: string; realName?: string }) =>
       request<{ user: any; token: string }>('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
     login: (data: { username: string; password: string }) =>
       request<{ user: any; token: string }>('/auth/login', { method: 'POST', body: JSON.stringify(data) }),

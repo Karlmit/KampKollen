@@ -133,7 +133,7 @@ export function Profile() {
   const isSelf = userId === me?.id
 
   const [editing, setEditing] = useState(false)
-  const [form, setForm] = useState({ displayName: '', realName: '', password: '' })
+  const [form, setForm] = useState({ realName: '', showRealName: false, password: '' })
   const [isGenerating, setIsGenerating] = useState(false)
   const [adminMode, setAdminMode] = useState(false)
 
@@ -145,15 +145,15 @@ export function Profile() {
 
   const updateMutation = useMutation({
     mutationFn: () => api.users.update(userId!, {
-      displayName: form.displayName || undefined,
-      realName: form.realName || undefined,
+      realName: form.realName,
+      showRealName: form.showRealName,
       password: form.password || undefined,
     }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['user', userId] })
       if (isSelf) await refreshUser()
       setEditing(false)
-      setForm({ displayName: '', realName: '', password: '' })
+      setForm({ realName: '', showRealName: false, password: '' })
     },
   })
 
@@ -264,15 +264,30 @@ export function Profile() {
             <h3 style={{ fontFamily: 'var(--font-ui)', fontSize: '15px' }}>{t('profile.accountSettings')}</h3>
             <Button size="sm" variant="ghost" onClick={() => {
               setEditing(!editing)
-              setForm({ displayName: user.displayName ?? '', realName: user.realName ?? '', password: '' })
+              setForm({ realName: user.realName ?? '', showRealName: user.showRealName ?? false, password: '' })
             }}>
               {editing ? t('profile.cancel') : t('profile.edit')}
             </Button>
           </div>
           {editing ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <Input label={t('profile.displayName')} value={form.displayName} onChange={e => setForm(f => ({ ...f, displayName: e.target.value }))} />
               <Input label={t('profile.realName')} value={form.realName} onChange={e => setForm(f => ({ ...f, realName: e.target.value }))} />
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={form.showRealName}
+                  onChange={e => setForm(f => ({ ...f, showRealName: e.target.checked }))}
+                  style={{ width: '18px', height: '18px', marginTop: '2px', flexShrink: 0, accentColor: 'var(--accent)', cursor: 'pointer' }}
+                />
+                <span>
+                  <span style={{ display: 'block', fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: '14px' }}>
+                    {t('profile.showRealName')}
+                  </span>
+                  <span style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    {t('profile.showRealNameDesc')}
+                  </span>
+                </span>
+              </label>
               <Input label={t('profile.newPassword')} type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
               <Button onClick={() => updateMutation.mutate()} loading={updateMutation.isPending} fullWidth>
                 {t('profile.saveChanges')}
@@ -281,12 +296,12 @@ export function Profile() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>{t('profile.displayName')}</span>
-                <span style={{ fontFamily: 'var(--font-ui)', fontSize: '14px' }}>{user.displayName ?? '—'}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>{t('profile.realName')}</span>
                 <span style={{ fontFamily: 'var(--font-ui)', fontSize: '14px' }}>{user.realName ?? '—'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>{t('profile.showRealName')}</span>
+                <span style={{ fontFamily: 'var(--font-ui)', fontSize: '14px' }}>{user.showRealName ? t('common.on') : t('common.off')}</span>
               </div>
             </div>
           )}

@@ -56,6 +56,7 @@ model User {
   passwordHash    String?
   displayName     String?
   realName        String?
+  showRealName    Boolean    @default(false)
   profileImageUrl String?
   globalRole      GlobalRole @default(PLAYER)
   isDummy         Boolean    @default(false)
