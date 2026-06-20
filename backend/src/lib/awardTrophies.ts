@@ -187,20 +187,26 @@ async function computeWinners(competitionId: string): Promise<AwardRecipient[]> 
     })
   }
 
-  // Top scorer (non-dummy) of each challenge that has scores.
   for (const cl of challengeLeaderboards) {
-    const topPlayer = cl.players.find((p: { isDummy: boolean }) => !p.isDummy)
-    if (topPlayer) {
-      recipients.push({
-        userId: topPlayer.userId,
-        subtitle: `Awarded for having the **top score** in **${cl.challengeName}** in **${compName}**`,
-        subtitleKey: 'topScore',
-        subtitleParams: { challenge: cl.challengeName, competition: compName },
-      })
+    // Team-comp quizzes give a winning-team award (below) instead, so the
+    // quiz winners aren't double-awarded a "top score" trophy on top of it.
+    const quizTeamAward = cl.isQuiz && competition.isTeamCompetition
+
+    // Top scorer (non-dummy) of each non-quiz challenge that has scores.
+    if (!quizTeamAward) {
+      const topPlayer = cl.players.find((p: { isDummy: boolean }) => !p.isDummy)
+      if (topPlayer) {
+        recipients.push({
+          userId: topPlayer.userId,
+          subtitle: `Awarded for having the **top score** in **${cl.challengeName}** in **${compName}**`,
+          subtitleKey: 'topScore',
+          subtitleParams: { challenge: cl.challengeName, competition: compName },
+        })
+      }
     }
 
-    // Quiz challenges additionally award every member of the winning team (team comps).
-    if (cl.isQuiz && competition.isTeamCompetition) {
+    // Quiz challenges instead award every member of the winning team (team comps).
+    if (quizTeamAward) {
       const topTeam = cl.teams[0]
       if (topTeam && topTeam.score > 0) {
         const members = competition.players.filter(p => p.teamId === topTeam.teamId && !p.user.isDummy)
