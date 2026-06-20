@@ -19,7 +19,7 @@ export function validatePassword(password: string): string | null {
 export function validateUsername(username: string): string | null {
   if (username.length < 2) return 'Username must be at least 2 characters'
   if (username.length > 32) return 'Username must be at most 32 characters'
-  if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+  if (!/^[a-zA-ZåäöÅÄÖ0-9_-]+$/.test(username)) {
     return 'Username may only contain letters, numbers, hyphens, and underscores'
   }
   return null
