@@ -87,12 +87,18 @@ export function Login() {
           </Button>
         </form>
 
-        <p style={{ textAlign: 'center', marginTop: '24px', fontSize: '14px', color: 'var(--text-muted)' }}>
-          {t('auth.noAccount')}{' '}
-          <Link to="/register" style={{ color: 'var(--accent)', fontFamily: 'var(--font-ui)' }}>
-            {t('auth.createOne')}
-          </Link>
-        </p>
+        {/* New-user path: a full-weight secondary action, grouped tight under
+            Log in so it reads as a real choice, not a footnote. */}
+        <Button
+          type="button"
+          variant="ghost"
+          fullWidth
+          size="lg"
+          onClick={() => navigate('/register')}
+          style={{ marginTop: '12px' }}
+        >
+          {t('auth.createAccount')}
+        </Button>
 
         {/* Divider */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '24px 0' }}>
