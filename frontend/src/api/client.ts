@@ -208,6 +208,7 @@ export const api = {
     showAnswer: (ccId: string) => request(`/quiz/${ccId}/session/show-answer`, { method: 'POST', body: '{}' }),
     nextCorrection: (ccId: string) => request(`/quiz/${ccId}/session/next-correction`, { method: 'POST', body: '{}' }),
     complete: (ccId: string) => request(`/quiz/${ccId}/session/complete`, { method: 'POST', body: '{}' }),
+    recomputeScores: (ccId: string) => request(`/quiz/${ccId}/recompute-scores`, { method: 'POST', body: '{}' }),
     submitAnswer: (ccId: string, data: { questionId: string; optionId?: string; fields?: { fieldId: string; answer: string }[]; teamId?: string }) =>
       request(`/quiz/${ccId}/answers`, { method: 'POST', body: JSON.stringify(data) }),
     retractAnswer: (ccId: string, data: { questionId: string; teamId?: string }) =>

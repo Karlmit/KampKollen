@@ -426,9 +426,10 @@ export async function quizRoutes(app: FastifyInstance) {
       const showFreeTextAnswers = isQM || isBeingCorrected || isPastCorrection || isCompleted_
 
       // The editor's expected answer for a free-text field is revealed to the QM
-      // throughout the correcting phase (a scoring reference) and to everyone
-      // once the QM chooses to show it (the same gate as multiple-choice answers).
-      const revealFieldAnswer = (isQM && (isCorrecting || isCompleted_)) || showAnswers
+      // while answering (so live pre-scoring has a reference) and throughout the
+      // correcting phase, and to everyone once the QM chooses to show it (the
+      // same gate as multiple-choice answers).
+      const revealFieldAnswer = (isQM && (session.status === 'ACTIVE' || isCorrecting || isCompleted_)) || showAnswers
 
       // Per-field data for free-text questions. `myAnswer`/`myPoints`/`myLocked`
       // are this player's own submission; `answers` (the full submitted set) is
@@ -1030,6 +1031,19 @@ export async function quizRoutes(app: FastifyInstance) {
 
     const session = await getOrCreateSession(ccId)
     await prisma.quizSession.update({ where: { id: session.id }, data: { status: 'COMPLETED' } })
+    await computeAndSaveScores(ccId, me.id)
+    broadcast(ccId)
+    return { success: true }
+  })
+
+  // ── Recompute saved scores from the current points (QM only) ─────────────────
+  // Lets the QM revisit any past question and adjust its free-text points, then
+  // push the corrected totals to the leaderboard. Safe to call on a COMPLETED
+  // quiz; during CORRECTING the totals are also recomputed at each phase end.
+  app.post('/:ccId/recompute-scores', { preHandler: requireAuth }, async (request, reply) => {
+    const { ccId } = request.params as { ccId: string }
+    const me = request.user as { id: string; role: string }
+    if (!await isQM(me.id, ccId)) return reply.status(403).send({ error: 'QM or admin required' })
     await computeAndSaveScores(ccId, me.id)
     broadcast(ccId)
     return { success: true }

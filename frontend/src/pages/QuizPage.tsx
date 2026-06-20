@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, type ReactNode } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Layout } from '../components/layout/Layout'
@@ -285,6 +285,177 @@ function PriorAnswersCard({ priorAnswers }: { priorAnswers: any[] }) {
   )
 }
 
+// Big "answer key" banner: the editor-set correct answer(s) for a free-text
+// question, shown once at the top during correction instead of repeated under
+// every team's answer. Only renders when the backend actually sent the expected
+// answers (the QM throughout answering/correction; everyone once revealed).
+function AnswerKeyBanner({ question }: { question: any }) {
+  const { t } = useTranslation()
+  if (!question?.isFreeText) return null
+  const fields = (question.fields ?? []).filter((f: any) => f.correctAnswer)
+  if (fields.length === 0) return null
+  return (
+    <div style={{
+      padding: '14px 16px', borderRadius: 'var(--radius)',
+      background: 'color-mix(in srgb, var(--accent-green) 10%, var(--surface))',
+      border: '1.5px solid color-mix(in srgb, var(--accent-green) 40%, transparent)',
+    }}>
+      <p style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent-green)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span>🔑</span> {t('quiz.answerKey')}
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {fields.map((f: any) => (
+          <p key={f.id} style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '22px', lineHeight: 1.25, color: 'var(--accent-green)' }}>
+            {f.label && <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-muted)', marginRight: 8 }}>{f.label}:</span>}
+            {f.correctAnswer}
+          </p>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// One respondent's free-text scoring card (per-field −/+, full-marks lock, lock).
+// Shared by the live correction view and the "edit scores" modal so both behave
+// identically. Callbacks keep it decoupled from the page's mutations.
+function RespondentScorer({ respondent, onSetPoints, onToggleLock, onMaxLock, maxLockBusy }: {
+  respondent: { key: string; name: string; entries: { field: any; answer: any }[] }
+  onSetPoints: (answerId: string, points: number) => void
+  onToggleLock: (answerId: string) => void
+  onMaxLock: (answerId: string, maxPoints: number) => void
+  maxLockBusy?: boolean
+}) {
+  const { t } = useTranslation()
+  const r = respondent
+  const allLocked = r.entries.every(e => e.answer.locked)
+  return (
+    <div style={{
+      padding: '10px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--background)',
+      border: `1.5px solid ${allLocked ? 'var(--accent-green)' : 'var(--border-light)'}`,
+      transition: 'border-color 200ms',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px' }}>{r.name}</p>
+        <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '13px', color: 'var(--accent)' }}>
+          {t('quiz.points', { count: respondentPoints(r.entries) })}
+        </span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {r.entries.map(({ field, answer }) => {
+          const pts = answer.points ?? 0
+          const locked = !!answer.locked
+          return (
+            <div key={answer.id} style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingTop: 8, borderTop: '1px solid var(--border-light)' }}>
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '14px' }}>
+                {field.label && <span style={{ color: 'var(--text-muted)', fontSize: '12px', fontWeight: 700, marginRight: 6 }}>{field.label}:</span>}
+                {answer.answer || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>—</span>}
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => !locked && onSetPoints(answer.id, Math.max(0, pts - 1))}
+                  disabled={pts <= 0 || locked}
+                  style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px solid var(--border-light)', background: 'var(--surface)', fontSize: '18px', cursor: (pts <= 0 || locked) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: (pts <= 0 || locked) ? 0.3 : 1, fontWeight: 700 }}
+                >−</button>
+                <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '15px', minWidth: 54, textAlign: 'center' }}>
+                  {pts} / {field.points}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => !locked && onSetPoints(answer.id, Math.min(field.points, pts + 1))}
+                  disabled={locked || pts >= field.points}
+                  style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px solid var(--border-light)', background: 'var(--surface)', fontSize: '18px', cursor: (locked || pts >= field.points) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: (locked || pts >= field.points) ? 0.3 : 1, fontWeight: 700 }}
+                >+</button>
+                <button
+                  type="button"
+                  title={t('quiz.freeTextMaxLock')}
+                  aria-label={t('quiz.freeTextMaxLock')}
+                  onClick={() => !locked && onMaxLock(answer.id, field.points)}
+                  disabled={locked || maxLockBusy}
+                  style={{
+                    marginLeft: 'auto', padding: '4px 12px', borderRadius: 'var(--radius-sm)',
+                    cursor: locked ? 'not-allowed' : 'pointer',
+                    border: `1.5px solid ${locked ? 'var(--border-light)' : 'var(--accent-green)'}`,
+                    background: locked ? 'var(--surface)' : 'color-mix(in srgb, var(--accent-green) 12%, transparent)',
+                    color: locked ? 'var(--text-muted)' : 'var(--accent-green)',
+                    fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px',
+                    opacity: locked ? 0.3 : 1,
+                    transition: 'border-color 150ms, background 150ms, color 150ms',
+                  }}
+                >{t('quiz.freeTextMaxLockLabel')}</button>
+                <button
+                  type="button"
+                  onClick={() => onToggleLock(answer.id)}
+                  style={{
+                    padding: '4px 12px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                    border: `1.5px solid ${locked ? 'var(--accent-green)' : 'var(--border-light)'}`,
+                    background: locked ? 'color-mix(in srgb, var(--accent-green) 12%, transparent)' : 'var(--surface)',
+                    color: locked ? 'var(--accent-green)' : 'var(--text-muted)',
+                    fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px',
+                    transition: 'border-color 150ms, background 150ms, color 150ms',
+                  }}
+                >
+                  {locked ? t('quiz.freeTextLockedStatus') : t('quiz.freeTextLock')}
+                </button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// QM tool: jump to ANY free-text question in the quiz and adjust its points —
+// e.g. to fix an earlier score without losing your place in the live correction.
+// Edits go through the same per-answer endpoints; a quiz that's already finished
+// has its saved totals recomputed by the caller on close.
+function ScoreEditorModal({ open, onClose, questions, competition, isTeamComp, onSetPoints, onToggleLock, onMaxLock, maxLockBusy, footer }: {
+  open: boolean
+  onClose: () => void
+  questions: any[]
+  competition: any
+  isTeamComp: boolean
+  onSetPoints: (answerId: string, points: number) => void
+  onToggleLock: (answerId: string) => void
+  onMaxLock: (answerId: string, maxPoints: number) => void
+  maxLockBusy?: boolean
+  footer?: ReactNode
+}) {
+  const { t } = useTranslation()
+  const freeTextQuestions = (questions ?? []).filter((q: any) => q.isFreeText)
+  return (
+    <Modal open={open} onClose={onClose} title={t('quiz.editScoresTitle')} footer={footer}>
+      <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 14 }}>
+        {t('quiz.editScoresHint')}
+      </p>
+      {freeTextQuestions.length === 0 ? (
+        <p style={{ fontSize: '14px', color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('quiz.noFreeTextToScore')}</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {freeTextQuestions.map((q: any) => {
+            const respondents = groupFieldAnswers(q, competition, isTeamComp)
+            const qi = questions.indexOf(q)
+            return (
+              <div key={q.id} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px', lineHeight: 1.35 }}>
+                  <span style={{ color: 'var(--text-muted)', marginRight: 6 }}>Q{qi + 1}.</span>{q.text}
+                </p>
+                <AnswerKeyBanner question={q} />
+                {respondents.length === 0 ? (
+                  <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('quiz.freeTextNoAnswers')}</p>
+                ) : respondents.map(r => (
+                  <RespondentScorer key={r.key} respondent={r} onSetPoints={onSetPoints} onToggleLock={onToggleLock} onMaxLock={onMaxLock} maxLockBusy={maxLockBusy} />
+                ))}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </Modal>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export function QuizPage() {
   const { competitionId, ccId } = useParams<{ competitionId: string; ccId: string }>()
@@ -298,6 +469,7 @@ export function QuizPage() {
   const [confirmAdvance, setConfirmAdvance] = useState(false)
   const [countdownSecs, setCountdownSecs] = useState<number | null>(null)
   const [showFullResults, setShowFullResults] = useState(false)
+  const [showScoreEditor, setShowScoreEditor] = useState(false)
 
   const { data, isLoading } = useQuery({
     queryKey: ['quiz', ccId],
@@ -387,6 +559,19 @@ export function QuizPage() {
     mutationFn: () => api.quiz.lockAllFields(ccId!),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz', ccId] }),
   })
+
+  // Recompute & persist the saved scores from the current points — used after the
+  // QM edits points on an already-completed quiz so the leaderboard catches up.
+  const recomputeScores = useMutation({
+    mutationFn: () => api.quiz.recomputeScores(ccId!),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz', ccId] }),
+  })
+
+  // Close the "edit scores" modal; on a finished quiz, push the corrected totals.
+  const closeScoreEditor = useCallback(() => {
+    setShowScoreEditor(false)
+    if (sessionStatus === 'COMPLETED') recomputeScores.mutate()
+  }, [sessionStatus, recomputeScores])
 
   const readyMutation = useMutation({
     mutationFn: (teamId?: string) => api.quiz.markReady(ccId!, teamId),
@@ -652,6 +837,22 @@ export function QuizPage() {
         </p>
       </Modal>
 
+      {/* QM "edit scores" — revisit any free-text question and adjust its points */}
+      {isQM && (
+        <ScoreEditorModal
+          open={showScoreEditor}
+          onClose={closeScoreEditor}
+          questions={questions}
+          competition={competition}
+          isTeamComp={isTeamComp}
+          onSetPoints={(answerId, points) => setFieldPoints.mutate({ answerId, points })}
+          onToggleLock={(answerId) => toggleFieldLock.mutate(answerId)}
+          onMaxLock={(answerId, maxPoints) => maxAndLockField.mutate({ answerId, maxPoints })}
+          maxLockBusy={maxAndLockField.isPending}
+          footer={<Button onClick={closeScoreEditor}>{t('quiz.editScoresDone')}</Button>}
+        />
+      )}
+
       {/* ── ACTIVE ───────────────────────────────────────────────────────── */}
       {session.status === 'ACTIVE' && currentQ && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -681,6 +882,61 @@ export function QuizPage() {
               {t('quiz.points', { count: currentQ.points })}
             </span>
           </div>
+
+          {/* QM controls — pinned to the top so the quiz master can advance the
+              quiz and see who has answered without scrolling past the answers. */}
+          {isQM && (
+            <div style={{
+              position: 'sticky', top: 56, zIndex: 30,
+              display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px',
+              background: 'var(--surface)', borderRadius: 'var(--radius)',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.07)',
+            }}>
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--text-muted)' }}>{t('quiz.quizMaster')}</p>
+
+              {/* Answer status per team/player */}
+              <div className="qz-chips" style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                {isTeamComp && competition.teams.map((tm: any) => {
+                  const answered = currentQ.answeredTeams?.includes(tm.id)
+                  return (
+                    <span key={tm.id} style={{
+                      padding: '3px 8px', borderRadius: '99px', fontSize: '12px', fontFamily: 'var(--font-ui)', fontWeight: 600,
+                      background: answered ? 'color-mix(in srgb, var(--accent-green) 15%, transparent)' : 'var(--background)',
+                      color: answered ? 'var(--accent-green)' : 'var(--text-muted)',
+                      border: `1px solid ${answered ? 'var(--accent-green)' : 'var(--border-light)'}`,
+                    }}>
+                      {answered ? '✓ ' : ''}{tm.name}
+                    </span>
+                  )
+                })}
+                {!isTeamComp && (
+                  <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                    {t('quiz.answered', { count: currentQ.answeredUserIds?.length ?? 0, total: competition.players.length })}
+                    {currentQ.answeredUserIds?.length === competition.players.length && (
+                      <span style={{ color: 'var(--accent-green)', fontWeight: 700 }}>{t('quiz.allAnswered')}</span>
+                    )}
+                  </p>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <Button
+                  size="sm"
+                  disabled={countdownSecs !== null}
+                  onClick={() => everyoneAnswered ? advanceQuestion() : setConfirmAdvance(true)}
+                >
+                  {countdownSecs !== null
+                    ? t('quiz.countdown5s', { count: countdownSecs })
+                    : (() => {
+                        const atIdx = session.currentQuestionIndex
+                        const lastOverall = atIdx >= questions.length - 1
+                        if (phaseCorrection && atIdx >= segOf(atIdx).end && !lastOverall) return t('quiz.startPhaseCorrection')
+                        return lastOverall ? t('quiz.startCorrection') : t('quiz.nextQuestion')
+                      })()}
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Per-question timer */}
           {currentQ.timerSeconds > 0 && !currentQ.locked && !countdownSecs && (
@@ -759,6 +1015,8 @@ export function QuizPage() {
           {isQM ? (
             currentQ.isFreeText ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {/* Expected answer up top — a reference for live pre-scoring */}
+                <AnswerKeyBanner question={currentQ} />
                 <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', color: 'var(--text-muted)' }}>
                   {t('quiz.freeTextAnswers')} ({isTeamComp ? currentQ.answeredTeams?.length ?? 0 : currentQ.answeredUserIds?.length ?? 0})
                 </p>
@@ -1035,54 +1293,6 @@ export function QuizPage() {
             </div>
           )}
 
-          {/* QM controls */}
-          {isQM && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: 'var(--surface)', borderRadius: 'var(--radius)', marginTop: '4px' }}>
-              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '4px' }}>{t('quiz.quizMaster')}</p>
-
-              {/* Answer status per team/player */}
-              <div className="qz-chips" style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '8px' }}>
-                {isTeamComp && competition.teams.map((t: any) => {
-                  const answered = currentQ.answeredTeams?.includes(t.id)
-                  return (
-                    <span key={t.id} style={{
-                      padding: '3px 8px', borderRadius: '99px', fontSize: '12px', fontFamily: 'var(--font-ui)', fontWeight: 600,
-                      background: answered ? 'color-mix(in srgb, var(--accent-green) 15%, transparent)' : 'var(--surface)',
-                      color: answered ? 'var(--accent-green)' : 'var(--text-muted)',
-                      border: `1px solid ${answered ? 'var(--accent-green)' : 'var(--border-light)'}`,
-                    }}>
-                      {answered ? '✓ ' : ''}{t.name}
-                    </span>
-                  )
-                })}
-                {!isTeamComp && (
-                  <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                    {t('quiz.answered', { count: currentQ.answeredUserIds?.length ?? 0, total: competition.players.length })}
-                    {currentQ.answeredUserIds?.length === competition.players.length && (
-                      <span style={{ color: 'var(--accent-green)', fontWeight: 700 }}>{t('quiz.allAnswered')}</span>
-                    )}
-                  </p>
-                )}
-              </div>
-
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <Button
-                  size="sm"
-                  disabled={countdownSecs !== null}
-                  onClick={() => everyoneAnswered ? advanceQuestion() : setConfirmAdvance(true)}
-                >
-                  {countdownSecs !== null
-                    ? t('quiz.countdown5s', { count: countdownSecs })
-                    : (() => {
-                        const atIdx = session.currentQuestionIndex
-                        const lastOverall = atIdx >= questions.length - 1
-                        if (phaseCorrection && atIdx >= segOf(atIdx).end && !lastOverall) return t('quiz.startPhaseCorrection')
-                        return lastOverall ? t('quiz.startCorrection') : t('quiz.nextQuestion')
-                      })()}
-                </Button>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -1147,6 +1357,67 @@ export function QuizPage() {
             isTeamComp={isTeamComp}
           />
 
+          {/* QM controls — pinned to the top so the quiz master always has the
+              correction actions (and the "edit scores" jump) in reach without
+              scrolling past every team's answer. */}
+          {isQM && (
+            <div style={{
+              position: 'sticky', top: 56, zIndex: 30,
+              display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px',
+              background: 'var(--surface)', borderRadius: 'var(--radius)',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.07)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <p style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--text-muted)' }}>{t('quiz.quizMaster')}</p>
+                <Button size="sm" variant="ghost" onClick={() => setShowScoreEditor(true)}>{t('quiz.editScores')}</Button>
+              </div>
+              {correctionQ.isFreeText ? (() => {
+                const allAnswers = (correctionQ.fields ?? []).flatMap((f: any) => f.answers ?? [])
+                const hasUnlocked = allAnswers.some((a: any) => !a.locked)
+                const allLocked = allFieldAnswersLocked(correctionQ)
+                // Any expected answers configured for this question? If so the QM
+                // may reveal them to everyone (otherwise there's nothing to show).
+                const hasExpectedAnswers = (correctionQ.fields ?? []).some((f: any) => f.correctAnswer)
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {hasUnlocked && (
+                      <Button size="sm" variant="success" disabled={lockAllFields.isPending} onClick={() => lockAllFields.mutate()}>
+                        {t('quiz.freeTextLockAll')}
+                      </Button>
+                    )}
+                    {hasExpectedAnswers && !session.correctAnswerVisible && (
+                      <Button size="sm" variant="ghost" onClick={() => qmMutate(() => api.quiz.showAnswer(ccId!))}>
+                        {t('quiz.showAnswerToAll')}
+                      </Button>
+                    )}
+                    {hasExpectedAnswers && session.correctAnswerVisible && (
+                      <p style={{ fontSize: '11px', color: 'var(--accent-green)', fontFamily: 'var(--font-ui)', fontWeight: 700 }}>{t('quiz.answerShownToAll')}</p>
+                    )}
+                    <Button size="sm" disabled={!allLocked} onClick={() => qmMutate(() => api.quiz.nextCorrection(ccId!))}>
+                      {correctionAdvanceLabel}
+                    </Button>
+                    {!allLocked && (
+                      <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-ui)' }}>{t('quiz.freeTextLockAllFirst')}</p>
+                    )}
+                  </div>
+                )
+              })() : (
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {!session.correctAnswerVisible && (
+                    <Button size="sm" onClick={() => qmMutate(() => api.quiz.showAnswer(ccId!))}>
+                      {t('quiz.showAnswer')}
+                    </Button>
+                  )}
+                  {session.correctAnswerVisible && (
+                    <Button size="sm" onClick={() => qmMutate(() => api.quiz.nextCorrection(ccId!))}>
+                      {correctionAdvanceLabel}
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
               {phaseCorrection && phaseSegments.length > 1 && (
@@ -1172,6 +1443,10 @@ export function QuizPage() {
             <QuestionDescription html={correctionQ.description} />
             {correctionQ.imageUrl && <img src={correctionQ.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginTop: 8, display: 'block' }} />}
           </Card>
+
+          {/* The expected answer, once, in big green letters — shown to the QM
+              throughout correction and to everyone once revealed. */}
+          <AnswerKeyBanner question={correctionQ} />
 
           {/* QM-only "manus" for the correction phase — the script the quiz
               master reads aloud while correcting/scoring this question */}
@@ -1222,12 +1497,6 @@ export function QuizPage() {
                             )
                           })()}
                         </div>
-                        {f.correctAnswer && (
-                          <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--accent-green)', display: 'flex', alignItems: 'baseline', gap: 5 }}>
-                            <span style={{ flexShrink: 0 }}>🔑</span>
-                            <span><span style={{ fontWeight: 700 }}>{t('quiz.correctAnswer')}:</span> {f.correctAnswer}</span>
-                          </p>
-                        )}
                       </div>
                     ))}
                   </div>
@@ -1244,91 +1513,16 @@ export function QuizPage() {
                     </p>
                     {respondents.length === 0 ? (
                       <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('quiz.freeTextNoAnswers')}</p>
-                    ) : respondents.map(r => {
-                      const allLocked = r.entries.every(e => e.answer.locked)
-                      return (
-                        <div key={r.key} style={{
-                          padding: '10px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--background)',
-                          border: `1.5px solid ${allLocked ? 'var(--accent-green)' : 'var(--border-light)'}`,
-                          transition: 'border-color 200ms',
-                        }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                            <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px' }}>{r.name}</p>
-                            <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '13px', color: 'var(--accent)' }}>
-                              {t('quiz.points', { count: respondentPoints(r.entries) })}
-                            </span>
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            {r.entries.map(({ field, answer }) => {
-                              const pts = answer.points ?? 0
-                              const locked = !!answer.locked
-                              return (
-                                <div key={answer.id} style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingTop: 8, borderTop: '1px solid var(--border-light)' }}>
-                                  <p style={{ fontFamily: 'var(--font-ui)', fontSize: '14px' }}>
-                                    {field.label && <span style={{ color: 'var(--text-muted)', fontSize: '12px', fontWeight: 700, marginRight: 6 }}>{field.label}:</span>}
-                                    {answer.answer || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>—</span>}
-                                  </p>
-                                  {field.correctAnswer && (
-                                    <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--accent-green)', display: 'flex', alignItems: 'baseline', gap: 5 }}>
-                                      <span style={{ flexShrink: 0 }}>🔑</span>
-                                      <span><span style={{ fontWeight: 700 }}>{t('quiz.expectedAnswer')}:</span> {field.correctAnswer}</span>
-                                    </p>
-                                  )}
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <button
-                                      type="button"
-                                      onClick={() => !locked && setFieldPoints.mutate({ answerId: answer.id, points: Math.max(0, pts - 1) })}
-                                      disabled={pts <= 0 || locked}
-                                      style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px solid var(--border-light)', background: 'var(--surface)', fontSize: '18px', cursor: (pts <= 0 || locked) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: (pts <= 0 || locked) ? 0.3 : 1, fontWeight: 700 }}
-                                    >−</button>
-                                    <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '15px', minWidth: 54, textAlign: 'center' }}>
-                                      {pts} / {field.points}
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={() => !locked && setFieldPoints.mutate({ answerId: answer.id, points: Math.min(field.points, pts + 1) })}
-                                      disabled={locked || pts >= field.points}
-                                      style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px solid var(--border-light)', background: 'var(--surface)', fontSize: '18px', cursor: (locked || pts >= field.points) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: (locked || pts >= field.points) ? 0.3 : 1, fontWeight: 700 }}
-                                    >+</button>
-                                    <button
-                                      type="button"
-                                      title={t('quiz.freeTextMaxLock')}
-                                      aria-label={t('quiz.freeTextMaxLock')}
-                                      onClick={() => !locked && maxAndLockField.mutate({ answerId: answer.id, maxPoints: field.points })}
-                                      disabled={locked || maxAndLockField.isPending}
-                                      style={{
-                                        marginLeft: 'auto', padding: '4px 12px', borderRadius: 'var(--radius-sm)',
-                                        cursor: locked ? 'not-allowed' : 'pointer',
-                                        border: `1.5px solid ${locked ? 'var(--border-light)' : 'var(--accent-green)'}`,
-                                        background: locked ? 'var(--surface)' : 'color-mix(in srgb, var(--accent-green) 12%, transparent)',
-                                        color: locked ? 'var(--text-muted)' : 'var(--accent-green)',
-                                        fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px',
-                                        opacity: locked ? 0.3 : 1,
-                                        transition: 'border-color 150ms, background 150ms, color 150ms',
-                                      }}
-                                    >{t('quiz.freeTextMaxLockLabel')}</button>
-                                    <button
-                                      type="button"
-                                      onClick={() => toggleFieldLock.mutate(answer.id)}
-                                      style={{
-                                        padding: '4px 12px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                                        border: `1.5px solid ${locked ? 'var(--accent-green)' : 'var(--border-light)'}`,
-                                        background: locked ? 'color-mix(in srgb, var(--accent-green) 12%, transparent)' : 'var(--surface)',
-                                        color: locked ? 'var(--accent-green)' : 'var(--text-muted)',
-                                        fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px',
-                                        transition: 'border-color 150ms, background 150ms, color 150ms',
-                                      }}
-                                    >
-                                      {locked ? t('quiz.freeTextLockedStatus') : t('quiz.freeTextLock')}
-                                    </button>
-                                  </div>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      )
-                    })}
+                    ) : respondents.map(r => (
+                      <RespondentScorer
+                        key={r.key}
+                        respondent={r}
+                        onSetPoints={(answerId, points) => setFieldPoints.mutate({ answerId, points })}
+                        onToggleLock={(answerId) => toggleFieldLock.mutate(answerId)}
+                        onMaxLock={(answerId, maxPoints) => maxAndLockField.mutate({ answerId, maxPoints })}
+                        maxLockBusy={maxAndLockField.isPending}
+                      />
+                    ))}
                   </>
                 )
               })()}
@@ -1400,58 +1594,6 @@ export function QuizPage() {
             </div>
           )}
 
-          {/* QM controls */}
-          {isQM && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: 'var(--surface)', borderRadius: 'var(--radius)' }}>
-              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '4px' }}>{t('quiz.quizMaster')}</p>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                {correctionQ.isFreeText ? (() => {
-                  const allAnswers = (correctionQ.fields ?? []).flatMap((f: any) => f.answers ?? [])
-                  const hasUnlocked = allAnswers.some((a: any) => !a.locked)
-                  const allLocked = allFieldAnswersLocked(correctionQ)
-                  // Any expected answers configured for this question? If so the QM
-                  // may reveal them to everyone (otherwise there's nothing to show).
-                  const hasExpectedAnswers = (correctionQ.fields ?? []).some((f: any) => f.correctAnswer)
-                  return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {hasUnlocked && (
-                        <Button size="sm" variant="success" disabled={lockAllFields.isPending} onClick={() => lockAllFields.mutate()}>
-                          {t('quiz.freeTextLockAll')}
-                        </Button>
-                      )}
-                      {hasExpectedAnswers && !session.correctAnswerVisible && (
-                        <Button size="sm" variant="ghost" onClick={() => qmMutate(() => api.quiz.showAnswer(ccId!))}>
-                          {t('quiz.showAnswerToAll')}
-                        </Button>
-                      )}
-                      {hasExpectedAnswers && session.correctAnswerVisible && (
-                        <p style={{ fontSize: '11px', color: 'var(--accent-green)', fontFamily: 'var(--font-ui)', fontWeight: 700 }}>{t('quiz.answerShownToAll')}</p>
-                      )}
-                      <Button size="sm" disabled={!allLocked} onClick={() => qmMutate(() => api.quiz.nextCorrection(ccId!))}>
-                        {correctionAdvanceLabel}
-                      </Button>
-                      {!allLocked && (
-                        <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-ui)' }}>{t('quiz.freeTextLockAllFirst')}</p>
-                      )}
-                    </div>
-                  )
-                })() : (
-                  <>
-                    {!session.correctAnswerVisible && (
-                      <Button size="sm" onClick={() => qmMutate(() => api.quiz.showAnswer(ccId!))}>
-                        {t('quiz.showAnswer')}
-                      </Button>
-                    )}
-                    {session.correctAnswerVisible && (
-                      <Button size="sm" onClick={() => qmMutate(() => api.quiz.nextCorrection(ccId!))}>
-                        {correctionAdvanceLabel}
-                      </Button>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-          )}
         </div>
         )
       })()}
@@ -1528,6 +1670,14 @@ export function QuizPage() {
             <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '20px', color: '#fff', marginBottom: '4px' }}>{t('quiz.quizComplete')}</p>
             <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>{t('quiz.scoresSubmitted')}</p>
           </Card>
+
+          {/* QM: revisit any question's free-text points after the fact. Closing
+              the editor recomputes the saved totals so the leaderboard catches up. */}
+          {isQM && (
+            <Button variant="ghost" fullWidth onClick={() => setShowScoreEditor(true)}>
+              {t('quiz.editScores')}
+            </Button>
+          )}
 
           {/* Podium — visual columns, tied ranks show overlapping avatars */}
           {podiumVisualOrder.length > 0 && (
