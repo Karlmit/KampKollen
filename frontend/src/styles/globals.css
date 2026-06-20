@@ -172,6 +172,22 @@ img {
 .qz-lobby-banner {
   animation: lobbyBannerIn 320ms var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1));
 }
+/* Continuous attention pulse so a player outside the quiz can't miss the way
+   back in. Slides down once, then keeps a soft glowing heartbeat. */
+@keyframes qzBannerAttention {
+  0%, 100% { box-shadow: 0 4px 14px rgba(0,0,0,0.18); }
+  50%      { box-shadow: 0 6px 30px rgba(215,40,61,0.55), 0 0 0 3px rgba(215,40,61,0.35); }
+}
+.qz-lobby-banner--pulse {
+  animation:
+    lobbyBannerIn 320ms var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1)),
+    qzBannerAttention 2.4s var(--ease-in-out, ease-in-out) 320ms infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .qz-lobby-banner--pulse {
+    animation: lobbyBannerIn 320ms var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1));
+  }
+}
 @keyframes sheetUp {
   from { transform: translateY(100%); }
   to   { transform: none; }

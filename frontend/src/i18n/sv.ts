@@ -733,6 +733,8 @@ const sv = {
     callPlayersHint: 'Alla spelare ser nu en banner högst upp som tar dem hit.',
     bannerTitle: 'Quizen "{{name}}" är på gång!',
     bannerCta: 'Tryck för att gå till lobbyn →',
+    bannerLiveTitle: 'Quizen "{{name}}" pågår nu!',
+    bannerLiveCta: 'Tryck för att hoppa tillbaka in →',
     question: 'FRÅGA {{current}} / {{total}}',
     points_one: '{{count}} poäng',
     points_other: '{{count}} poäng',

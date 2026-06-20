@@ -31,13 +31,19 @@ export function QuizLobbyBanner() {
 
   const target = `/competitions/${announcement.competitionId}/quiz/${announcement.ccId}`
 
+  // A quiz that is already running (ACTIVE/CORRECTING) gets a steadier "rejoin"
+  // message; a quiz still in the lobby keeps the QM's "come on over" call.
+  const isLive = announcement.status !== 'LOBBY'
+  const title = isLive ? 'quiz.bannerLiveTitle' : 'quiz.bannerTitle'
+  const cta = isLive ? 'quiz.bannerLiveCta' : 'quiz.bannerCta'
+
   return (
     <div
       role="button"
       tabIndex={0}
       onClick={() => navigate(target)}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') navigate(target) }}
-      className="qz-lobby-banner"
+      className="qz-lobby-banner qz-lobby-banner--pulse"
       style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200,
         paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)',
@@ -53,11 +59,15 @@ export function QuizLobbyBanner() {
       }}>
         <span className="qz-float" style={{ fontSize: '22px', flexShrink: 0 }}>🎯</span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', lineHeight: 1.25 }}>
-            {t('quiz.bannerTitle', { name: announcement.quizName })}
+          <p style={{
+            display: 'flex', alignItems: 'center', gap: '6px',
+            fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', lineHeight: 1.25,
+          }}>
+            {isLive && <span className="live-dot" aria-hidden />}
+            {t(title, { name: announcement.quizName })}
           </p>
           <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'rgba(255,255,255,0.8)', lineHeight: 1.25 }}>
-            {t('quiz.bannerCta')}
+            {t(cta)}
           </p>
         </div>
         <button

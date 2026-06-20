@@ -735,6 +735,8 @@ const en = {
     callPlayersHint: 'All players now see a banner at the top that brings them here.',
     bannerTitle: 'Quiz "{{name}}" is starting!',
     bannerCta: 'Tap to go to the lobby →',
+    bannerLiveTitle: 'Quiz "{{name}}" is live now!',
+    bannerLiveCta: 'Tap to jump back in →',
     question: 'QUESTION {{current}} / {{total}}',
     points_one: '{{count}} point',
     points_other: '{{count}} points',

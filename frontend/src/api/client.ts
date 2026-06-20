@@ -202,7 +202,7 @@ export const api = {
     announce: (ccId: string, announced: boolean) =>
       request(`/quiz/${ccId}/session/announce`, { method: 'POST', body: JSON.stringify({ announced }) }),
     announcements: () =>
-      request<{ announcements: { ccId: string; competitionId: string; competitionName: string; quizName: string }[] }>('/quiz/announcements'),
+      request<{ announcements: { ccId: string; competitionId: string; competitionName: string; quizName: string; status: 'LOBBY' | 'ACTIVE' | 'CORRECTING' }[] }>('/quiz/announcements'),
     nextQuestion: (ccId: string) => request(`/quiz/${ccId}/session/next-question`, { method: 'POST', body: '{}' }),
     startVisualCountdown: (ccId: string, seconds: number) =>
       request(`/quiz/${ccId}/session/visual-countdown`, { method: 'POST', body: JSON.stringify({ seconds }) }),

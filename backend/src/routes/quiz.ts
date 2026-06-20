@@ -1281,18 +1281,24 @@ export async function quizRoutes(app: FastifyInstance) {
     return { success: true }
   })
 
-  // ── Active lobby announcements for the current user ──────────────────────────
-  // Returns quizzes in LOBBY whose QM has raised the "come to the lobby" banner,
-  // limited to competitions the user actually plays in. Drives the global banner.
+  // ── Active quiz banners for the current user ─────────────────────────────────
+  // Drives the global banner shown outside the quiz screen so players can find
+  // their way (back) to a live quiz. Limited to competitions the user plays in.
+  // Two cases surface a banner:
+  //   • LOBBY  — only while the QM has raised the "come to the lobby" call.
+  //   • ACTIVE / CORRECTING — always, until the quiz is COMPLETED, so a player
+  //     who accidentally backs out of a running quiz can rejoin.
   app.get('/announcements', { preHandler: requireAuth }, async (request) => {
     const me = request.user as { id: string }
     const sessions = await prisma.quizSession.findMany({
       where: {
-        status: 'LOBBY',
-        lobbyAnnounced: true,
         competitionChallenge: {
           competition: { players: { some: { userId: me.id } } },
         },
+        OR: [
+          { status: 'LOBBY', lobbyAnnounced: true },
+          { status: { in: ['ACTIVE', 'CORRECTING'] } },
+        ],
       },
       include: {
         competitionChallenge: {
@@ -1310,6 +1316,7 @@ export async function quizRoutes(app: FastifyInstance) {
         competitionId: s.competitionChallenge.competition.id,
         competitionName: s.competitionChallenge.competition.name,
         quizName: s.competitionChallenge.challenge.name,
+        status: s.status,
       })),
     }
   })
