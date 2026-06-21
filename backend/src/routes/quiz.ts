@@ -514,7 +514,10 @@ export async function quizRoutes(app: FastifyInstance) {
           text: o.text,
           imageUrl: o.imageUrl,
           order: o.order,
-          isCorrect: showAnswers ? o.isCorrect : undefined,
+          // The QM may see which option is correct while presenting (so the
+          // consolidated question card can show the answer key) — same trust as
+          // the free-text answer key above. Players only learn it on reveal.
+          isCorrect: (showAnswers || (isQM && session.status === 'ACTIVE')) ? o.isCorrect : undefined,
         })) : [],
         myOptionId: myAnswer?.optionId ?? null,
         fields,

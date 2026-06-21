@@ -315,6 +315,39 @@ function AnswerKeyBanner({ question }: { question: any }) {
   )
 }
 
+// Compact "correct answer" line(s) for the QM's consolidated question card.
+// Free-text: the editor-set expected answer per field. Multiple-choice: the
+// option flagged correct (only sent to the QM while presenting). Renders nothing
+// when there's no answer key to show.
+function CorrectAnswerSummary({ question }: { question: any }) {
+  const { t } = useTranslation()
+  let items: { label?: string | null; value: string }[] = []
+  if (question?.isFreeText) {
+    items = (question.fields ?? [])
+      .filter((f: any) => f.correctAnswer)
+      .map((f: any) => ({ label: f.label, value: f.correctAnswer }))
+  } else {
+    const correct = (question?.options ?? []).find((o: any) => o.isCorrect)
+    if (correct) items = [{ value: correct.text }]
+  }
+  if (items.length === 0) return null
+  return (
+    <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border-light)', background: 'color-mix(in srgb, var(--accent-green) 7%, transparent)' }}>
+      <p style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--accent-green)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span>🔑</span> {t('quiz.answerKey')}
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {items.map((it, i) => (
+          <p key={i} style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '16px', lineHeight: 1.3, color: 'var(--accent-green)' }}>
+            {it.label && <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', marginRight: 8 }}>{it.label}:</span>}
+            {it.value}
+          </p>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // One respondent's free-text scoring card (per-field −/+, full-marks lock, lock).
 // Shared by the live correction view and the "edit scores" modal so both behave
 // identically. Callbacks keep it decoupled from the page's mutations.
@@ -904,16 +937,41 @@ export function QuizPage() {
             </span>
           </div>
 
-          {/* QM controls — pinned to the top so the quiz master can advance the
-              quiz and see who has answered without scrolling past the answers. */}
+          {/* Consolidated QM question card — everything the quiz master needs in
+              one place, top to bottom: question, description, correct answer,
+              manus, then the QM tools. The incoming answers render below it. */}
           {isQM && (
-            <div style={{
-              position: 'sticky', top: 56, zIndex: 30,
-              display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px',
-              background: 'var(--surface)', borderRadius: 'var(--radius)',
-              boxShadow: '0 2px 10px rgba(0,0,0,0.07)',
-            }}>
-              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--text-muted)' }}>{t('quiz.quizMaster')}</p>
+            <Card
+              key={session.currentQuestionIndex}
+              className="qz-question-in"
+              padding="0"
+              style={{ overflow: 'hidden' }}
+            >
+              {/* Question, its description and image */}
+              <div style={{ padding: '14px 16px' }}>
+                <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '17px', lineHeight: 1.4 }}>{currentQ.text}</p>
+                <QuestionDescription html={currentQ.description} />
+                {currentQ.imageUrl && (
+                  <img src={currentQ.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginTop: 10, display: 'block' }} />
+                )}
+              </div>
+
+              {/* Correct answer (answer key) — renders nothing when unavailable */}
+              <CorrectAnswerSummary question={currentQ} />
+
+              {/* QM-only "manus" — the script the quiz master reads aloud */}
+              {currentQ.manusText && (
+                <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border-light)', background: 'color-mix(in srgb, var(--accent-warm) 6%, transparent)' }}>
+                  <p style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 800, letterSpacing: '0.06em', color: 'var(--accent-warm)', marginBottom: 4, textTransform: 'uppercase' }}>
+                    {t('quiz.manus')}
+                  </p>
+                  <p style={{ fontFamily: 'var(--font-ui)', fontSize: '14px', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{currentQ.manusText}</p>
+                </div>
+              )}
+
+              {/* Quiz master tools — advance, who's answered, nudge countdown */}
+              <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 800, letterSpacing: '0.06em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('quiz.quizMaster')}</p>
 
               {/* Answer status per team/player */}
               <div className="qz-chips" style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
@@ -1004,7 +1062,8 @@ export function QuizPage() {
                   </>
                 )}
               </div>
-            </div>
+              </div>
+            </Card>
           )}
 
           {/* Per-question timer */}
@@ -1109,29 +1168,18 @@ export function QuizPage() {
             )
           })()}
 
-          {/* Question card */}
-          <Card key={session.currentQuestionIndex} className="qz-question-in">
-            <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px', lineHeight: 1.4 }}>
-              {currentQ.text}
-            </p>
-            <QuestionDescription html={currentQ.description} />
-            {currentQ.imageUrl && (
-              <img src={currentQ.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginTop: 10, display: 'block' }} />
-            )}
-          </Card>
-
-          {/* QM-only "manus" — the script the quiz master reads aloud */}
-          {isQM && currentQ.manusText && (
-            <div style={{
-              padding: '12px 14px', borderRadius: 'var(--radius)',
-              background: 'color-mix(in srgb, var(--accent-warm) 7%, var(--surface))',
-              border: '1.5px dashed color-mix(in srgb, var(--accent-warm) 35%, transparent)',
-            }}>
-              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--accent-warm)', marginBottom: 6, textTransform: 'uppercase' }}>
-                {t('quiz.manus')}
+          {/* Question card — players/guests only; the QM has the question in the
+              consolidated card above, so it isn't repeated here. */}
+          {!isQM && (
+            <Card key={session.currentQuestionIndex} className="qz-question-in">
+              <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px', lineHeight: 1.4 }}>
+                {currentQ.text}
               </p>
-              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '14px', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{currentQ.manusText}</p>
-            </div>
+              <QuestionDescription html={currentQ.description} />
+              {currentQ.imageUrl && (
+                <img src={currentQ.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginTop: 10, display: 'block' }} />
+              )}
+            </Card>
           )}
 
           {/* "Find the red thread" — this player's/team's own earlier answers */}
@@ -1143,8 +1191,7 @@ export function QuizPage() {
           {isQM ? (
             currentQ.isFreeText ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {/* Expected answer up top — a reference for live pre-scoring */}
-                <AnswerKeyBanner question={currentQ} />
+                {/* Answer key shown in the consolidated card above — not repeated here */}
                 <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', color: 'var(--text-muted)' }}>
                   {t('quiz.freeTextAnswers')} ({isTeamComp ? currentQ.answeredTeams?.length ?? 0 : currentQ.answeredUserIds?.length ?? 0})
                 </p>
