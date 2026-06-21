@@ -443,12 +443,13 @@ function RespondentScorer({ respondent, onSetPoints, onToggleLock, onMaxLock, ma
 // e.g. to fix an earlier score without losing your place in the live correction.
 // Edits go through the same per-answer endpoints; a quiz that's already finished
 // has its saved totals recomputed by the caller on close.
-function ScoreEditorModal({ open, onClose, questions, competition, isTeamComp, onSetPoints, onToggleLock, onMaxLock, maxLockBusy, footer }: {
+function ScoreEditorModal({ open, onClose, questions, competition, isTeamComp, currentIndex, onSetPoints, onToggleLock, onMaxLock, maxLockBusy, footer }: {
   open: boolean
   onClose: () => void
   questions: any[]
   competition: any
   isTeamComp: boolean
+  currentIndex: number
   onSetPoints: (answerId: string, points: number) => void
   onToggleLock: (answerId: string) => void
   onMaxLock: (answerId: string, maxPoints: number) => void
@@ -458,14 +459,19 @@ function ScoreEditorModal({ open, onClose, questions, competition, isTeamComp, o
   const { t } = useTranslation()
   const freeTextQuestions = (questions ?? []).filter((q: any) => q.isFreeText)
   // Show ONE question (with all its answers) at a time — 8 teams × many questions
-  // is far too much to scroll. Default to the LAST free-text question, since that's
-  // usually the one that needs a late fix.
-  const [selectedId, setSelectedId] = useState<string>(() => freeTextQuestions[freeTextQuestions.length - 1]?.id ?? '')
+  // is far too much to scroll. Default to the latest free-text question the quiz has
+  // actually REACHED (≤ the current position), not the last one in the whole quiz —
+  // that's almost always the one needing a late fix. Falls back to the first.
+  const defaultFreeText = () => {
+    const reached = freeTextQuestions.filter((q: any) => questions.indexOf(q) <= currentIndex)
+    return (reached[reached.length - 1] ?? freeTextQuestions[0])?.id ?? ''
+  }
+  const [selectedId, setSelectedId] = useState<string>(defaultFreeText)
   useEffect(() => {
-    if (open && freeTextQuestions.length) setSelectedId(freeTextQuestions[freeTextQuestions.length - 1].id)
+    if (open && freeTextQuestions.length) setSelectedId(defaultFreeText())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
-  const selectedQ = freeTextQuestions.find((q: any) => q.id === selectedId) ?? freeTextQuestions[freeTextQuestions.length - 1]
+  const selectedQ = freeTextQuestions.find((q: any) => q.id === selectedId) ?? freeTextQuestions[0]
 
   return (
     <Modal open={open} onClose={onClose} title={t('quiz.editScoresTitle')} footer={footer}>
@@ -1212,6 +1218,7 @@ export function QuizPage() {
           questions={questions}
           competition={competition}
           isTeamComp={isTeamComp}
+          currentIndex={session.status === 'CORRECTING' ? session.correctionIndex : session.status === 'COMPLETED' ? questions.length - 1 : session.currentQuestionIndex}
           onSetPoints={(answerId, points) => setFieldPoints.mutate({ answerId, points })}
           onToggleLock={(answerId) => toggleFieldLock.mutate(answerId)}
           onMaxLock={(answerId, maxPoints) => maxAndLockField.mutate({ answerId, maxPoints })}
