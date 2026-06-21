@@ -1348,7 +1348,11 @@ export function QuizPage() {
 
               {/* Quiz master tools — advance, who's answered, nudge countdown */}
               <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 800, letterSpacing: '0.06em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('quiz.quizMaster')}</p>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <p style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 800, letterSpacing: '0.06em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('quiz.quizMaster')}</p>
+                {/* Revisit any earlier free-text question and adjust its points */}
+                <Button size="sm" variant="ghost" onClick={() => setShowScoreEditor(true)}>{t('quiz.editScores')}</Button>
+              </div>
 
               {/* Answer status per team/player */}
               <div className="qz-chips" style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
