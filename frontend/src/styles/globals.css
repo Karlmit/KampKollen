@@ -902,6 +902,56 @@ img {
   .qz-selected { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 32%, transparent) !important; }
 }
 
+/* ── Quiz-master console (desktop cockpit) ─────────────────────────────────
+   The quiz-master runs a live quiz from a laptop, while everyone else plays on
+   their phones. These classes let the QM's live ACTIVE/CORRECTING views spread
+   across a wide screen so the QM scrolls far less. Every rule that
+   changes the layout is gated behind a min-width media query, so on a phone
+   the markup collapses back to the original single 600px column untouched. */
+
+/* Wider content column on desktop only (paired with Layout `wide`). */
+.page-main-wide { max-width: 600px; }
+
+/* Vertical stack wrapper for a QM view — same as the old inline flex column. */
+.qz-console { display: flex; flex-direction: column; gap: 12px; }
+
+/* Two-pane cockpit: a command rail (question, answer key, controls) beside the
+   live answer feed. Single column on mobile — identical to the old stack. */
+.qz-cockpit { display: flex; flex-direction: column; gap: 12px; }
+
+/* Answer feed — one card per option/respondent. A plain column on mobile,
+   a space-filling grid on desktop so many answers sit side by side. The inline
+   `display:flex` was removed from these containers so this class can take over. */
+.qz-feed-grid { display: flex; flex-direction: column; gap: 8px; }
+
+@media (min-width: 960px) {
+  .page-main-wide { max-width: 1200px; }
+
+  .qz-cockpit {
+    display: grid;
+    grid-template-columns: minmax(320px, 360px) minmax(0, 1fr);
+    align-items: start;
+    gap: 16px;
+  }
+  /* Rail follows the QM down the page; clears the 56px sticky header. */
+  .qz-cockpit-rail {
+    position: sticky;
+    top: 72px;
+    align-self: start;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .qz-cockpit-feed { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+
+  .qz-feed-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 10px;
+    align-items: start;
+  }
+}
+
 /* Rich-text editor (quiz question description) — placeholder + content spacing */
 .rte-input:empty::before {
   content: attr(data-placeholder);

@@ -1070,6 +1070,11 @@ export function QuizPage() {
     <Layout
       title={t('quiz.title')}
       back={`/competitions/${competitionId}`}
+      // The quiz master usually runs the live quiz from a computer — give the
+      // live control views the full screen width so incoming answers and grading
+      // fit without scrolling. Players (and every mobile screen) keep the narrow
+      // single column; the post-quiz results stay narrow for everyone.
+      wide={isQM && (session.status === 'ACTIVE' || session.status === 'CORRECTING')}
     >
       {/* ── LOBBY ────────────────────────────────────────────────────────── */}
       {session.status === 'LOBBY' && (
@@ -1330,13 +1335,19 @@ export function QuizPage() {
 
       {/* ── ACTIVE (quiz master) ─────────────────────────────────────────── */}
       {session.status === 'ACTIVE' && currentQ && isQM && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div className="qz-console">
           {/* Running top-3 podium — phase mode only, once the first phase has been
-              corrected and real points exist (renders nothing while all are 0) */}
+              corrected and real points exist (renders nothing while all are 0).
+              Sits full-width above the cockpit. */}
           {phaseCorrection && (
             <MiniScoreboard scoreMap={standings ?? {}} entities={podiumEntities} myId={myStandingId} isTeamComp={isTeamComp} />
           )}
 
+          {/* Desktop cockpit — the question + QM controls ride in a sticky rail
+              on the left while the live answers fill the feed on the right. On
+              mobile this is a single column, exactly as before. */}
+          <div className="qz-cockpit">
+            <div className="qz-cockpit-rail">
           {/* Progress */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
@@ -1484,7 +1495,9 @@ export function QuizPage() {
               </div>
             </Card>
           )}
+            </div>{/* /qz-cockpit-rail */}
 
+            <div className="qz-cockpit-feed">
           {/* Per-question timer */}
           {currentQ.timerSeconds > 0 && !currentQ.locked && !countdownSecs && (
             <TimerBar key={session.currentQuestionIndex} seconds={currentQ.timerSeconds} onExpire={() => {}} />
@@ -1550,7 +1563,9 @@ export function QuizPage() {
                 {(() => {
                   const respondents = groupFieldAnswers(currentQ, competition, isTeamComp)
                   if (respondents.length === 0) return <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('quiz.freeTextNoAnswers')}</p>
-                  return respondents.map(r => (
+                  return (
+                    <div className="qz-feed-grid">
+                      {respondents.map(r => (
                     <div key={r.key} style={{ padding: '10px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', border: '1px solid var(--border-light)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                         <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px', color: 'var(--text-muted)' }}>{r.name}</p>
@@ -1606,11 +1621,13 @@ export function QuizPage() {
                         })}
                       </div>
                     </div>
-                  ))
+                      ))}
+                    </div>
+                  )
                 })()}
               </div>
             ) : (
-              <div className="qz-deal" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div className="qz-deal qz-feed-grid">
                 {(() => {
                   const counts = currentQ.options.map((o: any) => {
                     const c = currentQ.answerCounts?.find((ac: any) => ac.optionId === o.id)
@@ -1660,6 +1677,8 @@ export function QuizPage() {
               </div>
             )
           )}
+            </div>{/* /qz-cockpit-feed */}
+          </div>{/* /qz-cockpit */}
 
         </div>
       )}
@@ -1806,7 +1825,8 @@ export function QuizPage() {
             title={
               /* Question — the deck's face (the deck card wrapper is the Stage's). */
               <>
-                <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px', lineHeight: 1.4 }}>{correctionQ.text}</p>
+                {/* Cap reading width so the question stays legible on a wide QM screen */}
+                <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px', lineHeight: 1.4, maxWidth: '70ch' }}>{correctionQ.text}</p>
                 <QuestionDescription html={correctionQ.description} />
                 {correctionQ.imageUrl && <img src={correctionQ.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginTop: 8, display: 'block' }} />}
               </>
@@ -1821,7 +1841,7 @@ export function QuizPage() {
               master reads aloud while correcting/scoring this question */}
           {isQM && correctionQ.correctionManusText && (
             <div style={{
-              padding: '12px 14px', borderRadius: 'var(--radius)',
+              padding: '12px 14px', borderRadius: 'var(--radius)', maxWidth: '80ch',
               background: 'color-mix(in srgb, var(--accent-warm) 7%, var(--surface))',
               border: '1.5px dashed color-mix(in srgb, var(--accent-warm) 35%, transparent)',
             }}>
@@ -1882,22 +1902,26 @@ export function QuizPage() {
                     </p>
                     {respondents.length === 0 ? (
                       <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('quiz.freeTextNoAnswers')}</p>
-                    ) : respondents.map(r => (
-                      <RespondentScorer
-                        key={r.key}
-                        respondent={r}
-                        onSetPoints={(answerId, points) => setFieldPoints.mutate({ answerId, points })}
-                        onToggleLock={(answerId) => toggleFieldLock.mutate(answerId)}
-                        onMaxLock={(answerId, maxPoints) => maxAndLockField.mutate({ answerId, maxPoints })}
-                        maxLockBusy={maxAndLockField.isPending}
-                      />
-                    ))}
+                    ) : (
+                      <div className="qz-feed-grid">
+                        {respondents.map(r => (
+                          <RespondentScorer
+                            key={r.key}
+                            respondent={r}
+                            onSetPoints={(answerId, points) => setFieldPoints.mutate({ answerId, points })}
+                            onToggleLock={(answerId) => toggleFieldLock.mutate(answerId)}
+                            onMaxLock={(answerId, maxPoints) => maxAndLockField.mutate({ answerId, maxPoints })}
+                            maxLockBusy={maxAndLockField.isPending}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </>
                 )
               })()}
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div className="qz-feed-grid">
               {correctionQ.options.map((opt: any) => {
                 const isMine = correctionQ.myOptionId === opt.id
                 const isCorrect = session.correctAnswerVisible && opt.isCorrect

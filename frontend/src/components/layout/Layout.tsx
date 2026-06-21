@@ -11,9 +11,12 @@ interface LayoutProps {
   back?: string
   action?: ReactNode
   noPadding?: boolean
+  /** Widen the content column on large screens (>=960px). Mobile stays at 600px.
+      Used by the quiz-master console so a desktop QM can work without scrolling. */
+  wide?: boolean
 }
 
-export function Layout({ children, title, back, action, noPadding }: LayoutProps) {
+export function Layout({ children, title, back, action, noPadding, wide }: LayoutProps) {
   const { user, hasUnopenedTrophies } = useAuth()
   const location = useLocation()
   const { t } = useTranslation()
@@ -82,12 +85,15 @@ export function Layout({ children, title, back, action, noPadding }: LayoutProps
 
       {/* Main content */}
       <main
-        className="page-enter"
+        className={`page-enter${wide ? ' page-main-wide' : ''}`}
         style={{
           flex: 1,
           padding: noPadding ? 0 : '16px',
           paddingBottom: noPadding ? 'calc(var(--bottom-nav-height) + var(--safe-bottom))' : 'calc(var(--bottom-nav-height) + var(--safe-bottom) + 16px)',
-          maxWidth: '600px',
+          // `wide` lets the column grow on desktop via .page-main-wide (a media
+          // query a class can't apply if maxWidth is set inline here), so leave
+          // it unset in that case; every other page keeps the 600px mobile cap.
+          maxWidth: wide ? undefined : '600px',
           margin: '0 auto',
           width: '100%',
         }}
