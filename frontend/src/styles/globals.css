@@ -678,6 +678,25 @@ img {
   100% { left: 160%; }
 }
 
+/* Score pill morph — green points → red countdown and back. Both faces share one
+   grid cell so the pill width stays put (no reflow); the colour transition leads
+   and the number crossfade follows a beat later. */
+.qz-scorepill {
+  display: inline-grid;
+  background: var(--accent);
+  font-variant-numeric: tabular-nums;
+  transition: background-color 420ms var(--ease-in-out);
+}
+.qz-scorepill[data-counting="true"] { background: var(--accent-warm); }
+.qz-scorepill-face {
+  grid-area: 1 / 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  white-space: nowrap;
+  transition: opacity 220ms var(--ease-out) 130ms;
+}
+.qz-scorepill[data-counting="false"] .qz-scorepill-count  { opacity: 0; }
+.qz-scorepill[data-counting="true"]  .qz-scorepill-points { opacity: 0; }
+
 /* Big countdown number bounce (re-keyed each second) */
 @keyframes qzCountNum {
   0%   { opacity: 0; transform: scale(1.7); }

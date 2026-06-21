@@ -11,7 +11,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { api } from '../api/client'
 import { sanitizeRichText } from '../utils'
 import { useTranslation } from 'react-i18next'
-import { CountUp, Confetti, Stage } from '../components/quiz/QuizFx'
+import { CountUp, Confetti, Stage, ScorePill } from '../components/quiz/QuizFx'
 
 // Renders the optional rich-text question description (bold/italic/underline)
 // shown beneath the question text. Re-sanitised at render as defence in depth.
@@ -1248,9 +1248,7 @@ export function QuizPage() {
                     : t('quiz.question', { current: session.currentQuestionIndex + 1, total: questions.length })}
                 </p>
               </div>
-              <span className="qz-points" style={{ padding: '3px 10px', borderRadius: '99px', background: 'var(--accent)', color: '#fff', fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '13px' }}>
-                {t('quiz.points', { count: q.points })}
-              </span>
+              <ScorePill points={t('quiz.points', { count: q.points })} seconds={isCorrecting ? null : visualSecs} />
             </div>
 
             <Stage
@@ -1313,13 +1311,7 @@ export function QuizPage() {
                 {t('quiz.question', { current: session.currentQuestionIndex + 1, total: questions.length })}
               </p>
             </div>
-            <span className="qz-points" style={{
-              padding: '3px 10px', borderRadius: '99px',
-              background: 'var(--accent)', color: '#fff',
-              fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '13px',
-            }}>
-              {t('quiz.points', { count: currentQ.points })}
-            </span>
+            <ScorePill points={t('quiz.points', { count: currentQ.points })} seconds={visualSecs} />
           </div>
 
           {/* Consolidated QM question card — everything the quiz master needs in
@@ -1495,64 +1487,9 @@ export function QuizPage() {
             )
           })()}
 
-          {/* Visual nudge ring — a floating, purely-cosmetic countdown the QM
-              started. Shown to every role EXCEPT the QM (who already sees the live
-              count badge in their controls, so the ring would be a duplicate).
-              pointer-events:none guarantees it can never sit on top of an answer
-              button or block input; it only signals that the QM is waiting. Hidden
-              while the real next-question countdown is running so the two never
-              stack. */}
-          {visualCountdownActive && countdownSecs === null && !isQM && (() => {
-            const ringSize = 64
-            const ringR = 27
-            const circ = 2 * Math.PI * ringR
-            const total = visualCountdownSeconds && visualCountdownSeconds > 0 ? visualCountdownSeconds : 15
-            const progress = Math.max(0, Math.min(1, (visualSecs ?? 0) / total))
-            const urgent = (visualSecs ?? 0) <= 5
-            const color = urgent ? 'var(--accent-warm)' : 'var(--accent)'
-            return (
-              <div
-                aria-hidden="true"
-                style={{
-                  position: 'fixed', right: '16px',
-                  // Float clear of the bottom nav (height + iOS safe-area inset)
-                  // so it never sits half-hidden behind it on mobile. zIndex above
-                  // the nav (100) keeps it layered on top.
-                  bottom: 'calc(var(--bottom-nav-height) + var(--safe-bottom) + 16px)',
-                  zIndex: 110,
-                  pointerEvents: 'none',
-                  width: ringSize, height: ringSize,
-                  borderRadius: '50%',
-                  background: 'var(--surface)',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
-                  // Isolate the ring's per-second repaints from page layout so its
-                  // updates never nudge the document/viewport (which made the page
-                  // and bottom nav jump on mobile).
-                  contain: 'layout',
-                }}
-                className={urgent ? 'qz-timer-urgent' : 'qz-pop-in'}
-              >
-                <svg width={ringSize} height={ringSize} style={{ transform: 'rotate(-90deg)', display: 'block' }}>
-                  <circle cx={ringSize / 2} cy={ringSize / 2} r={ringR} fill="none" strokeWidth={5}
-                    stroke="color-mix(in srgb, var(--text-muted) 18%, transparent)" />
-                  <circle cx={ringSize / 2} cy={ringSize / 2} r={ringR} fill="none" strokeWidth={5}
-                    stroke={color} strokeLinecap="round"
-                    strokeDasharray={circ} strokeDashoffset={circ * (1 - progress)}
-                    style={{ transition: 'stroke-dashoffset 220ms linear, stroke 0.3s' }} />
-                </svg>
-                {/* No key/remount per tick: re-mounting + the scale-bounce
-                    animation every second was what jolted the page on mobile.
-                    Just update the text; tabular figures keep it from shifting. */}
-                <span style={{
-                  position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '22px', color, lineHeight: 1,
-                  fontVariantNumeric: 'tabular-nums',
-                }}>
-                  {visualSecs}
-                </span>
-              </div>
-            )
-          })()}
+          {/* The QM's visual "hurry up" countdown is shown by morphing the score
+              pill (green → red, points → seconds) — see ScorePill in the progress
+              rows; no separate floating ring. */}
 
           {/* Options — QM sees the live answer distribution (participants get the
               persistent morphing deck, rendered in the participant block above). */}
@@ -1818,13 +1755,7 @@ export function QuizPage() {
                 {t('quiz.correcting', { current: session.correctionIndex + 1, total: questions.length })}
               </p>
             </div>
-            <span className="qz-points" style={{
-              padding: '3px 10px', borderRadius: '99px',
-              background: 'var(--accent)', color: '#fff',
-              fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '13px',
-            }}>
-              {t('quiz.points', { count: correctionQ.points })}
-            </span>
+            <ScorePill points={t('quiz.points', { count: correctionQ.points })} seconds={null} />
           </div>
 
           <Stage

@@ -204,6 +204,34 @@ export function Stage({ sceneKey, title, countdown, timesUp, counting = false, c
   )
 }
 
+// ── ScorePill ──────────────────────────────────────────────────────────────
+// The question's score pill (top-right). When the quiz master starts the visual
+// "hurry up" countdown, the pill fades from the brand green to a warm red and the
+// points crossfade into the ticking seconds — then fades back to green + points
+// when it ends. One pill morphing in place, so the nudge reads as a state OF the
+// score rather than a separate widget bolted on. The colour leads; the number
+// follows a beat later (a small transition-delay on the faces).
+export function ScorePill({ points, seconds, style }: {
+  points: ReactNode
+  seconds: number | null
+  style?: CSSProperties
+}) {
+  const counting = seconds !== null
+  // Hold the last value so the seconds don't blank out during the fade back.
+  const lastSeconds = useRef(seconds)
+  if (seconds !== null) lastSeconds.current = seconds
+  return (
+    <span
+      className="qz-points qz-scorepill"
+      data-counting={counting}
+      style={{ padding: '3px 10px', borderRadius: '99px', color: '#fff', fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '13px', ...style }}
+    >
+      <span className="qz-scorepill-face qz-scorepill-points">{points}</span>
+      <span className="qz-scorepill-face qz-scorepill-count" aria-hidden={!counting}>{lastSeconds.current}s</span>
+    </span>
+  )
+}
+
 // ── CountUp ───────────────────────────────────────────────────────────────────
 // Rolls a number up to its target with an ease-out curve. On first mount it
 // counts from 0; afterwards it animates from the previous value, so live updates
