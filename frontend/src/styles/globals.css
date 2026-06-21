@@ -566,16 +566,49 @@ img {
 .qz-deal > *:nth-child(6)  { animation-delay: 410ms; }
 .qz-deal > *:nth-child(n+7){ animation-delay: 470ms; }
 
-/* Scene transition (<Stage>) — the outgoing question/correction lifts away and
-   blurs out so the swap reads as a deliberate hand-off, not a hard cut. Kept
-   snappy and accelerating (ease-in) so it clears the stage before the next
-   scene winds up. The incoming scene then plays its own qz-question-in /
-   qz-deal entrance, with a short held beat in between for anticipation. */
-@keyframes qzSceneExit {
-  0%   { opacity: 1; transform: none;                     filter: blur(0); }
-  100% { opacity: 0; transform: translateY(-12px) scale(0.97); filter: blur(3px); }
+/* Scene transition (<Stage>) — a deck shuffle. The title card is the deck; the
+   elements below it are the cards. On a scene change they gather UP into the
+   deck, the deck's face (the question) crossfades to the next one, then the
+   cards bounce back DOWN out of the deck into place. */
+
+/* 1. Gather — below-elements ease up into the title and fade as they stack.
+      ease-in so they accelerate away into the deck. Reverse stagger: the lower
+      cards (further down the stack) leave first. */
+@keyframes qzDeckGather {
+  0%   { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translateY(-38px) scale(0.95); }
 }
-.qz-scene-exit { animation: qzSceneExit 190ms var(--ease-in) both; }
+.qz-deck-below[data-phase="gather"] > * {
+  animation: qzDeckGather 220ms var(--ease-in) both;
+}
+.qz-deck-below[data-phase="gather"] > *:nth-child(1)    { animation-delay: 50ms; }
+.qz-deck-below[data-phase="gather"] > *:nth-child(2)    { animation-delay: 25ms; }
+.qz-deck-below[data-phase="gather"] > *:nth-child(n+3)  { animation-delay: 0ms; }
+
+/* 2. Switch — the deck's face is re-dealt: old question crossfades to the new.
+      Both occupy the same grid cell so differing heights crossfade cleanly. */
+.qz-deck-title { display: grid; }
+.qz-deck-title > * { grid-area: 1 / 1; min-width: 0; }
+@keyframes qzDeckTitleOut { 0% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes qzDeckTitleIn  { 0% { opacity: 0; transform: scale(0.98); } 100% { opacity: 1; transform: none; } }
+.qz-deck-title-out { animation: qzDeckTitleOut 200ms var(--ease-out) both; pointer-events: none; }
+.qz-deck-title-in  { animation: qzDeckTitleIn 240ms var(--ease-out) both; }
+
+/* 3. Deal — cards bounce back down out of the deck, lightly staggered so the
+      stack riffles open. ease-back gives the landing its bounce. */
+.qz-deck-below { display: flex; flex-direction: column; gap: 12px; }
+@keyframes qzDeckDeal {
+  0%   { opacity: 0; transform: translateY(-34px) scale(0.97); }
+  60%  { opacity: 1; }
+  100% { opacity: 1; transform: none; }
+}
+.qz-deck-below[data-phase="deal"] > * {
+  animation: qzDeckDeal 460ms var(--ease-back) both;
+}
+.qz-deck-below[data-phase="deal"] > *:nth-child(1)   { animation-delay:  0ms; }
+.qz-deck-below[data-phase="deal"] > *:nth-child(2)   { animation-delay: 60ms; }
+.qz-deck-below[data-phase="deal"] > *:nth-child(3)   { animation-delay: 120ms; }
+.qz-deck-below[data-phase="deal"] > *:nth-child(n+4) { animation-delay: 175ms; }
 
 /* Anticipation while the between-questions countdown ticks: the current scene
    eases back — dimmer and smaller — so attention shifts to the countdown ring
@@ -807,12 +840,14 @@ img {
   .qz-selected, .qz-count-num, .qz-timer-urgent, .qz-bar-urgent,
   .qz-correct-burst, .qz-wrong-shake, .qz-cta, .qz-gold-pulse,
   .qz-platform, .qz-medal, .qz-banner-in, .qz-confetti-piece,
-  .qz-countdown-card, .qz-score-reveal, .qz-scene-exit, .qz-stage-settling {
+  .qz-countdown-card, .qz-score-reveal, .qz-stage-settling,
+  .qz-deck-below[data-phase] > *, .qz-deck-title-out, .qz-deck-title-in {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
     filter: none !important;
   }
+  .qz-deck-title-out { display: none !important; }
   .qz-red-flash { display: none !important; }
   .qz-points::after,
   .qz-gold-shimmer::after { display: none !important; }

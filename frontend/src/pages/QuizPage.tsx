@@ -1303,18 +1303,19 @@ export function QuizPage() {
               sceneKey={`q-${session.currentQuestionIndex}`}
               anticipate={countdownSecs !== null}
               style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
+              title={
+                /* Question card — the "deck"; players/guests only (the QM has it above). */
+                <Card>
+                  <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px', lineHeight: 1.4 }}>
+                    {currentQ.text}
+                  </p>
+                  <QuestionDescription html={currentQ.description} />
+                  {currentQ.imageUrl && (
+                    <img src={currentQ.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginTop: 10, display: 'block' }} />
+                  )}
+                </Card>
+              }
             >
-              {/* Question card — players/guests only; the QM has it above. */}
-              <Card className="qz-question-in">
-                <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px', lineHeight: 1.4 }}>
-                  {currentQ.text}
-                </p>
-                <QuestionDescription html={currentQ.description} />
-                {currentQ.imageUrl && (
-                  <img src={currentQ.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginTop: 10, display: 'block' }} />
-                )}
-              </Card>
-
               {/* "Find the red thread" — this player's/team's own earlier answers */}
               {!isGuest && (currentQ.priorAnswers?.length ?? 0) > 0 && (
                 <PriorAnswersCard priorAnswers={currentQ.priorAnswers} />
@@ -1344,7 +1345,7 @@ export function QuizPage() {
               )}
             </Card>
           ) : !canAct ? (
-            <div className="qz-deal" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {currentQ.isFreeText ? (
                 myFreeTextSubmitted ? (
                   <Card padding="14px" style={{ background: 'color-mix(in srgb, var(--accent-green) 8%, transparent)', border: '1px solid var(--accent-green)' }}>
@@ -1440,7 +1441,7 @@ export function QuizPage() {
               </div>
             )
           ) : (
-            <div className="qz-deal" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {currentQ.options.map((opt: any) => {
                 const picked = (selectedOption ?? mySubmittedOption) === opt.id
                 // Wrapper owns the one-shot deal-in; the button owns selection state.
@@ -1626,12 +1627,15 @@ export function QuizPage() {
           <Stage
             sceneKey={`c-${session.correctionIndex}`}
             style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
+            title={
+              /* Question card — the "deck" the correction view shuffles around. */
+              <Card>
+                <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px', lineHeight: 1.4 }}>{correctionQ.text}</p>
+                <QuestionDescription html={correctionQ.description} />
+                {correctionQ.imageUrl && <img src={correctionQ.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginTop: 8, display: 'block' }} />}
+              </Card>
+            }
           >
-          <Card className="qz-question-in">
-            <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px', lineHeight: 1.4 }}>{correctionQ.text}</p>
-            <QuestionDescription html={correctionQ.description} />
-            {correctionQ.imageUrl && <img src={correctionQ.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginTop: 8, display: 'block' }} />}
-          </Card>
 
           {/* The expected answer, once, in big green letters — shown to the QM
               throughout correction and to everyone once revealed. */}
@@ -1717,7 +1721,7 @@ export function QuizPage() {
               })()}
             </div>
           ) : (
-            <div className="qz-deal" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {correctionQ.options.map((opt: any) => {
                 const isMine = correctionQ.myOptionId === opt.id
                 const isCorrect = session.correctAnswerVisible && opt.isCorrect

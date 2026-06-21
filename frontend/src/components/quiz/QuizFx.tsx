@@ -6,62 +6,102 @@ const prefersReduced = () =>
   !!window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
 
 // ── Stage ───────────────────────────────────────────────────────────────────
-// Orchestrates the transition between two "scenes" (this question → the next
-// one, or a question → its correction view). When `sceneKey` changes the
-// outgoing scene plays a quick exit, a short beat of anticipation passes, then
-// the new scene mounts and plays its own entrance (qz-question-in / qz-deal) —
-// turning what used to be an instant hard cut into a purposeful hand-off. While
-// `anticipate` is set (the quiz master's between-questions countdown is running)
-// the current scene settles back to build suspense before the swap.
+// Choreographs the transition between two "scenes" (this question → the next,
+// or a question → its correction view) like a deck of cards. The `title` (the
+// question card) is the deck; everything passed as children sits below it.
 //
-// The same scene re-renders pass straight through, so live updates inside a
-// question (answer counts ticking, points revealing) are never interrupted.
-const STAGE_EXIT_MS = 190
-const STAGE_GAP_MS = 80
+// When `sceneKey` changes:
+//   1. GATHER — every element below the title eases up and tucks into the title,
+//      fading as it stacks (the hand "shuffles the cards into the deck").
+//   2. SWITCH — the old title crossfades into the new one (the deck is re-dealt).
+//   3. DEAL   — the new elements bounce back down out of the title into place,
+//      lightly staggered so the stack riffles open.
+//
+// Same-scene re-renders pass straight through, so live updates inside a question
+// (answer counts ticking, points revealing) are never interrupted. While
+// `anticipate` is set (the quiz master's between-questions countdown is running)
+// the whole stage settles back to build suspense before the shuffle.
+const GATHER_MS = 275 // elements up into the deck (gather 220ms + 50ms stagger)
+const DEAL_TAIL_MS = 660 // longest deal-down child (460ms + 175ms stagger) before idle
 
-export function Stage({ sceneKey, anticipate, className, style, children }: {
+type StageSlot = { key: string; title: ReactNode; below: ReactNode }
+
+export function Stage({ sceneKey, title, anticipate, className, style, children }: {
   sceneKey: string
+  title?: ReactNode
   anticipate?: boolean
   className?: string
   style?: CSSProperties
   children: ReactNode
 }) {
-  const [shown, setShown] = useState<{ key: string; node: ReactNode }>({ key: sceneKey, node: children })
-  const [exiting, setExiting] = useState(false)
+  const [shown, setShown] = useState<StageSlot>({ key: sceneKey, title, below: children })
+  const [leavingTitle, setLeavingTitle] = useState<ReactNode>(null)
+  const [phase, setPhase] = useState<'idle' | 'gather' | 'deal'>('deal')
+  const shownRef = useRef(shown)
+  shownRef.current = shown
+  const timers = useRef<number[]>([])
+  const clearTimers = () => { timers.current.forEach(clearTimeout); timers.current = [] }
+
+  // First-mount entrance: deal the opening scene in, then rest at idle.
+  useEffect(() => {
+    if (prefersReduced()) { setPhase('idle'); return }
+    const t = window.setTimeout(() => setPhase('idle'), DEAL_TAIL_MS)
+    timers.current.push(t)
+    return clearTimers
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
-    // Same scene — keep the displayed node in sync with the latest children.
+    // Same scene — keep the displayed nodes in sync with the latest props.
     if (sceneKey === shown.key) {
-      setShown({ key: sceneKey, node: children })
+      setShown({ key: sceneKey, title, below: children })
       return
     }
-    // Reduced motion (or no JS animation): swap instantly, no exit beat.
+    // Reduced motion: swap instantly, no shuffle.
     if (prefersReduced()) {
-      setShown({ key: sceneKey, node: children })
-      setExiting(false)
+      setShown({ key: sceneKey, title, below: children })
+      setLeavingTitle(null)
+      setPhase('idle')
       return
     }
-    // New scene: play the outgoing exit, hold the beat, then swap in the new one
-    // (whose changed key remounts it so its entrance animation fires).
-    setExiting(true)
-    const id = setTimeout(() => {
-      setShown({ key: sceneKey, node: children })
-      setExiting(false)
-    }, STAGE_EXIT_MS + STAGE_GAP_MS)
-    return () => clearTimeout(id)
+    // 1. Gather the current below-elements up into the deck.
+    clearTimers()
+    const prevTitle = shownRef.current.title
+    setPhase('gather')
+    const swap = window.setTimeout(() => {
+      // 2. Swap the deck (old title crossfades out, new in) and 3. deal down.
+      setLeavingTitle(prevTitle)
+      setShown({ key: sceneKey, title, below: children })
+      setPhase('deal')
+      timers.current.push(window.setTimeout(() => setLeavingTitle(null), 260))
+      timers.current.push(window.setTimeout(() => setPhase('idle'), DEAL_TAIL_MS))
+    }, GATHER_MS)
+    timers.current.push(swap)
+    return clearTimers
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sceneKey, children])
+  }, [sceneKey, title, children])
 
-  const cls = [
+  const wrapperCls = [
     'qz-stage',
-    exiting ? 'qz-scene-exit' : '',
-    anticipate && !exiting ? 'qz-stage-settling' : '',
+    anticipate && phase === 'idle' ? 'qz-stage-settling' : '',
     className ?? '',
   ].filter(Boolean).join(' ')
 
   return (
-    <div key={shown.key} className={cls} style={style}>
-      {shown.node}
+    <div className={wrapperCls} style={style}>
+      {title != null && (
+        <div className="qz-deck-title">
+          {leavingTitle != null && (
+            <div key="leaving" className="qz-deck-title-out" aria-hidden>{leavingTitle}</div>
+          )}
+          <div key={shown.key} className={phase === 'deal' ? 'qz-deck-title-in' : undefined}>
+            {shown.title}
+          </div>
+        </div>
+      )}
+      <div key={`${shown.key}-below`} className="qz-deck-below" data-phase={phase}>
+        {shown.below}
+      </div>
     </div>
   )
 }
