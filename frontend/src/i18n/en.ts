@@ -806,6 +806,7 @@ const en = {
     editScores: 'Edit scores',
     editScoresTitle: 'Edit scores',
     editScoresHint: 'Jump to any free-text question and adjust its points. Changes save immediately and update the results.',
+    editScoresJumpTo: 'Jump to question',
     editScoresDone: 'Done',
     noFreeTextToScore: 'There are no free-text questions to score in this quiz.',
     freeTextLock: 'Lock',

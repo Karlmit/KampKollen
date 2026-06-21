@@ -457,6 +457,16 @@ function ScoreEditorModal({ open, onClose, questions, competition, isTeamComp, o
 }) {
   const { t } = useTranslation()
   const freeTextQuestions = (questions ?? []).filter((q: any) => q.isFreeText)
+  // Show ONE question (with all its answers) at a time — 8 teams × many questions
+  // is far too much to scroll. Default to the LAST free-text question, since that's
+  // usually the one that needs a late fix.
+  const [selectedId, setSelectedId] = useState<string>(() => freeTextQuestions[freeTextQuestions.length - 1]?.id ?? '')
+  useEffect(() => {
+    if (open && freeTextQuestions.length) setSelectedId(freeTextQuestions[freeTextQuestions.length - 1].id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+  const selectedQ = freeTextQuestions.find((q: any) => q.id === selectedId) ?? freeTextQuestions[freeTextQuestions.length - 1]
+
   return (
     <Modal open={open} onClose={onClose} title={t('quiz.editScoresTitle')} footer={footer}>
       <p style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 14 }}>
@@ -465,16 +475,36 @@ function ScoreEditorModal({ open, onClose, questions, competition, isTeamComp, o
       {freeTextQuestions.length === 0 ? (
         <p style={{ fontSize: '14px', color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('quiz.noFreeTextToScore')}</p>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {freeTextQuestions.map((q: any) => {
-            const respondents = groupFieldAnswers(q, competition, isTeamComp)
-            const qi = questions.indexOf(q)
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {freeTextQuestions.length > 1 && (
+            <div style={{ position: 'sticky', top: 0, zIndex: 1, background: 'var(--background)', paddingBottom: 10 }}>
+              <label htmlFor="qz-score-jump" style={{ display: 'block', fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>
+                {t('quiz.editScoresJumpTo')}
+              </label>
+              <select
+                id="qz-score-jump"
+                value={selectedQ?.id ?? ''}
+                onChange={e => setSelectedId(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius)', border: '2px solid var(--border-light)', background: 'var(--surface)', fontFamily: 'var(--font-ui)', fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer' }}
+              >
+                {freeTextQuestions.map((q: any) => {
+                  const qi = questions.indexOf(q)
+                  const text = q.text ?? ''
+                  const short = text.length > 48 ? text.slice(0, 48) + '…' : text
+                  return <option key={q.id} value={q.id}>Q{qi + 1}. {short}</option>
+                })}
+              </select>
+            </div>
+          )}
+          {selectedQ && (() => {
+            const respondents = groupFieldAnswers(selectedQ, competition, isTeamComp)
+            const qi = questions.indexOf(selectedQ)
             return (
-              <div key={q.id} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div key={selectedQ.id} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px', lineHeight: 1.35 }}>
-                  <span style={{ color: 'var(--text-muted)', marginRight: 6 }}>Q{qi + 1}.</span>{q.text}
+                  <span style={{ color: 'var(--text-muted)', marginRight: 6 }}>Q{qi + 1}.</span>{selectedQ.text}
                 </p>
-                <AnswerKeyBanner question={q} />
+                <AnswerKeyBanner question={selectedQ} />
                 {respondents.length === 0 ? (
                   <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('quiz.freeTextNoAnswers')}</p>
                 ) : respondents.map(r => (
@@ -482,7 +512,7 @@ function ScoreEditorModal({ open, onClose, questions, competition, isTeamComp, o
                 ))}
               </div>
             )
-          })}
+          })()}
         </div>
       )}
     </Modal>

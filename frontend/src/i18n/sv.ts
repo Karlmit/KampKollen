@@ -804,6 +804,7 @@ const sv = {
     editScores: 'Ändra poäng',
     editScoresTitle: 'Ändra poäng',
     editScoresHint: 'Gå till valfri fritextfråga och justera poängen. Ändringarna sparas direkt och uppdaterar resultatet.',
+    editScoresJumpTo: 'Hoppa till fråga',
     editScoresDone: 'Klar',
     noFreeTextToScore: 'Det finns inga fritextfrågor att poängsätta i den här quizen.',
     freeTextLock: 'Lås',
