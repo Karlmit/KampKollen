@@ -578,16 +578,15 @@ img {
 .qz-scene-exit { animation: qzSceneExit 190ms var(--ease-in) both; }
 
 /* Anticipation while the between-questions countdown ticks: the current scene
-   eases back — dimmer, smaller, softly blurred — so attention shifts to the
-   countdown ring and the next reveal lands with contrast. */
+   eases back — dimmer and smaller — so attention shifts to the countdown ring
+   and the next reveal lands with contrast. */
 .qz-stage {
-  transition: opacity 320ms var(--ease-out), transform 320ms var(--ease-out), filter 320ms var(--ease-out);
+  transition: opacity 320ms var(--ease-out), transform 320ms var(--ease-out);
 }
 .qz-stage-settling {
   opacity: 0.5;
   transform: scale(0.97) translateY(4px);
-  filter: blur(1.5px);
-  transition: opacity 520ms var(--ease-out), transform 520ms var(--ease-out), filter 520ms var(--ease-out);
+  transition: opacity 520ms var(--ease-out), transform 520ms var(--ease-out);
 }
 
 /* "Locked in" — selected answer pop + glow */
