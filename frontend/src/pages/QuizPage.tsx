@@ -746,6 +746,289 @@ export function QuizPage() {
   // the next-question countdown. (canAct/answer-exists checks happen at each button.)
   const canRetract = canAct && session.status === 'ACTIVE' && !currentQ?.locked && countdownSecs === null
 
+  // The question card's body, shared by the answering and correction decks so the
+  // single <Stage> can morph one into the other across the ACTIVE→CORRECTING flip.
+  const questionFace = (q: any) => (
+    <>
+      <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px', lineHeight: 1.4 }}>{q.text}</p>
+      <QuestionDescription html={q.description} />
+      {q.imageUrl && (
+        <img src={q.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginTop: 10, display: 'block' }} />
+      )}
+    </>
+  )
+
+  // Participant ANSWERING body — prior answers + the answer controls. In a closure
+  // so the persistent deck can render it without the JSX living inside a status block.
+  const renderActiveAnswers = () => (
+    <>
+      {!isGuest && (currentQ.priorAnswers?.length ?? 0) > 0 && (
+        <PriorAnswersCard priorAnswers={currentQ.priorAnswers} />
+      )}
+      {isGuest ? (
+        <Card padding="14px" style={{ textAlign: 'center', background: 'var(--surface)' }}>
+          <p style={{ fontFamily: 'var(--font-ui)', fontSize: '14px', color: 'var(--text-muted)' }}>
+            {t('quiz.watchingSign')}
+          </p>
+        </Card>
+      ) : currentQ.locked ? (
+        <Card padding="14px" style={{ textAlign: 'center' }}>
+          <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--text-muted)' }}>
+            {currentQ.isFreeText
+              ? (myFreeTextSubmitted ? t('quiz.freeTextAnswerSubmitted') : t('quiz.questionLocked'))
+              : (mySubmittedOption ? t('quiz.answerSubmitted') : t('quiz.questionLocked'))}
+          </p>
+          {currentQ.isFreeText && myFreeTextSubmitted && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: 8 }}>
+              {(currentQ.fields ?? []).map((f: any) => (
+                <p key={f.id} style={{ fontFamily: 'var(--font-ui)', fontSize: '14px', color: 'var(--text-primary)' }}>
+                  {f.label && <span style={{ color: 'var(--text-muted)', marginRight: 6 }}>{f.label}:</span>}{f.myAnswer}
+                </p>
+              ))}
+            </div>
+          )}
+        </Card>
+      ) : !canAct ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {currentQ.isFreeText ? (
+            myFreeTextSubmitted ? (
+              <Card padding="14px" style={{ background: 'color-mix(in srgb, var(--accent-green) 8%, transparent)', border: '1px solid var(--accent-green)' }}>
+                <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', color: 'var(--accent-green)', marginBottom: 6 }}>{t('quiz.teamAnswered')}</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {(currentQ.fields ?? []).map((f: any) => (
+                    <p key={f.id} style={{ fontFamily: 'var(--font-ui)', fontSize: '14px' }}>
+                      {f.label && <span style={{ color: 'var(--text-muted)', marginRight: 6 }}>{f.label}:</span>}{f.myAnswer}
+                    </p>
+                  ))}
+                </div>
+              </Card>
+            ) : (
+              <Card padding="14px" style={{ textAlign: 'center', background: 'var(--surface)' }}>
+                <p style={{ fontFamily: 'var(--font-ui)', fontSize: '14px', color: 'var(--text-muted)' }}>{t('quiz.waitingForTeam')}</p>
+              </Card>
+            )
+          ) : (
+            <>
+              {currentQ.options.map((opt: any) => {
+                const picked = mySubmittedOption === opt.id
+                return (
+                  <div
+                    key={opt.id}
+                    style={{
+                      padding: opt.imageUrl ? '12px' : '14px 16px',
+                      borderRadius: 'var(--radius)',
+                      border: `2px solid ${picked ? 'var(--accent-green)' : 'var(--border-light)'}`,
+                      background: picked ? 'color-mix(in srgb, var(--accent-green) 10%, transparent)' : 'var(--background)',
+                    }}
+                  >
+                    {opt.imageUrl && (
+                      <img src={opt.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginBottom: 8, display: 'block' }} />
+                    )}
+                    <p style={{ fontFamily: 'var(--font-ui)', fontWeight: picked ? 700 : 500, fontSize: '15px' }}>
+                      {opt.text}
+                      {picked && <span style={{ fontSize: '12px', color: 'var(--accent-green)', marginLeft: 8 }}>{t('quiz.teamAnswered')}</span>}
+                    </p>
+                  </div>
+                )
+              })}
+              {!mySubmittedOption && (
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', fontFamily: 'var(--font-ui)' }}>{t('quiz.waitingForTeam')}</p>
+              )}
+            </>
+          )}
+        </div>
+      ) : currentQ.isFreeText ? (
+        submitted || myFreeTextSubmitted ? (
+          <Card padding="14px" style={{ textAlign: 'center', background: 'color-mix(in srgb, var(--accent-green) 8%, transparent)', border: '1px solid var(--accent-green)' }}>
+            <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--accent-green)' }}>{t('quiz.freeTextAnswerSubmitted')}</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: 8 }}>
+              {(currentQ.fields ?? []).map((f: any) => (
+                <p key={f.id} style={{ fontFamily: 'var(--font-ui)', fontSize: '14px' }}>
+                  {f.label && <span style={{ color: 'var(--text-muted)', marginRight: 6 }}>{f.label}:</span>}{f.myAnswer ?? freeTextInputs[f.id] ?? ''}
+                </p>
+              ))}
+            </div>
+            {canRetract && (
+              <Button variant="ghost" size="sm" style={{ marginTop: 12 }} loading={retractAnswer.isPending} onClick={handleRetract}>
+                {t('quiz.takeBackAnswer')}
+              </Button>
+            )}
+          </Card>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {(currentQ.fields ?? []).map((f: any) => (
+              <div key={f.id} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {f.label && (
+                  <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
+                    <span>{f.label}</span>
+                    <span style={{ fontWeight: 400 }}>{t('quiz.points', { count: f.points })}</span>
+                  </label>
+                )}
+                <textarea
+                  value={freeTextInputs[f.id] ?? ''}
+                  onChange={e => setFreeTextInputs(prev => ({ ...prev, [f.id]: e.target.value }))}
+                  rows={3}
+                  placeholder={t('quiz.freeTextPlaceholder')}
+                  style={{ width: '100%', minHeight: 84, padding: '10px 12px', borderRadius: 'var(--radius)', border: '2px solid var(--border-light)', fontSize: '15px', fontFamily: 'var(--font-ui)', boxSizing: 'border-box', outline: 'none', resize: 'vertical', lineHeight: 1.4 }}
+                />
+              </div>
+            ))}
+            <Button
+              fullWidth
+              size="lg"
+              disabled={(currentQ.fields ?? []).every((f: any) => !(freeTextInputs[f.id] ?? '').trim())}
+              loading={submitAnswer.isPending}
+              onClick={handleSubmitFreeText}
+            >
+              {t('quiz.freeTextSubmit')}
+            </Button>
+          </div>
+        )
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {currentQ.options.map((opt: any) => {
+            const picked = (selectedOption ?? mySubmittedOption) === opt.id
+            return (
+              <div key={opt.id}>
+                <button
+                  type="button"
+                  onClick={() => handleSelectOption(opt.id)}
+                  className={`card-interactive${picked ? ' qz-selected' : ''}`}
+                  style={{
+                    padding: opt.imageUrl ? '12px' : '14px 16px',
+                    borderRadius: 'var(--radius)', cursor: 'pointer', textAlign: 'left', width: '100%',
+                    border: `2px solid ${picked ? 'var(--accent)' : 'var(--border-light)'}`,
+                    background: picked ? 'color-mix(in srgb, var(--accent) 10%, transparent)' : 'var(--background)',
+                    transition: 'border-color 120ms var(--ease-out), background 120ms var(--ease-out)',
+                  }}
+                >
+                  {opt.imageUrl && (
+                    <img src={opt.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginBottom: 8, display: 'block' }} />
+                  )}
+                  <p style={{ fontFamily: 'var(--font-ui)', fontWeight: picked ? 700 : 500, fontSize: '15px' }}>{opt.text}</p>
+                </button>
+              </div>
+            )
+          })}
+          {canRetract && mySubmittedOption && (
+            <Button variant="ghost" size="sm" style={{ marginTop: 4 }} loading={retractAnswer.isPending} onClick={handleRetract}>
+              {t('quiz.takeBackAnswer')}
+            </Button>
+          )}
+        </div>
+      )}
+    </>
+  )
+
+  // Participant CORRECTION body — answer key + the reveal (own free-text answer or
+  // the multiple-choice distribution). Shares the deck with the answering view.
+  const renderCorrectingAnswers = () => (
+    <>
+      <AnswerKeyBanner question={correctionQ} />
+      {correctionQ.isFreeText ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {(correctionQ.fields ?? []).some((f: any) => f.myAnswer != null) && (
+            <Card padding="12px">
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', color: 'var(--text-muted)', marginBottom: 6 }}>{t('quiz.yourAnswer')}</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {(correctionQ.fields ?? []).map((f: any) => (
+                  <div key={f.id} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                      <p style={{ fontFamily: 'var(--font-ui)', fontSize: '15px' }}>
+                        {f.label && <span style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: '12px', marginRight: 6 }}>{f.label}:</span>}
+                        <span style={{ fontWeight: 700 }}>{f.myAnswer}</span>
+                      </p>
+                      {f.myLocked && f.myPoints !== null && (() => {
+                        const gotPoints = (f.myPoints ?? 0) > 0
+                        const tone = gotPoints ? 'var(--accent-green)' : 'var(--accent-warm)'
+                        return (
+                          <span
+                            key={`score-${session.correctionIndex}-${f.id}`}
+                            className="qz-score-reveal"
+                            style={{
+                              flexShrink: 0, padding: '4px 11px', borderRadius: '99px',
+                              fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 800,
+                              color: '#fff', background: tone, whiteSpace: 'nowrap',
+                              ['--score-glow' as any]: tone,
+                            }}
+                          >
+                            {t('quiz.freeTextPointsAwarded', { points: f.myPoints, max: f.points })}
+                          </span>
+                        )
+                      })()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {correctionQ.options.map((opt: any) => {
+            const isMine = correctionQ.myOptionId === opt.id
+            const isCorrect = session.correctAnswerVisible && opt.isCorrect
+            const isWrong = session.correctAnswerVisible && isMine && !opt.isCorrect
+            const count = correctionQ.answerCounts?.find((ac: any) => ac.optionId === opt.id)
+            const teams = count?.teams ?? []
+            const pct = isTeamComp
+              ? Math.round(((count?.count ?? 0) / Math.max(1, competition.teams.length)) * 100)
+              : Math.round(((count?.count ?? 0) / Math.max(1, competition.players.length)) * 100)
+            return (
+              <div
+                key={opt.id}
+                className={isCorrect ? 'qz-correct-burst' : isWrong ? 'qz-wrong-shake' : undefined}
+                style={{
+                  padding: '12px 14px', borderRadius: 'var(--radius)', position: 'relative', overflow: 'hidden',
+                  border: `2px solid ${isCorrect ? 'var(--accent-green)' : isWrong ? 'var(--accent-warm)' : isMine ? 'var(--accent)' : 'var(--border-light)'}`,
+                  background: isCorrect ? 'color-mix(in srgb, var(--accent-green) 8%, transparent)' : isWrong ? 'color-mix(in srgb, var(--accent-warm) 8%, transparent)' : 'var(--background)',
+                  boxShadow: isCorrect ? '0 0 0 3px color-mix(in srgb, var(--accent-green) 25%, transparent)' : isWrong ? '0 0 0 3px color-mix(in srgb, var(--accent-warm) 25%, transparent)' : 'none',
+                  transition: 'border-color 300ms var(--ease-out), box-shadow 300ms var(--ease-out)',
+                }}
+              >
+                {session.correctAnswerVisible && (
+                  <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: `${pct}%`, background: isCorrect ? 'color-mix(in srgb, var(--accent-green) 12%, transparent)' : isWrong ? 'color-mix(in srgb, var(--accent-warm) 12%, transparent)' : 'color-mix(in srgb, var(--text-muted) 8%, transparent)', transition: 'width 650ms var(--ease-out)' }} />
+                )}
+                <div style={{ position: 'relative' }}>
+                  {opt.imageUrl && (
+                    <img src={opt.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginBottom: 8, display: 'block' }} />
+                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <p style={{ flex: 1, fontFamily: 'var(--font-ui)', fontWeight: isMine ? 700 : 500, fontSize: '15px' }}>
+                      {opt.text}
+                      {isMine && <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: 6 }}>{t('quiz.yourAnswer')}</span>}
+                      {isCorrect && <span style={{ marginLeft: 8 }}>✅</span>}
+                      {isWrong && <span style={{ marginLeft: 8 }}>❌</span>}
+                    </p>
+                    {session.correctAnswerVisible && (
+                      <CountUp value={pct} suffix="%" duration={650} style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', color: isCorrect ? 'var(--accent-green)' : isWrong ? 'var(--accent-warm)' : 'var(--text-muted)', flexShrink: 0 }} />
+                    )}
+                  </div>
+                </div>
+                {session.correctAnswerVisible && isTeamComp && teams.length > 0 && (
+                  <div className="qz-chips" style={{ position: 'relative', display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '6px' }}>
+                    {teams.map((teamId: string) => {
+                      const teamObj = competition.teams.find((x: any) => x.id === teamId)
+                      return (
+                        <span key={teamId} style={{
+                          padding: '2px 8px', borderRadius: '99px', fontSize: '11px', fontFamily: 'var(--font-ui)', fontWeight: 600,
+                          background: isCorrect ? 'color-mix(in srgb, var(--accent-green) 20%, transparent)' : isWrong ? 'color-mix(in srgb, var(--accent-warm) 20%, transparent)' : 'var(--surface)',
+                          color: isCorrect ? 'var(--accent-green)' : isWrong ? 'var(--accent-warm)' : 'var(--text-muted)',
+                        }}>
+                          {teamObj?.name ?? teamId}
+                        </span>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </>
+  )
+
   return (
     <Layout
       title={t('quiz.title')}
@@ -907,8 +1190,110 @@ export function QuizPage() {
         />
       )}
 
-      {/* ── ACTIVE ───────────────────────────────────────────────────────── */}
-      {session.status === 'ACTIVE' && currentQ && (
+      {/* ── PARTICIPANT (answering + correction) ─────────────────────────────
+          Players, team leaders, scorekeepers and guests share ONE persistent
+          deck across the ACTIVE→CORRECTING flip, so the question card fluidly
+          morphs into the countdown, into "Time's up!", and into the correction —
+          no static cut. The quiz master keeps the dedicated blocks below. */}
+      {!isQM && (session.status === 'ACTIVE' || session.status === 'CORRECTING') && (() => {
+        const isCorrecting = session.status === 'CORRECTING'
+        const q = isCorrecting ? correctionQ : currentQ
+        if (!q) return null
+
+        // Win/lose reveal (correction only) — drives the confetti / red flash.
+        const myOpt = isCorrecting ? correctionQ.options?.find((o: any) => o.id === correctionQ.myOptionId) : null
+        const iAnswered = isCorrecting && !correctionQ.isFreeText && !!correctionQ.myOptionId
+        const iGotItRight = iAnswered && !!myOpt?.isCorrect
+        const iGotItWrong = iAnswered && !!myOpt && !myOpt.isCorrect
+        const revealed = isCorrecting && session.correctAnswerVisible && !correctionQ.isFreeText
+        const myFields = isCorrecting ? (correctionQ.fields ?? []).filter((f: any) => f.myAnswer != null) : []
+        const freeTextResolved = isCorrecting && correctionQ.isFreeText && myFields.length > 0 && myFields.every((f: any) => f.myLocked)
+        const myFreeTextTotal = myFields.reduce((sum: number, f: any) => sum + (f.myPoints ?? 0), 0)
+        const freeTextMax = isCorrecting ? (correctionQ.fields ?? []).reduce((sum: number, f: any) => sum + (f.points ?? 0), 0) : 0
+        const freeTextGotMax = freeTextResolved && freeTextMax > 0 && myFreeTextTotal >= freeTextMax
+        const freeTextGotZero = freeTextResolved && myFreeTextTotal === 0
+        const showHappy = (revealed && (iGotItRight || (isGuest && !iGotItWrong))) || freeTextGotMax
+        const showSad = (revealed && iGotItWrong) || freeTextGotZero
+
+        const idx = isCorrecting ? session.correctionIndex : session.currentQuestionIndex
+        const scoreMap = isCorrecting
+          ? runningScoreMap(questions, { isTeamComp, correctionIndex: session.correctionIndex, correctAnswerVisible: session.correctAnswerVisible })
+          : (standings ?? {})
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', position: 'relative' }}>
+            {showHappy && <Confetti key={`win-${idx}`} count={46} emojis={['🎉', '⭐', '🪙']} />}
+            {showSad && (
+              <>
+                <div className="qz-red-flash" key={`flash-${idx}`} aria-hidden />
+                <Confetti key={`lose-${idx}`} count={30} durationBase={2000} emojiChance={1} colors={['#d7283d', '#9aa3ab', '#6b7480']} emojis={['❌']} />
+              </>
+            )}
+
+            {(isCorrecting || phaseCorrection) && (
+              <MiniScoreboard scoreMap={scoreMap} entities={podiumEntities} myId={myStandingId} isTeamComp={isTeamComp} />
+            )}
+
+            {/* Progress */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                {phaseCorrection && phaseSegments.length > 1 && (
+                  <span style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', fontWeight: 800, letterSpacing: '0.06em', color: 'var(--accent)', background: 'color-mix(in srgb, var(--accent) 12%, transparent)', padding: '3px 8px', borderRadius: '99px', flexShrink: 0 }}>
+                    {t('quiz.phaseProgress', { current: phaseNumOf(idx), total: phaseSegments.length })}
+                  </span>
+                )}
+                <p style={{ fontFamily: 'var(--font-ui)', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
+                  {isCorrecting
+                    ? t('quiz.correcting', { current: session.correctionIndex + 1, total: questions.length })
+                    : t('quiz.question', { current: session.currentQuestionIndex + 1, total: questions.length })}
+                </p>
+              </div>
+              <span className="qz-points" style={{ padding: '3px 10px', borderRadius: '99px', background: 'var(--accent)', color: '#fff', fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '13px' }}>
+                {t('quiz.points', { count: q.points })}
+              </span>
+            </div>
+
+            <Stage
+              key="participant-deck"
+              sceneKey={isCorrecting ? `correcting-${session.correctionIndex}` : `active-${session.currentQuestionIndex}`}
+              counting={!isCorrecting && countdownSecs !== null}
+              style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
+              timesUp={
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '10px 0' }}>
+                  <span style={{ fontSize: '34px', lineHeight: 1 }}>⏳</span>
+                  <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '22px', color: 'var(--accent-warm)', letterSpacing: '0.01em' }}>
+                    {t('quiz.timesUp')}
+                  </span>
+                </div>
+              }
+              countdown={!isCorrecting && countdownSecs !== null ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', padding: '4px 0' }}>
+                  <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent-warm)' }}>
+                    {session.currentQuestionIndex >= questions.length - 1 ? t('quiz.quizCompletesIn') : t('quiz.nextQuestionIn')}
+                  </span>
+                  <div style={{ position: 'relative', width: 92, height: 92 }}>
+                    <svg width={92} height={92} style={{ transform: 'rotate(-90deg)', display: 'block' }}>
+                      <circle cx={46} cy={46} r={40} fill="none" strokeWidth={7} stroke="color-mix(in srgb, var(--accent-warm) 16%, transparent)" />
+                      <circle cx={46} cy={46} r={40} fill="none" strokeWidth={7} stroke="var(--accent-warm)" strokeLinecap="round"
+                        strokeDasharray={2 * Math.PI * 40} strokeDashoffset={2 * Math.PI * 40 * (1 - Math.max(0, Math.min(1, (countdownSecs ?? 0) / 3)))}
+                        style={{ transition: 'stroke-dashoffset 220ms linear' }} />
+                    </svg>
+                    <span key={countdownSecs} className="qz-count-num" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '38px', color: 'var(--accent-warm)', lineHeight: 1 }}>
+                      {countdownSecs}
+                    </span>
+                  </div>
+                </div>
+              ) : null}
+              title={questionFace(q)}
+            >
+              {isCorrecting ? renderCorrectingAnswers() : renderActiveAnswers()}
+            </Stage>
+          </div>
+        )
+      })()}
+
+      {/* ── ACTIVE (quiz master) ─────────────────────────────────────────── */}
+      {session.status === 'ACTIVE' && currentQ && isQM && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {/* Running top-3 podium — phase mode only, once the first phase has been
               corrected and real points exist (renders nothing while all are 0) */}
@@ -1169,13 +1554,9 @@ export function QuizPage() {
             )
           })()}
 
-          {/* The participant question + answers move into the <Stage> below (in
-              the non-QM branch) so advancing plays a deliberate exit → beat →
-              entrance. The QM keeps the consolidated card above untouched. */}
-
-          {/* Options — QM sees live distribution; participants see the staged
-              question + answer buttons (read-only for guests). */}
-          {isQM ? (
+          {/* Options — QM sees the live answer distribution (participants get the
+              persistent morphing deck, rendered in the participant block above). */}
+          {isQM && (
             currentQ.isFreeText ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {/* Answer key shown in the consolidated card above — not repeated here */}
@@ -1299,221 +1680,13 @@ export function QuizPage() {
                 })()}
               </div>
             )
-          ) : (
-            <Stage
-              sceneKey={`q-${session.currentQuestionIndex}`}
-              counting={countdownSecs !== null}
-              style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
-              timesUp={
-                /* The deck's "time's up" face — shown the instant the timer fires,
-                   as the cards fan up into it. */
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '10px 0' }}>
-                  <span style={{ fontSize: '34px', lineHeight: 1 }}>⏳</span>
-                  <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '22px', color: 'var(--accent-warm)', letterSpacing: '0.01em' }}>
-                    {t('quiz.timesUp')}
-                  </span>
-                </div>
-              }
-              countdown={countdownSecs !== null ? (
-                /* The deck's countdown face — the warm "next question" timer. */
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', padding: '4px 0' }}>
-                  <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent-warm)' }}>
-                    {session.currentQuestionIndex >= questions.length - 1 ? t('quiz.quizCompletesIn') : t('quiz.nextQuestionIn')}
-                  </span>
-                  <div style={{ position: 'relative', width: 92, height: 92 }}>
-                    <svg width={92} height={92} style={{ transform: 'rotate(-90deg)', display: 'block' }}>
-                      <circle cx={46} cy={46} r={40} fill="none" strokeWidth={7} stroke="color-mix(in srgb, var(--accent-warm) 16%, transparent)" />
-                      <circle cx={46} cy={46} r={40} fill="none" strokeWidth={7} stroke="var(--accent-warm)" strokeLinecap="round"
-                        strokeDasharray={2 * Math.PI * 40} strokeDashoffset={2 * Math.PI * 40 * (1 - Math.max(0, Math.min(1, (countdownSecs ?? 0) / 3)))}
-                        style={{ transition: 'stroke-dashoffset 220ms linear' }} />
-                    </svg>
-                    <span key={countdownSecs} className="qz-count-num" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '38px', color: 'var(--accent-warm)', lineHeight: 1 }}>
-                      {countdownSecs}
-                    </span>
-                  </div>
-                </div>
-              ) : null}
-              title={
-                /* Question — the deck's face (the deck card wrapper is the Stage's). */
-                <>
-                  <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px', lineHeight: 1.4 }}>
-                    {currentQ.text}
-                  </p>
-                  <QuestionDescription html={currentQ.description} />
-                  {currentQ.imageUrl && (
-                    <img src={currentQ.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginTop: 10, display: 'block' }} />
-                  )}
-                </>
-              }
-            >
-              {/* "Find the red thread" — this player's/team's own earlier answers */}
-              {!isGuest && (currentQ.priorAnswers?.length ?? 0) > 0 && (
-                <PriorAnswersCard priorAnswers={currentQ.priorAnswers} />
-              )}
-
-              {isGuest ? (
-                <Card padding="14px" style={{ textAlign: 'center', background: 'var(--surface)' }}>
-                  <p style={{ fontFamily: 'var(--font-ui)', fontSize: '14px', color: 'var(--text-muted)' }}>
-                    {t('quiz.watchingSign')}
-                  </p>
-                </Card>
-              ) : currentQ.locked ? (
-            <Card padding="14px" style={{ textAlign: 'center' }}>
-              <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--text-muted)' }}>
-                {currentQ.isFreeText
-                  ? (myFreeTextSubmitted ? t('quiz.freeTextAnswerSubmitted') : t('quiz.questionLocked'))
-                  : (mySubmittedOption ? t('quiz.answerSubmitted') : t('quiz.questionLocked'))}
-              </p>
-              {currentQ.isFreeText && myFreeTextSubmitted && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: 8 }}>
-                  {(currentQ.fields ?? []).map((f: any) => (
-                    <p key={f.id} style={{ fontFamily: 'var(--font-ui)', fontSize: '14px', color: 'var(--text-primary)' }}>
-                      {f.label && <span style={{ color: 'var(--text-muted)', marginRight: 6 }}>{f.label}:</span>}{f.myAnswer}
-                    </p>
-                  ))}
-                </div>
-              )}
-            </Card>
-          ) : !canAct ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {currentQ.isFreeText ? (
-                myFreeTextSubmitted ? (
-                  <Card padding="14px" style={{ background: 'color-mix(in srgb, var(--accent-green) 8%, transparent)', border: '1px solid var(--accent-green)' }}>
-                    <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '13px', color: 'var(--accent-green)', marginBottom: 6 }}>{t('quiz.teamAnswered')}</p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      {(currentQ.fields ?? []).map((f: any) => (
-                        <p key={f.id} style={{ fontFamily: 'var(--font-ui)', fontSize: '14px' }}>
-                          {f.label && <span style={{ color: 'var(--text-muted)', marginRight: 6 }}>{f.label}:</span>}{f.myAnswer}
-                        </p>
-                      ))}
-                    </div>
-                  </Card>
-                ) : (
-                  <Card padding="14px" style={{ textAlign: 'center', background: 'var(--surface)' }}>
-                    <p style={{ fontFamily: 'var(--font-ui)', fontSize: '14px', color: 'var(--text-muted)' }}>{t('quiz.waitingForTeam')}</p>
-                  </Card>
-                )
-              ) : (
-                <>
-                  {currentQ.options.map((opt: any) => {
-                    const picked = mySubmittedOption === opt.id
-                    return (
-                      <div
-                        key={opt.id}
-                        style={{
-                          padding: opt.imageUrl ? '12px' : '14px 16px',
-                          borderRadius: 'var(--radius)',
-                          border: `2px solid ${picked ? 'var(--accent-green)' : 'var(--border-light)'}`,
-                          background: picked ? 'color-mix(in srgb, var(--accent-green) 10%, transparent)' : 'var(--background)',
-                        }}
-                      >
-                        {opt.imageUrl && (
-                          <img src={opt.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginBottom: 8, display: 'block' }} />
-                        )}
-                        <p style={{ fontFamily: 'var(--font-ui)', fontWeight: picked ? 700 : 500, fontSize: '15px' }}>
-                          {opt.text}
-                          {picked && <span style={{ fontSize: '12px', color: 'var(--accent-green)', marginLeft: 8 }}>{t('quiz.teamAnswered')}</span>}
-                        </p>
-                      </div>
-                    )
-                  })}
-                  {!mySubmittedOption && (
-                    <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', fontFamily: 'var(--font-ui)' }}>{t('quiz.waitingForTeam')}</p>
-                  )}
-                </>
-              )}
-            </div>
-          ) : currentQ.isFreeText ? (
-            submitted || myFreeTextSubmitted ? (
-              <Card padding="14px" style={{ textAlign: 'center', background: 'color-mix(in srgb, var(--accent-green) 8%, transparent)', border: '1px solid var(--accent-green)' }}>
-                <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--accent-green)' }}>{t('quiz.freeTextAnswerSubmitted')}</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: 8 }}>
-                  {(currentQ.fields ?? []).map((f: any) => (
-                    <p key={f.id} style={{ fontFamily: 'var(--font-ui)', fontSize: '14px' }}>
-                      {f.label && <span style={{ color: 'var(--text-muted)', marginRight: 6 }}>{f.label}:</span>}{f.myAnswer ?? freeTextInputs[f.id] ?? ''}
-                    </p>
-                  ))}
-                </div>
-                {canRetract && (
-                  <Button variant="ghost" size="sm" style={{ marginTop: 12 }} loading={retractAnswer.isPending} onClick={handleRetract}>
-                    {t('quiz.takeBackAnswer')}
-                  </Button>
-                )}
-              </Card>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {(currentQ.fields ?? []).map((f: any) => (
-                  <div key={f.id} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    {f.label && (
-                      <label style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700, color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
-                        <span>{f.label}</span>
-                        <span style={{ fontWeight: 400 }}>{t('quiz.points', { count: f.points })}</span>
-                      </label>
-                    )}
-                    <textarea
-                      value={freeTextInputs[f.id] ?? ''}
-                      onChange={e => setFreeTextInputs(prev => ({ ...prev, [f.id]: e.target.value }))}
-                      rows={3}
-                      placeholder={t('quiz.freeTextPlaceholder')}
-                      style={{ width: '100%', minHeight: 84, padding: '10px 12px', borderRadius: 'var(--radius)', border: '2px solid var(--border-light)', fontSize: '15px', fontFamily: 'var(--font-ui)', boxSizing: 'border-box', outline: 'none', resize: 'vertical', lineHeight: 1.4 }}
-                    />
-                  </div>
-                ))}
-                <Button
-                  fullWidth
-                  size="lg"
-                  disabled={(currentQ.fields ?? []).every((f: any) => !(freeTextInputs[f.id] ?? '').trim())}
-                  loading={submitAnswer.isPending}
-                  onClick={handleSubmitFreeText}
-                >
-                  {t('quiz.freeTextSubmit')}
-                </Button>
-              </div>
-            )
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {currentQ.options.map((opt: any) => {
-                const picked = (selectedOption ?? mySubmittedOption) === opt.id
-                // Wrapper owns the one-shot deal-in; the button owns selection state.
-                // Keeping them on separate elements stops a de-selected option from
-                // replaying the (opacity:0) entrance and flashing away.
-                return (
-                  <div key={opt.id}>
-                    <button
-                      type="button"
-                      onClick={() => handleSelectOption(opt.id)}
-                      className={`card-interactive${picked ? ' qz-selected' : ''}`}
-                      style={{
-                        padding: opt.imageUrl ? '12px' : '14px 16px',
-                        borderRadius: 'var(--radius)', cursor: 'pointer', textAlign: 'left', width: '100%',
-                        border: `2px solid ${picked ? 'var(--accent)' : 'var(--border-light)'}`,
-                        background: picked ? 'color-mix(in srgb, var(--accent) 10%, transparent)' : 'var(--background)',
-                        transition: 'border-color 120ms var(--ease-out), background 120ms var(--ease-out)',
-                      }}
-                    >
-                      {opt.imageUrl && (
-                        <img src={opt.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginBottom: 8, display: 'block' }} />
-                      )}
-                      <p style={{ fontFamily: 'var(--font-ui)', fontWeight: picked ? 700 : 500, fontSize: '15px' }}>{opt.text}</p>
-                    </button>
-                  </div>
-                )
-              })}
-              {canRetract && mySubmittedOption && (
-                <Button variant="ghost" size="sm" style={{ marginTop: 4 }} loading={retractAnswer.isPending} onClick={handleRetract}>
-                  {t('quiz.takeBackAnswer')}
-                </Button>
-              )}
-            </div>
-              )}
-            </Stage>
           )}
 
         </div>
       )}
 
-      {/* ── CORRECTING ───────────────────────────────────────────────────── */}
-      {session.status === 'CORRECTING' && correctionQ && (() => {
+      {/* ── CORRECTING (quiz master) ─────────────────────────────────────── */}
+      {session.status === 'CORRECTING' && correctionQ && isQM && (() => {
         // Did *I* / my team get this one right? Drives a happy vs. sad reveal.
         const myOpt = correctionQ.options?.find((o: any) => o.id === correctionQ.myOptionId)
         const iAnswered = !correctionQ.isFreeText && !!correctionQ.myOptionId
