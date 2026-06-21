@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Card } from './ui/Card'
 import { Avatar } from './ui/Avatar'
 import { CompetitionLeaderboard, LeaderboardTeam } from '../types'
+import { formatLeaderboardScore, rankLabel } from '../utils'
 import { useTranslation } from 'react-i18next'
 
 type View = 'teams' | 'individual'
@@ -30,14 +31,6 @@ export function CompetitionLeaderboardContent({
   const toggleChallenge = (ccId: string) =>
     setExpandedChallenge(prev => prev === ccId ? null : ccId)
 
-  const fmtRaw = (score: number, scoreType?: string, unit?: string | null) => {
-    if (scoreType === 'least_time_difference') {
-      const s = score ?? 0
-      return `${Number.isInteger(s) ? s : s.toFixed(1)}s`
-    }
-    const base = score?.toFixed(1) ?? '0'
-    return unit ? `${base} ${unit}` : base
-  }
   const renderScore = (score: number, placementPoints?: number, scoreType?: string, unit?: string | null) => {
     if (isPlacementMode) {
       return (
@@ -46,14 +39,14 @@ export function CompetitionLeaderboardContent({
             {placementPoints != null ? `${placementPoints} ${t('leaderboardContent.pts')}` : '—'}
           </span>
           <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '6px' }}>
-            ({fmtRaw(score, scoreType, unit)})
+            ({formatLeaderboardScore(score, scoreType, unit)})
           </span>
         </div>
       )
     }
     return (
       <span style={{ fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 700 }}>
-        {fmtRaw(score, scoreType, unit)}
+        {formatLeaderboardScore(score, scoreType, unit)}
       </span>
     )
   }
@@ -106,11 +99,10 @@ export function CompetitionLeaderboardContent({
         <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {visibleTeams.map((team: LeaderboardTeam) => {
             const isFirst = team.rank === 1
-            const rankLabel = team.rank === 1 ? '🥇' : team.rank === 2 ? '🥈' : team.rank === 3 ? '🥉' : String(team.rank)
             return (
               <Card key={team.teamId} style={{ background: isFirst ? 'var(--text-primary)' : undefined, borderColor: isFirst ? 'var(--text-primary)' : undefined }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ fontSize: isFirst ? '28px' : '22px', minWidth: '36px', textAlign: 'center', lineHeight: 1 }}>{rankLabel}</span>
+                  <span style={{ fontSize: isFirst ? '28px' : '22px', minWidth: '36px', textAlign: 'center', lineHeight: 1 }}>{rankLabel(team.rank, { hash: false })}</span>
                   <Link to={`/competitions/${id}/team/${team.teamId}`} style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0, textDecoration: 'none' }}>
                     <Avatar src={team.teamImageUrl} name={team.teamName} size={isFirst ? 48 : 40} style={{ borderRadius: '50%', border: isFirst ? '2px solid rgba(255,255,255,0.25)' : undefined }} />
                     <div style={{ minWidth: 0 }}>
@@ -140,11 +132,10 @@ export function CompetitionLeaderboardContent({
             {topFive.map((p: any) => {
               const isFirst = p.rank === 1
               const isMe = p.userId === userId
-              const rankLabel = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : `#${p.rank}`
               return (
                 <Card key={p.userId} padding="12px" style={{ background: isFirst ? 'var(--text-primary)' : undefined, borderColor: isFirst ? 'var(--text-primary)' : isMe ? 'var(--accent)' : undefined }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <span style={{ fontSize: '20px', minWidth: '28px', textAlign: 'center', lineHeight: 1 }}>{rankLabel}</span>
+                    <span style={{ fontSize: '20px', minWidth: '28px', textAlign: 'center', lineHeight: 1 }}>{rankLabel(p.rank)}</span>
                     <Avatar src={p.profileImageUrl} name={p.displayName ?? p.username ?? p.userId} size={36} style={{ border: isFirst ? '2px solid rgba(255,255,255,0.25)' : undefined }} />
                     <div style={{ flex: 1 }}>
                       <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', color: isFirst ? '#fff' : undefined }}>
@@ -227,11 +218,10 @@ export function CompetitionLeaderboardContent({
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {visibleItems.map((item: any) => {
                       const isPlayer = view === 'individual'
-                      const itemRankLabel = item.rank === 1 ? '🥇' : item.rank === 2 ? '🥈' : item.rank === 3 ? '🥉' : `#${item.rank}`
                       return (
                         <div key={isPlayer ? item.userId : item.teamId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
-                            <span style={{ fontSize: '13px', flexShrink: 0 }}>{itemRankLabel}</span>
+                            <span style={{ fontSize: '13px', flexShrink: 0 }}>{rankLabel(item.rank)}</span>
                             {isPlayer && <Avatar src={item.profileImageUrl} name={item.displayName ?? item.username ?? item.userId} size={24} />}
                             <div style={{ minWidth: 0 }}>
                               <p style={{ fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

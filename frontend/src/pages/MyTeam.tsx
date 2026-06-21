@@ -13,6 +13,7 @@ import { ImageGenerator } from '../components/ImageGenerator'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../api/client'
 import { Team, CompetitionPlayer, CompetitionLeaderboard } from '../types'
+import { formatLeaderboardScore, rankLabel } from '../utils'
 import { useTranslation } from 'react-i18next'
 
 export function MyTeamPage() {
@@ -138,16 +139,6 @@ export function MyTeamPage() {
   const challengeResults = (lbData?.challengeLeaderboards ?? [])
     .map(cl => ({ cl, entry: cl.teams.find(tm => tm.teamId === team.id) }))
     .filter(({ cl, entry }) => cl.hasScore && entry)
-  const rankLabel = (rank: number) =>
-    rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`
-  const fmtRaw = (score: number, scoreType?: string, unit?: string | null) => {
-    if (scoreType === 'least_time_difference') {
-      const s = score ?? 0
-      return `${Number.isInteger(s) ? s : s.toFixed(1)}s`
-    }
-    const base = score?.toFixed(1) ?? '0'
-    return unit ? `${base} ${unit}` : base
-  }
 
   function openConvert(p: CompetitionPlayer) {
     setConvertingDummy(p)
@@ -249,12 +240,12 @@ export function MyTeamPage() {
                               {entry!.placementPoints != null ? `${entry!.placementPoints} ${t('leaderboardContent.pts')}` : '—'}
                             </p>
                             <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '1px' }}>
-                              {fmtRaw(entry!.score, cl.scoreType, (cl as any).valueUnit)}
+                              {formatLeaderboardScore(entry!.score, cl.scoreType, (cl as any).valueUnit)}
                             </p>
                           </>
                         ) : (
                           <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px' }}>
-                            {fmtRaw(entry!.score, cl.scoreType, (cl as any).valueUnit)}
+                            {formatLeaderboardScore(entry!.score, cl.scoreType, (cl as any).valueUnit)}
                           </p>
                         )}
                       </div>

@@ -5,6 +5,7 @@ import { Card } from '../components/ui/Card'
 import { Avatar } from '../components/ui/Avatar'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { api } from '../api/client'
+import { rankLabel } from '../utils'
 import { useTranslation } from 'react-i18next'
 
 export function IndividualLeaderboardPage() {
@@ -22,8 +23,6 @@ export function IndividualLeaderboardPage() {
 
   const lb = data
   if (!lb) return <Layout title={t('leaderboard.individual')}><p>{t('leaderboard.notFound')}</p></Layout>
-
-  const rankEmoji = (rank: number) => rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`
 
   // Hide players who haven't entered a score yet.
   const visiblePlayers = lb.individualLeaderboard.filter((p: any) => p.hasScore)
@@ -43,7 +42,7 @@ export function IndividualLeaderboardPage() {
           <Card key={p.userId} padding="12px" style={{ border: p.rank === 1 ? '2px solid #ffd700' : undefined }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <span style={{ fontSize: p.rank <= 3 ? '22px' : '14px', minWidth: '32px', textAlign: 'center', fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--text-muted)' }}>
-                {rankEmoji(p.rank)}
+                {rankLabel(p.rank)}
               </span>
               <Avatar src={p.profileImageUrl} name={p.displayName ?? p.username ?? p.userId} size={40} />
               <div style={{ flex: 1 }}>

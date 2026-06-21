@@ -8,10 +8,8 @@ import { StatusBadge } from '../components/ui/Badge'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { api } from '../api/client'
 import { Competition, CompetitionPlayer, CompetitionLeaderboard, LeaderboardTeam } from '../types'
-import { formatDate } from '../utils'
+import { formatDate, formatLeaderboardScore, rankLabel } from '../utils'
 import { useTranslation } from 'react-i18next'
-
-const rankEmoji = (r: number) => r === 1 ? '🥇' : r === 2 ? '🥈' : r === 3 ? '🥉' : `#${r}`
 
 export function GuestCompetitionView({ id }: { id: string }) {
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null)
@@ -178,7 +176,7 @@ export function GuestCompetitionView({ id }: { id: string }) {
                   {/* Team row */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px' }}>
                     <span style={{ fontSize: '22px', minWidth: '30px', textAlign: 'center' }}>
-                      {rankEmoji(team.rank)}
+                      {rankLabel(team.rank)}
                     </span>
                     <Avatar
                       src={team.teamImageUrl}
@@ -329,16 +327,14 @@ export function GuestCompetitionView({ id }: { id: string }) {
                           style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontSize: '13px', minWidth: '26px', flexShrink: 0 }}>{rankEmoji(team.rank)}</span>
+                            <span style={{ fontSize: '13px', minWidth: '26px', flexShrink: 0 }}>{rankLabel(team.rank)}</span>
                             <span style={{ fontSize: '13px' }}>{team.teamName}</span>
                           </div>
                           <span style={{ fontSize: '13px', fontFamily: 'var(--font-ui)', fontWeight: 700, flexShrink: 0 }}>
                             {isPlacementMode && team.placementPoints != null
                               ? `${team.placementPoints} ${t('common.pts')}`
                               : (team.score != null
-                                  ? (cl.scoreType === 'least_time_difference'
-                                      ? `${Number.isInteger(team.score) ? team.score : team.score.toFixed(1)}s`
-                                      : team.score.toFixed(1))
+                                  ? formatLeaderboardScore(team.score, cl.scoreType)
                                   : '—')}
                           </span>
                         </div>

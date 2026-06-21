@@ -11,6 +11,28 @@ export function formatScore(score: number, scoreType: string): string {
   return score.toFixed(2)
 }
 
+// Format a raw leaderboard score for display: `least_time_difference` shows a
+// seconds suffix, everything else gets one decimal plus an optional unit (e.g.
+// shooting). Shared by every leaderboard / team-results view so the formatting
+// stays identical across them.
+export function formatLeaderboardScore(score: number, scoreType?: string, unit?: string | null): string {
+  if (scoreType === 'least_time_difference') {
+    const s = score ?? 0
+    return `${Number.isInteger(s) ? s : s.toFixed(1)}s`
+  }
+  const base = score?.toFixed(1) ?? '0'
+  return unit ? `${base} ${unit}` : base
+}
+
+// Medal emoji for the top three ranks, otherwise the numeric rank. `hash`
+// controls whether non-medal ranks render as "#4" (default) or plain "4".
+export function rankLabel(rank: number, opts: { hash?: boolean } = {}): string {
+  if (rank === 1) return '🥇'
+  if (rank === 2) return '🥈'
+  if (rank === 3) return '🥉'
+  return `${opts.hash === false ? '' : '#'}${rank}`
+}
+
 export function extractScoreValue(score: any, scoreType: string): number | null {
   if (scoreType === 'time_fastest_wins') return score.timeMs ?? null
   if (scoreType === 'placement_lowest_wins') return score.placement ?? null
