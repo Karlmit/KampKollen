@@ -566,49 +566,71 @@ img {
 .qz-deal > *:nth-child(6)  { animation-delay: 410ms; }
 .qz-deal > *:nth-child(n+7){ animation-delay: 470ms; }
 
-/* Scene transition (<Stage>) — a deck shuffle. The title card is the deck; the
-   elements below it are the cards. On a scene change they gather UP into the
-   deck, the deck's face (the question) crossfades to the next one, then the
-   cards bounce back DOWN out of the deck into place. */
+/* Scene transition (<Stage>) — the deck. A single card at the top is both the
+   question card and the between-questions countdown; it morphs in place while
+   the cards below shuffle up into it and fan back out. */
 
-/* 1. Gather — below-elements ease up into the title and fade as they stack.
-      ease-in so they accelerate away into the deck. Reverse stagger: the lower
-      cards (further down the stack) leave first. */
+/* The deck card — looks like a normal Card, but its background melts between the
+   question surface and the warm countdown colour over a slow, deliberate beat. */
+.qz-deck-card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px;
+  transition: background-color 760ms var(--ease-in-out), border-color 760ms var(--ease-in-out);
+}
+.qz-deck-card[data-mode="counting"] {
+  background: color-mix(in srgb, var(--accent-warm) 13%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent-warm) 45%, transparent);
+  animation: qzDeckPop 480ms var(--ease-back);
+}
+@keyframes qzDeckPop {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.035); }
+  100% { transform: scale(1); }
+}
+
+/* The deck's face — the active face is in flow (it sizes the deck); the outgoing
+   face overlays it and fades out, so question ↔ countdown is a true crossfade.
+   The body's height is animated in JS so the two faces morph in size. */
+.qz-deck-body { position: relative; transition: height 700ms var(--ease-in-out); }
+.qz-deck-face--active  { animation: qzDeckFaceIn 380ms var(--ease-out) both; }
+.qz-deck-face--leaving { position: absolute; inset: 0; pointer-events: none; animation: qzDeckFaceOut 360ms var(--ease-out) both; }
+@keyframes qzDeckFaceIn  { 0% { opacity: 0; transform: scale(0.985); } 100% { opacity: 1; transform: none; } }
+@keyframes qzDeckFaceOut { 0% { opacity: 1; } 100% { opacity: 0; } }
+
+/* The cards below the deck.
+   Gather — ease up into the deck and fade as they stack (ease-in to accelerate
+   away). Reverse stagger so the lower cards leave first. */
+.qz-deck-below { display: flex; flex-direction: column; gap: 12px; }
+.qz-deck-below[data-phase="hidden"] { display: none; }
 @keyframes qzDeckGather {
   0%   { opacity: 1; transform: none; }
-  100% { opacity: 0; transform: translateY(-38px) scale(0.95); }
+  100% { opacity: 0; transform: translateY(-44px) scale(0.94); }
 }
 .qz-deck-below[data-phase="gather"] > * {
-  animation: qzDeckGather 220ms var(--ease-in) both;
+  animation: qzDeckGather 320ms var(--ease-in) both;
 }
-.qz-deck-below[data-phase="gather"] > *:nth-child(1)    { animation-delay: 50ms; }
-.qz-deck-below[data-phase="gather"] > *:nth-child(2)    { animation-delay: 25ms; }
+.qz-deck-below[data-phase="gather"] > *:nth-child(1)    { animation-delay: 90ms; }
+.qz-deck-below[data-phase="gather"] > *:nth-child(2)    { animation-delay: 45ms; }
 .qz-deck-below[data-phase="gather"] > *:nth-child(n+3)  { animation-delay: 0ms; }
 
-/* 2. Switch — the deck's face is re-dealt: old question crossfades to the new.
-      Both occupy the same grid cell so differing heights crossfade cleanly. */
-.qz-deck-title { display: grid; }
-.qz-deck-title > * { grid-area: 1 / 1; min-width: 0; }
-@keyframes qzDeckTitleOut { 0% { opacity: 1; } 100% { opacity: 0; } }
-@keyframes qzDeckTitleIn  { 0% { opacity: 0; transform: scale(0.98); } 100% { opacity: 1; transform: none; } }
-.qz-deck-title-out { animation: qzDeckTitleOut 200ms var(--ease-out) both; pointer-events: none; }
-.qz-deck-title-in  { animation: qzDeckTitleIn 240ms var(--ease-out) both; }
-
-/* 3. Deal — cards bounce back down out of the deck, lightly staggered so the
-      stack riffles open. ease-back gives the landing its bounce. */
-.qz-deck-below { display: flex; flex-direction: column; gap: 12px; }
+/* Deal — cards fan back down out of the deck, staggered so the stack riffles
+   open. ease-back gives each landing its bounce. */
 @keyframes qzDeckDeal {
-  0%   { opacity: 0; transform: translateY(-34px) scale(0.97); }
-  60%  { opacity: 1; }
+  0%   { opacity: 0; transform: translateY(-40px) scale(0.96); }
+  55%  { opacity: 1; }
   100% { opacity: 1; transform: none; }
 }
 .qz-deck-below[data-phase="deal"] > * {
-  animation: qzDeckDeal 460ms var(--ease-back) both;
+  animation: qzDeckDeal 520ms var(--ease-back) both;
 }
 .qz-deck-below[data-phase="deal"] > *:nth-child(1)   { animation-delay:  0ms; }
-.qz-deck-below[data-phase="deal"] > *:nth-child(2)   { animation-delay: 60ms; }
-.qz-deck-below[data-phase="deal"] > *:nth-child(3)   { animation-delay: 120ms; }
-.qz-deck-below[data-phase="deal"] > *:nth-child(n+4) { animation-delay: 175ms; }
+.qz-deck-below[data-phase="deal"] > *:nth-child(2)   { animation-delay: 80ms; }
+.qz-deck-below[data-phase="deal"] > *:nth-child(3)   { animation-delay: 160ms; }
+.qz-deck-below[data-phase="deal"] > *:nth-child(n+4) { animation-delay: 230ms; }
 
 /* Anticipation while the between-questions countdown ticks: the current scene
    eases back — dimmer and smaller — so attention shifts to the countdown ring
@@ -841,13 +863,14 @@ img {
   .qz-correct-burst, .qz-wrong-shake, .qz-cta, .qz-gold-pulse,
   .qz-platform, .qz-medal, .qz-banner-in, .qz-confetti-piece,
   .qz-countdown-card, .qz-score-reveal, .qz-stage-settling,
-  .qz-deck-below[data-phase] > *, .qz-deck-title-out, .qz-deck-title-in {
+  .qz-deck-below[data-phase] > *, .qz-deck-card, .qz-deck-face--active, .qz-deck-face--leaving {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
     filter: none !important;
   }
-  .qz-deck-title-out { display: none !important; }
+  .qz-deck-body { transition: none !important; }
+  .qz-deck-face--leaving { display: none !important; }
   .qz-red-flash { display: none !important; }
   .qz-points::after,
   .qz-gold-shimmer::after { display: none !important; }

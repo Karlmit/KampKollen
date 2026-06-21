@@ -1071,8 +1071,9 @@ export function QuizPage() {
             <TimerBar key={session.currentQuestionIndex} seconds={currentQ.timerSeconds} onExpire={() => {}} />
           )}
 
-          {/* Next-question countdown — shown to EVERY role (players, team leaders, scorekeepers, QM, guests) */}
-          {countdownSecs !== null && (() => {
+          {/* Next-question countdown — QM only here; for participants/guests the
+              countdown lives inside the deck (the question card morphs into it). */}
+          {isQM && countdownSecs !== null && (() => {
             const ringSize = 96
             const ringR = 42
             const circ = 2 * Math.PI * ringR
@@ -1301,11 +1302,30 @@ export function QuizPage() {
           ) : (
             <Stage
               sceneKey={`q-${session.currentQuestionIndex}`}
-              anticipate={countdownSecs !== null}
+              counting={countdownSecs !== null}
               style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
+              countdown={countdownSecs !== null ? (
+                /* The deck's countdown face — the warm "next question" timer. */
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', padding: '4px 0' }}>
+                  <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent-warm)' }}>
+                    {session.currentQuestionIndex >= questions.length - 1 ? t('quiz.quizCompletesIn') : t('quiz.nextQuestionIn')}
+                  </span>
+                  <div style={{ position: 'relative', width: 92, height: 92 }}>
+                    <svg width={92} height={92} style={{ transform: 'rotate(-90deg)', display: 'block' }}>
+                      <circle cx={46} cy={46} r={40} fill="none" strokeWidth={7} stroke="color-mix(in srgb, var(--accent-warm) 16%, transparent)" />
+                      <circle cx={46} cy={46} r={40} fill="none" strokeWidth={7} stroke="var(--accent-warm)" strokeLinecap="round"
+                        strokeDasharray={2 * Math.PI * 40} strokeDashoffset={2 * Math.PI * 40 * (1 - Math.max(0, Math.min(1, (countdownSecs ?? 0) / 3)))}
+                        style={{ transition: 'stroke-dashoffset 220ms linear' }} />
+                    </svg>
+                    <span key={countdownSecs} className="qz-count-num" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '38px', color: 'var(--accent-warm)', lineHeight: 1 }}>
+                      {countdownSecs}
+                    </span>
+                  </div>
+                </div>
+              ) : null}
               title={
-                /* Question card — the "deck"; players/guests only (the QM has it above). */
-                <Card>
+                /* Question — the deck's face (the deck card wrapper is the Stage's). */
+                <>
                   <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px', lineHeight: 1.4 }}>
                     {currentQ.text}
                   </p>
@@ -1313,7 +1333,7 @@ export function QuizPage() {
                   {currentQ.imageUrl && (
                     <img src={currentQ.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginTop: 10, display: 'block' }} />
                   )}
-                </Card>
+                </>
               }
             >
               {/* "Find the red thread" — this player's/team's own earlier answers */}
@@ -1628,12 +1648,12 @@ export function QuizPage() {
             sceneKey={`c-${session.correctionIndex}`}
             style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
             title={
-              /* Question card — the "deck" the correction view shuffles around. */
-              <Card>
+              /* Question — the deck's face (the deck card wrapper is the Stage's). */
+              <>
                 <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px', lineHeight: 1.4 }}>{correctionQ.text}</p>
                 <QuestionDescription html={correctionQ.description} />
                 {correctionQ.imageUrl && <img src={correctionQ.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginTop: 8, display: 'block' }} />}
-              </Card>
+              </>
             }
           >
 

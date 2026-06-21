@@ -1,105 +1,173 @@
-import { CSSProperties, ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { CSSProperties, ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 // Respect the user's motion preference for JS-driven effects.
 const prefersReduced = () =>
   typeof window !== 'undefined' &&
   !!window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
 
-// ── Stage ───────────────────────────────────────────────────────────────────
-// Choreographs the transition between two "scenes" (this question → the next,
-// or a question → its correction view) like a deck of cards. The `title` (the
-// question card) is the deck; everything passed as children sits below it.
+// ── Stage (the deck) ──────────────────────────────────────────────────────────
+// One persistent card sits at the top of the participant view and is BOTH the
+// question card and, between questions, the warm "next question" countdown. It
+// never pops in or out — it morphs in place:
 //
-// When `sceneKey` changes:
-//   1. GATHER — every element below the title eases up and tucks into the title,
-//      fading as it stacks (the hand "shuffles the cards into the deck").
-//   2. SWITCH — the old title crossfades into the new one (the deck is re-dealt).
-//   3. DEAL   — the new elements bounce back down out of the title into place,
-//      lightly staggered so the stack riffles open.
+//   • countdown begins → the deck flips to the warm countdown face (with an
+//     entrance pop), then every card below shuffles UP into it and hides;
+//   • while counting, the deck holds the ticking number (the cards are "in the
+//     deck");
+//   • countdown ends → the deck's background melts from warm back to the question
+//     surface and its face crossfades to the next question (slow + deliberate);
+//   • then the cards fan back DOWN out of the deck into place.
 //
-// Same-scene re-renders pass straight through, so live updates inside a question
-// (answer counts ticking, points revealing) are never interrupted. While
-// `anticipate` is set (the quiz master's between-questions countdown is running)
-// the whole stage settles back to build suspense before the shuffle.
-const GATHER_MS = 275 // elements up into the deck (gather 220ms + 50ms stagger)
-const DEAL_TAIL_MS = 660 // longest deal-down child (460ms + 175ms stagger) before idle
+// Without a countdown (e.g. stepping through corrections) it still gathers the
+// old cards up, crossfades the question, and fans the new ones down. The deck
+// body's height is animated in JS so the warm-ring height and the question-text
+// height morph into one another instead of jumping.
+const ENTER_DELAY_MS = 160  // let the red deck land before the cards rush in
+const GATHER_MS = 460       // cards shuffle up into the deck (slow + deliberate)
+const FACE_FADE_MS = 380    // deck face crossfade / leaving fade-out
+const REVEAL_MS = 760       // warm → surface morph before the cards fan out
+const DEAL_TAIL_MS = 780    // longest fan-down child before settling to idle
 
-type StageSlot = { key: string; title: ReactNode; below: ReactNode }
+type DeckSlot = { key: string; title: ReactNode; below: ReactNode }
+type BelowPhase = 'idle' | 'gather' | 'hidden' | 'deal'
 
-export function Stage({ sceneKey, title, anticipate, className, style, children }: {
+export function Stage({ sceneKey, title, countdown, counting = false, className, style, children }: {
   sceneKey: string
   title?: ReactNode
-  anticipate?: boolean
+  countdown?: ReactNode
+  counting?: boolean
   className?: string
   style?: CSSProperties
   children: ReactNode
 }) {
-  const [shown, setShown] = useState<StageSlot>({ key: sceneKey, title, below: children })
-  const [leavingTitle, setLeavingTitle] = useState<ReactNode>(null)
-  const [phase, setPhase] = useState<'idle' | 'gather' | 'deal'>('deal')
-  const shownRef = useRef(shown)
-  shownRef.current = shown
+  const [shown, setShown] = useState<DeckSlot>({ key: sceneKey, title, below: children })
+  const [mode, setMode] = useState<'title' | 'counting'>(counting ? 'counting' : 'title')
+  const [leaving, setLeaving] = useState<ReactNode>(null)
+  const [belowPhase, setBelowPhase] = useState<BelowPhase>(counting ? 'hidden' : 'deal')
+
+  const shownRef = useRef(shown); shownRef.current = shown
+  const lastCountdown = useRef<ReactNode>(countdown)
+  if (countdown != null) lastCountdown.current = countdown
+  // True while a countdown is in flight — held until the NEXT scene actually
+  // arrives (sceneKey changes), so a countdown that hits 0 a tick before the
+  // server advances never flashes the old question.
+  const countingActive = useRef(counting)
+  const prevKey = useRef(sceneKey)
   const timers = useRef<number[]>([])
   const clearTimers = () => { timers.current.forEach(clearTimeout); timers.current = [] }
+  const after = (ms: number, fn: () => void) => timers.current.push(window.setTimeout(fn, ms))
 
-  // First-mount entrance: deal the opening scene in, then rest at idle.
+  // Animate the deck body height whenever the face that defines it changes, so
+  // the countdown ring and the question text morph in size rather than jump.
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const prevH = useRef<number | null>(null)
+  const heightTimer = useRef<number>()
+  const activeKey = `${mode}:${shown.key}`
+  useLayoutEffect(() => {
+    const el = bodyRef.current
+    if (!el || prefersReduced()) return
+    if (heightTimer.current) clearTimeout(heightTimer.current)
+    el.style.height = 'auto'
+    const next = el.offsetHeight
+    const prev = prevH.current
+    prevH.current = next
+    if (prev == null || prev === next) return
+    el.style.height = `${prev}px`
+    void el.offsetHeight // reflow so the change transitions
+    el.style.height = `${next}px`
+    // Release back to auto once settled so late content (e.g. images) can grow.
+    heightTimer.current = window.setTimeout(() => { if (bodyRef.current) bodyRef.current.style.height = 'auto' }, REVEAL_MS)
+  }, [activeKey])
+
+  // First-mount entrance: fan the opening scene in, then rest.
   useEffect(() => {
-    if (prefersReduced()) { setPhase('idle'); return }
-    const t = window.setTimeout(() => setPhase('idle'), DEAL_TAIL_MS)
-    timers.current.push(t)
+    if (counting) return // mounted mid-countdown: keep the below hidden until reveal
+    if (prefersReduced()) { setBelowPhase('idle'); return }
+    after(DEAL_TAIL_MS, () => setBelowPhase('idle'))
     return clearTimers
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
-    // Same scene — keep the displayed nodes in sync with the latest props.
-    if (sceneKey === shown.key) {
-      setShown({ key: sceneKey, title, below: children })
-      return
-    }
-    // Reduced motion: swap instantly, no shuffle.
+    const wasKey = prevKey.current
+    prevKey.current = sceneKey
+    const keyChanged = sceneKey !== wasKey
+
     if (prefersReduced()) {
       setShown({ key: sceneKey, title, below: children })
-      setLeavingTitle(null)
-      setPhase('idle')
+      setMode(counting ? 'counting' : 'title')
+      setLeaving(null)
+      setBelowPhase(counting ? 'hidden' : 'idle')
+      countingActive.current = counting
       return
     }
-    // 1. Gather the current below-elements up into the deck.
-    clearTimers()
-    const prevTitle = shownRef.current.title
-    setPhase('gather')
-    const swap = window.setTimeout(() => {
-      // 2. Swap the deck (old title crossfades out, new in) and 3. deal down.
-      setLeavingTitle(prevTitle)
-      setShown({ key: sceneKey, title, below: children })
-      setPhase('deal')
-      timers.current.push(window.setTimeout(() => setLeavingTitle(null), 260))
-      timers.current.push(window.setTimeout(() => setPhase('idle'), DEAL_TAIL_MS))
-    }, GATHER_MS)
-    timers.current.push(swap)
-    return clearTimers
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sceneKey, title, children])
 
-  const wrapperCls = [
-    'qz-stage',
-    anticipate && phase === 'idle' ? 'qz-stage-settling' : '',
-    className ?? '',
-  ].filter(Boolean).join(' ')
+    // Reveal: the next scene has arrived after a countdown. Melt warm → surface,
+    // crossfade the deck to the next question, then fan the cards back out.
+    if (countingActive.current && keyChanged) {
+      countingActive.current = false
+      clearTimers()
+      setLeaving(lastCountdown.current)
+      setShown({ key: sceneKey, title, below: children })
+      setMode('title')
+      setBelowPhase('hidden')
+      after(FACE_FADE_MS, () => setLeaving(null))
+      after(REVEAL_MS, () => setBelowPhase('deal'))
+      after(REVEAL_MS + DEAL_TAIL_MS, () => setBelowPhase('idle'))
+      return
+    }
+
+    // Countdown begins: the deck lands as the warm countdown, then cards rush up.
+    if (counting && !countingActive.current) {
+      countingActive.current = true
+      clearTimers()
+      setLeaving(shownRef.current.title) // old question crossfades out behind the count
+      setMode('counting')
+      after(FACE_FADE_MS, () => setLeaving(null))
+      after(ENTER_DELAY_MS, () => setBelowPhase('gather'))
+      after(ENTER_DELAY_MS + GATHER_MS, () => setBelowPhase('hidden'))
+      return
+    }
+
+    // Mid-countdown: hold the warm face (its number ticks via lastCountdown) until
+    // the scene actually changes.
+    if (countingActive.current) return
+
+    // Transition without a countdown (e.g. correction step): gather → crossfade → fan.
+    if (keyChanged) {
+      clearTimers()
+      setBelowPhase('gather')
+      after(GATHER_MS, () => {
+        setLeaving(shownRef.current.title)
+        setShown({ key: sceneKey, title, below: children })
+        setBelowPhase('deal')
+        after(FACE_FADE_MS, () => setLeaving(null))
+        after(DEAL_TAIL_MS, () => setBelowPhase('idle'))
+      })
+      return
+    }
+
+    // Same scene, not counting: keep the latest title/below (live updates).
+    setShown({ key: sceneKey, title, below: children })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [counting, sceneKey, title, countdown, children])
+
+  const activeNode = mode === 'counting' ? (countdown ?? lastCountdown.current) : shown.title
+  const hasDeck = title != null || countdown != null
 
   return (
-    <div className={wrapperCls} style={style}>
-      {title != null && (
-        <div className="qz-deck-title">
-          {leavingTitle != null && (
-            <div key="leaving" className="qz-deck-title-out" aria-hidden>{leavingTitle}</div>
-          )}
-          <div key={shown.key} className={phase === 'deal' ? 'qz-deck-title-in' : undefined}>
-            {shown.title}
+    <div className={['qz-stage', className ?? ''].filter(Boolean).join(' ')} style={style}>
+      {hasDeck && (
+        <div className="qz-deck-card" data-mode={mode}>
+          <div ref={bodyRef} className="qz-deck-body">
+            {leaving != null && (
+              <div key="leaving" className="qz-deck-face qz-deck-face--leaving" aria-hidden>{leaving}</div>
+            )}
+            <div key={activeKey} className="qz-deck-face qz-deck-face--active">{activeNode}</div>
           </div>
         </div>
       )}
-      <div key={`${shown.key}-below`} className="qz-deck-below" data-phase={phase}>
+      <div key={`${shown.key}-below`} className="qz-deck-below" data-phase={belowPhase}>
         {shown.below}
       </div>
     </div>
