@@ -1052,7 +1052,12 @@ export function QuizPage() {
               <div
                 aria-hidden="true"
                 style={{
-                  position: 'fixed', right: '16px', bottom: '88px', zIndex: 60,
+                  position: 'fixed', right: '16px',
+                  // Float clear of the bottom nav (height + iOS safe-area inset)
+                  // so it never sits half-hidden behind it on mobile. zIndex above
+                  // the nav (100) keeps it layered on top.
+                  bottom: 'calc(var(--bottom-nav-height) + var(--safe-bottom) + 16px)',
+                  zIndex: 110,
                   pointerEvents: 'none',
                   width: ringSize, height: ringSize,
                   borderRadius: '50%',
