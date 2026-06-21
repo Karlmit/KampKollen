@@ -581,14 +581,20 @@ img {
   padding: 16px;
   transition: background-color 760ms var(--ease-in-out), border-color 760ms var(--ease-in-out);
 }
-.qz-deck-card[data-mode="counting"] {
+.qz-deck-card[data-mode="counting"],
+.qz-deck-card[data-mode="timesup"] {
   background: color-mix(in srgb, var(--accent-warm) 13%, var(--surface));
   border-color: color-mix(in srgb, var(--accent-warm) 45%, transparent);
-  animation: qzDeckPop 480ms var(--ease-back);
+}
+.qz-deck-card[data-mode="counting"] { animation: qzDeckPop 480ms var(--ease-back); }
+/* "Time's up!" lands with a firmer punch than the countdown's gentle entrance. */
+.qz-deck-card[data-mode="timesup"] {
+  background: color-mix(in srgb, var(--accent-warm) 18%, var(--surface));
+  animation: qzDeckPop 420ms var(--ease-back);
 }
 @keyframes qzDeckPop {
   0%   { transform: scale(1); }
-  35%  { transform: scale(1.035); }
+  35%  { transform: scale(1.045); }
   100% { transform: scale(1); }
 }
 

@@ -748,6 +748,7 @@ const en = {
     points_other: '{{count}} points',
     nextQuestionIn: 'Next question in…',
     quizCompletesIn: 'Quiz completes in…',
+    timesUp: "Time's up!",
     quizMaster: 'QUIZ MASTER',
     answered: '{{count}} / {{total}} answered',
     allAnswered: ' — All answered! ✓',

@@ -1304,6 +1304,16 @@ export function QuizPage() {
               sceneKey={`q-${session.currentQuestionIndex}`}
               counting={countdownSecs !== null}
               style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
+              timesUp={
+                /* The deck's "time's up" face — shown the instant the timer fires,
+                   as the cards fan up into it. */
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '10px 0' }}>
+                  <span style={{ fontSize: '34px', lineHeight: 1 }}>⏳</span>
+                  <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '22px', color: 'var(--accent-warm)', letterSpacing: '0.01em' }}>
+                    {t('quiz.timesUp')}
+                  </span>
+                </div>
+              }
               countdown={countdownSecs !== null ? (
                 /* The deck's countdown face — the warm "next question" timer. */
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', padding: '4px 0' }}>

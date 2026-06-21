@@ -11,47 +11,56 @@ const prefersReduced = () =>
 // never pops in or out — it morphs in place:
 //
 //   • countdown begins → the deck flips to the warm countdown face (with an
-//     entrance pop), then every card below shuffles UP into it and hides;
-//   • while counting, the deck holds the ticking number (the cards are "in the
-//     deck");
-//   • countdown ends → the deck's background melts from warm back to the question
-//     surface and its face crossfades to the next question (slow + deliberate);
+//     entrance pop); the answer cards STAY put so players can keep submitting;
+//   • while counting, the deck holds the ticking number;
+//   • time's up → the deck reads "Time's up!" and the cards fan UP into it, then
+//     hide; a beat is held for anticipation;
+//   • reveal → the deck's background melts from warm back to the question surface
+//     and its face crossfades to the next question (slow + deliberate);
 //   • then the cards fan back DOWN out of the deck into place.
 //
 // Without a countdown (e.g. stepping through corrections) it still gathers the
 // old cards up, crossfades the question, and fans the new ones down. The deck
 // body's height is animated in JS so the warm-ring height and the question-text
 // height morph into one another instead of jumping.
-const ENTER_DELAY_MS = 160  // let the red deck land before the cards rush in
-const GATHER_MS = 460       // cards shuffle up into the deck (slow + deliberate)
-const FACE_FADE_MS = 380    // deck face crossfade / leaving fade-out
-const REVEAL_MS = 760       // warm → surface morph before the cards fan out
-const DEAL_TAIL_MS = 780    // longest fan-down child before settling to idle
+const GATHER_MS = 520        // cards fan up into the deck at time's up (deliberate)
+const TIMESUP_HOLD_MS = 650  // hold on "Time's up!" for anticipation before the morph
+const FACE_FADE_MS = 380     // deck face crossfade / leaving fade-out
+const REVEAL_MS = 760        // warm → surface morph before the cards fan out
+const DEAL_TAIL_MS = 780     // longest fan-down child before settling to idle
 
 type DeckSlot = { key: string; title: ReactNode; below: ReactNode }
+type DeckMode = 'title' | 'counting' | 'timesup'
 type BelowPhase = 'idle' | 'gather' | 'hidden' | 'deal'
 
-export function Stage({ sceneKey, title, countdown, counting = false, className, style, children }: {
+export function Stage({ sceneKey, title, countdown, timesUp, counting = false, className, style, children }: {
   sceneKey: string
   title?: ReactNode
   countdown?: ReactNode
+  timesUp?: ReactNode
   counting?: boolean
   className?: string
   style?: CSSProperties
   children: ReactNode
 }) {
   const [shown, setShown] = useState<DeckSlot>({ key: sceneKey, title, below: children })
-  const [mode, setMode] = useState<'title' | 'counting'>(counting ? 'counting' : 'title')
+  const [mode, setMode] = useState<DeckMode>(counting ? 'counting' : 'title')
   const [leaving, setLeaving] = useState<ReactNode>(null)
-  const [belowPhase, setBelowPhase] = useState<BelowPhase>(counting ? 'hidden' : 'deal')
+  const [belowPhase, setBelowPhase] = useState<BelowPhase>(counting ? 'idle' : 'deal')
 
   const shownRef = useRef(shown); shownRef.current = shown
   const lastCountdown = useRef<ReactNode>(countdown)
   if (countdown != null) lastCountdown.current = countdown
-  // True while a countdown is in flight — held until the NEXT scene actually
-  // arrives (sceneKey changes), so a countdown that hits 0 a tick before the
-  // server advances never flashes the old question.
+  const timesUpNode = useRef<ReactNode>(timesUp)
+  if (timesUp != null) timesUpNode.current = timesUp
+  // Latest props, read at the (delayed) reveal so it always lands on the scene
+  // that has actually arrived by then.
+  const latest = useRef({ sceneKey, title, children })
+  latest.current = { sceneKey, title, children }
+  // A countdown is in flight (deck shows the warm timer, answers still open);
+  // `timesUpRef` marks that the timer has fired and the cards are being pulled in.
   const countingActive = useRef(counting)
+  const timesUpRef = useRef(false)
   const prevKey = useRef(sceneKey)
   const timers = useRef<number[]>([])
   const clearTimers = () => { timers.current.forEach(clearTimeout); timers.current = [] }
@@ -81,7 +90,7 @@ export function Stage({ sceneKey, title, countdown, counting = false, className,
 
   // First-mount entrance: fan the opening scene in, then rest.
   useEffect(() => {
-    if (counting) return // mounted mid-countdown: keep the below hidden until reveal
+    if (counting) return // mounted mid-countdown: cards stay put (answers still open)
     if (prefersReduced()) { setBelowPhase('idle'); return }
     after(DEAL_TAIL_MS, () => setBelowPhase('idle'))
     return clearTimers
@@ -97,41 +106,59 @@ export function Stage({ sceneKey, title, countdown, counting = false, className,
       setShown({ key: sceneKey, title, below: children })
       setMode(counting ? 'counting' : 'title')
       setLeaving(null)
-      setBelowPhase(counting ? 'hidden' : 'idle')
+      setBelowPhase('idle')
       countingActive.current = counting
+      timesUpRef.current = false
       return
     }
 
-    // Reveal: the next scene has arrived after a countdown. Melt warm → surface,
-    // crossfade the deck to the next question, then fan the cards back out.
-    if (countingActive.current && keyChanged) {
-      countingActive.current = false
+    // Time's up: the countdown finished (or the next scene arrived) while counting.
+    // The deck flips to "Time's up!", the cards fan UP into it, we hold a beat for
+    // anticipation, then melt warm → surface and crossfade to the next question.
+    if (countingActive.current && !timesUpRef.current && (!counting || keyChanged)) {
+      timesUpRef.current = true
       clearTimers()
-      setLeaving(lastCountdown.current)
-      setShown({ key: sceneKey, title, below: children })
-      setMode('title')
-      setBelowPhase('hidden')
+      setLeaving(lastCountdown.current) // the ticking ring crossfades to "Time's up!"
+      setMode('timesup')
+      setBelowPhase('gather')           // cards fan up into the deck
       after(FACE_FADE_MS, () => setLeaving(null))
-      after(REVEAL_MS, () => setBelowPhase('deal'))
-      after(REVEAL_MS + DEAL_TAIL_MS, () => setBelowPhase('idle'))
+      after(GATHER_MS, () => setBelowPhase('hidden'))
+      after(GATHER_MS + TIMESUP_HOLD_MS, () => {
+        const l = latest.current        // by now the next scene has arrived
+        setLeaving(timesUpNode.current) // "Time's up!" crossfades to the next question
+        setShown({ key: l.sceneKey, title: l.title, below: l.children })
+        setMode('title')
+        setBelowPhase('hidden')
+        countingActive.current = false
+        timesUpRef.current = false
+        after(FACE_FADE_MS, () => setLeaving(null))
+        after(REVEAL_MS, () => setBelowPhase('deal'))
+        after(REVEAL_MS + DEAL_TAIL_MS, () => setBelowPhase('idle'))
+      })
       return
     }
 
-    // Countdown begins: the deck lands as the warm countdown, then cards rush up.
+    // Countdown begins: the deck lands as the warm countdown card. The cards stay
+    // put — answers can still be submitted right up until time's up.
     if (counting && !countingActive.current) {
       countingActive.current = true
+      timesUpRef.current = false
       clearTimers()
-      setLeaving(shownRef.current.title) // old question crossfades out behind the count
+      setLeaving(shownRef.current.title) // question crossfades to the countdown
       setMode('counting')
       after(FACE_FADE_MS, () => setLeaving(null))
-      after(ENTER_DELAY_MS, () => setBelowPhase('gather'))
-      after(ENTER_DELAY_MS + GATHER_MS, () => setBelowPhase('hidden'))
       return
     }
 
-    // Mid-countdown: hold the warm face (its number ticks via lastCountdown) until
-    // the scene actually changes.
-    if (countingActive.current) return
+    // Cards are being pulled into the deck (time's up) — leave the sequence alone.
+    if (timesUpRef.current) return
+
+    // Mid-countdown: deck holds the warm timer; keep the cards below live so
+    // late answers/answer counts still update while the clock runs.
+    if (countingActive.current) {
+      setShown({ key: shownRef.current.key, title, below: children })
+      return
+    }
 
     // Transition without a countdown (e.g. correction step): gather → crossfade → fan.
     if (keyChanged) {
@@ -150,9 +177,12 @@ export function Stage({ sceneKey, title, countdown, counting = false, className,
     // Same scene, not counting: keep the latest title/below (live updates).
     setShown({ key: sceneKey, title, below: children })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [counting, sceneKey, title, countdown, children])
+  }, [counting, sceneKey, title, countdown, timesUp, children])
 
-  const activeNode = mode === 'counting' ? (countdown ?? lastCountdown.current) : shown.title
+  const activeNode =
+    mode === 'counting' ? (countdown ?? lastCountdown.current)
+    : mode === 'timesup' ? timesUpNode.current
+    : shown.title
   const hasDeck = title != null || countdown != null
 
   return (

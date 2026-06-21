@@ -746,6 +746,7 @@ const sv = {
     points_other: '{{count}} poäng',
     nextQuestionIn: 'Nästa fråga om...',
     quizCompletesIn: 'Quizen avslutas om...',
+    timesUp: 'Tiden är ute!',
     quizMaster: 'QUIZ MASTER',
     answered: '{{count}} / {{total}} svarade',
     allAnswered: ' — Alla svarade! ✓',
