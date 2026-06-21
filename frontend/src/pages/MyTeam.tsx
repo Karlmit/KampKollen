@@ -180,84 +180,6 @@ export function MyTeamPage() {
         )}
       </div>
 
-      {/* Team performance — placement + per-challenge results */}
-      {lbData && (
-        <section style={{ marginBottom: '24px' }}>
-          <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '15px', marginBottom: '12px' }}>
-            {t('team.performance')}
-          </h2>
-
-          {/* Overall placement */}
-          {standing?.hasScore ? (
-            <Card style={{ background: 'var(--text-primary)', color: '#fff', borderColor: 'var(--text-primary)', marginBottom: challengeResults.length > 0 ? '16px' : 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                <span style={{ fontSize: '34px', lineHeight: 1, minWidth: '44px', textAlign: 'center' }}>{rankLabel(standing.rank)}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.65, fontFamily: 'var(--font-ui)' }}>
-                    {t('team.placement')}
-                  </p>
-                  <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px' }}>
-                    {t('team.challengeRank', { rank: standing.rank, count: lbData.teamLeaderboard.length })}
-                  </p>
-                </div>
-                <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '30px', lineHeight: 1 }}>{standing.totalPoints.toFixed(0)}</p>
-                  <p style={{ fontSize: '11px', opacity: 0.55, marginTop: '2px' }}>{t('team.totalPts')}</p>
-                </div>
-              </div>
-            </Card>
-          ) : (
-            <Card padding="16px" style={{ textAlign: 'center', background: 'var(--surface)', marginBottom: 0 }}>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5 }}>{t('team.noScoresYet')}</p>
-            </Card>
-          )}
-
-          {/* Per-challenge results */}
-          {challengeResults.length > 0 && (
-            <>
-              <h3 style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', margin: '4px 0 8px' }}>
-                {t('team.scoresByChallenge')}
-              </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {challengeResults.map(({ cl, entry }) => (
-                  <Card key={cl.competitionChallengeId} padding="12px">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      {cl.challengeLogoUrl
-                        ? <img src={cl.challengeLogoUrl} alt="" style={{ width: 36, height: 36, borderRadius: 'var(--radius-sm)', objectFit: 'cover', flexShrink: 0 }} />
-                        : <span style={{ fontSize: '20px', minWidth: '28px', textAlign: 'center' }}>{rankLabel(entry!.rank)}</span>}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {cl.challengeName}
-                        </p>
-                        <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                          {rankLabel(entry!.rank)} · {t('team.challengeRank', { rank: entry!.rank, count: cl.teams.length })}
-                        </p>
-                      </div>
-                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        {isPlacementMode ? (
-                          <>
-                            <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px' }}>
-                              {entry!.placementPoints != null ? `${entry!.placementPoints} ${t('leaderboardContent.pts')}` : '—'}
-                            </p>
-                            <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '1px' }}>
-                              {formatLeaderboardScore(entry!.score, cl.scoreType, (cl as any).valueUnit)}
-                            </p>
-                          </>
-                        ) : (
-                          <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px' }}>
-                            {formatLeaderboardScore(entry!.score, cl.scoreType, (cl as any).valueUnit)}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </>
-          )}
-        </section>
-      )}
-
       {/* Players */}
       <section style={{ marginBottom: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
@@ -391,6 +313,84 @@ export function MyTeamPage() {
           ))}
         </div>
       </section>
+
+      {/* Team performance — placement + per-challenge results */}
+      {lbData && (
+        <section style={{ marginBottom: '24px' }}>
+          <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: '15px', marginBottom: '12px' }}>
+            {t('team.performance')}
+          </h2>
+
+          {/* Overall placement */}
+          {standing?.hasScore ? (
+            <Card style={{ background: 'var(--text-primary)', color: '#fff', borderColor: 'var(--text-primary)', marginBottom: challengeResults.length > 0 ? '16px' : 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <span style={{ fontSize: '34px', lineHeight: 1, minWidth: '44px', textAlign: 'center' }}>{rankLabel(standing.rank)}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.65, fontFamily: 'var(--font-ui)' }}>
+                    {t('team.placement')}
+                  </p>
+                  <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px' }}>
+                    {t('team.challengeRank', { rank: standing.rank, count: lbData.teamLeaderboard.length })}
+                  </p>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '30px', lineHeight: 1 }}>{standing.totalPoints.toFixed(0)}</p>
+                  <p style={{ fontSize: '11px', opacity: 0.55, marginTop: '2px' }}>{t('team.totalPts')}</p>
+                </div>
+              </div>
+            </Card>
+          ) : (
+            <Card padding="16px" style={{ textAlign: 'center', background: 'var(--surface)', marginBottom: 0 }}>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5 }}>{t('team.noScoresYet')}</p>
+            </Card>
+          )}
+
+          {/* Per-challenge results */}
+          {challengeResults.length > 0 && (
+            <>
+              <h3 style={{ fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', margin: '4px 0 8px' }}>
+                {t('team.scoresByChallenge')}
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {challengeResults.map(({ cl, entry }) => (
+                  <Card key={cl.competitionChallengeId} padding="12px">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      {cl.challengeLogoUrl
+                        ? <img src={cl.challengeLogoUrl} alt="" style={{ width: 36, height: 36, borderRadius: 'var(--radius-sm)', objectFit: 'cover', flexShrink: 0 }} />
+                        : <span style={{ fontSize: '20px', minWidth: '28px', textAlign: 'center' }}>{rankLabel(entry!.rank)}</span>}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {cl.challengeName}
+                        </p>
+                        <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                          {rankLabel(entry!.rank)} · {t('team.challengeRank', { rank: entry!.rank, count: cl.teams.length })}
+                        </p>
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        {isPlacementMode ? (
+                          <>
+                            <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px' }}>
+                              {entry!.placementPoints != null ? `${entry!.placementPoints} ${t('leaderboardContent.pts')}` : '—'}
+                            </p>
+                            <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '1px' }}>
+                              {formatLeaderboardScore(entry!.score, cl.scoreType, (cl as any).valueUnit)}
+                            </p>
+                          </>
+                        ) : (
+                          <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '15px' }}>
+                            {formatLeaderboardScore(entry!.score, cl.scoreType, (cl as any).valueUnit)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </>
+          )}
+        </section>
+      )}
 
       {/* Player pool */}
       {canManage && poolPlayers.length > 0 && (
