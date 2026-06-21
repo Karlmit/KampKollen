@@ -961,9 +961,24 @@ export function QuizPage() {
                   hint that they're waiting. Never locks answers or advances. */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 {visualCountdownActive ? (
-                  <Button size="sm" variant="ghost" onClick={stopVisualCountdown}>
-                    {t('quiz.stopNudge')}
-                  </Button>
+                  <>
+                    {/* Live count badge — the QM's single countdown readout. Fixed
+                        width + tabular figures so it never changes size as the
+                        number ticks (which would reflow this in-flow row). The
+                        floating ring is hidden for the QM so it isn't shown twice. */}
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      minWidth: '72px', padding: '5px 12px', borderRadius: '99px',
+                      background: 'color-mix(in srgb, var(--accent) 12%, var(--surface))',
+                      color: 'var(--accent)', fontFamily: 'var(--font-ui)', fontWeight: 800,
+                      fontSize: '14px', lineHeight: 1, fontVariantNumeric: 'tabular-nums',
+                    }}>
+                      ⏳ {visualSecs}s
+                    </span>
+                    <Button size="sm" variant="ghost" onClick={stopVisualCountdown}>
+                      {t('quiz.stopNudge')}
+                    </Button>
+                  </>
                 ) : (
                   <>
                     <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--border-light)', borderRadius: '99px', overflow: 'hidden', background: 'var(--background)' }}>
@@ -1036,11 +1051,13 @@ export function QuizPage() {
           })()}
 
           {/* Visual nudge ring — a floating, purely-cosmetic countdown the QM
-              started. Shown to EVERY role. pointer-events:none guarantees it can
-              never sit on top of an answer button or block input; it only signals
-              that the QM is waiting. Hidden while the real next-question countdown
-              is running so the two never stack. */}
-          {visualCountdownActive && countdownSecs === null && (() => {
+              started. Shown to every role EXCEPT the QM (who already sees the live
+              count badge in their controls, so the ring would be a duplicate).
+              pointer-events:none guarantees it can never sit on top of an answer
+              button or block input; it only signals that the QM is waiting. Hidden
+              while the real next-question countdown is running so the two never
+              stack. */}
+          {visualCountdownActive && countdownSecs === null && !isQM && (() => {
             const ringSize = 64
             const ringR = 27
             const circ = 2 * Math.PI * ringR
@@ -1063,6 +1080,10 @@ export function QuizPage() {
                   borderRadius: '50%',
                   background: 'var(--surface)',
                   boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+                  // Isolate the ring's per-second repaints from page layout so its
+                  // updates never nudge the document/viewport (which made the page
+                  // and bottom nav jump on mobile).
+                  contain: 'layout',
                 }}
                 className={urgent ? 'qz-timer-urgent' : 'qz-pop-in'}
               >
@@ -1074,9 +1095,13 @@ export function QuizPage() {
                     strokeDasharray={circ} strokeDashoffset={circ * (1 - progress)}
                     style={{ transition: 'stroke-dashoffset 220ms linear, stroke 0.3s' }} />
                 </svg>
-                <span key={visualSecs} className="qz-count-num" style={{
+                {/* No key/remount per tick: re-mounting + the scale-bounce
+                    animation every second was what jolted the page on mobile.
+                    Just update the text; tabular figures keep it from shifting. */}
+                <span style={{
                   position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '22px', color, lineHeight: 1,
+                  fontVariantNumeric: 'tabular-nums',
                 }}>
                   {visualSecs}
                 </span>
