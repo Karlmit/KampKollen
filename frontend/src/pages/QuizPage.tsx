@@ -459,12 +459,13 @@ function ScoreEditorModal({ open, onClose, questions, competition, isTeamComp, c
   const { t } = useTranslation()
   const freeTextQuestions = (questions ?? []).filter((q: any) => q.isFreeText)
   // Show ONE question (with all its answers) at a time — 8 teams × many questions
-  // is far too much to scroll. Default to the latest free-text question the quiz has
-  // actually REACHED (≤ the current position), not the last one in the whole quiz —
-  // that's almost always the one needing a late fix. Falls back to the first.
+  // is far too much to scroll. Default to the latest free-text question BEFORE the
+  // current position — the current one is being answered/corrected live, so the fix
+  // you reach for is the previous one. Falls back to the first. (Completed passes a
+  // boundary past the end, so the final question still counts.)
   const defaultFreeText = () => {
-    const reached = freeTextQuestions.filter((q: any) => questions.indexOf(q) <= currentIndex)
-    return (reached[reached.length - 1] ?? freeTextQuestions[0])?.id ?? ''
+    const past = freeTextQuestions.filter((q: any) => questions.indexOf(q) < currentIndex)
+    return (past[past.length - 1] ?? freeTextQuestions[0])?.id ?? ''
   }
   const [selectedId, setSelectedId] = useState<string>(defaultFreeText)
   useEffect(() => {
@@ -1218,7 +1219,7 @@ export function QuizPage() {
           questions={questions}
           competition={competition}
           isTeamComp={isTeamComp}
-          currentIndex={session.status === 'CORRECTING' ? session.correctionIndex : session.status === 'COMPLETED' ? questions.length - 1 : session.currentQuestionIndex}
+          currentIndex={session.status === 'CORRECTING' ? session.correctionIndex : session.status === 'COMPLETED' ? questions.length : session.currentQuestionIndex}
           onSetPoints={(answerId, points) => setFieldPoints.mutate({ answerId, points })}
           onToggleLock={(answerId) => toggleFieldLock.mutate(answerId)}
           onMaxLock={(answerId, maxPoints) => maxAndLockField.mutate({ answerId, maxPoints })}
