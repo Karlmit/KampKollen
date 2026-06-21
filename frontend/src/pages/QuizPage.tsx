@@ -962,7 +962,7 @@ export function QuizPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 {visualCountdownActive ? (
                   <Button size="sm" variant="ghost" onClick={stopVisualCountdown}>
-                    {t('quiz.stopNudge', { count: visualSecs })}
+                    {t('quiz.stopNudge')}
                   </Button>
                 ) : (
                   <>

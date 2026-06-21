@@ -784,7 +784,7 @@ const en = {
     you: 'you',
     countdown5s: '⏳ {{count}}s…',
     startNudge: '⏱ Start countdown',
-    stopNudge: '⏹ Stop ({{count}}s)',
+    stopNudge: '⏹ Stop countdown',
     nudgeLess: 'Less time',
     nudgeMore: 'More time',
     freeText: 'Free text',

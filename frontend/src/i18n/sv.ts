@@ -782,7 +782,7 @@ const sv = {
     you: 'du',
     countdown5s: '⏳ {{count}}s...',
     startNudge: '⏱ Starta nedräkning',
-    stopNudge: '⏹ Stoppa ({{count}}s)',
+    stopNudge: '⏹ Stoppa nedräkning',
     nudgeLess: 'Minska tid',
     nudgeMore: 'Öka tid',
     freeText: 'Fritext',
