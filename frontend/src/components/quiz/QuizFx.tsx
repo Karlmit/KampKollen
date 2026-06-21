@@ -1,9 +1,70 @@
-import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
+import { CSSProperties, ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 
 // Respect the user's motion preference for JS-driven effects.
 const prefersReduced = () =>
   typeof window !== 'undefined' &&
   !!window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
+
+// ── Stage ───────────────────────────────────────────────────────────────────
+// Orchestrates the transition between two "scenes" (this question → the next
+// one, or a question → its correction view). When `sceneKey` changes the
+// outgoing scene plays a quick exit, a short beat of anticipation passes, then
+// the new scene mounts and plays its own entrance (qz-question-in / qz-deal) —
+// turning what used to be an instant hard cut into a purposeful hand-off. While
+// `anticipate` is set (the quiz master's between-questions countdown is running)
+// the current scene settles back to build suspense before the swap.
+//
+// The same scene re-renders pass straight through, so live updates inside a
+// question (answer counts ticking, points revealing) are never interrupted.
+const STAGE_EXIT_MS = 190
+const STAGE_GAP_MS = 80
+
+export function Stage({ sceneKey, anticipate, className, style, children }: {
+  sceneKey: string
+  anticipate?: boolean
+  className?: string
+  style?: CSSProperties
+  children: ReactNode
+}) {
+  const [shown, setShown] = useState<{ key: string; node: ReactNode }>({ key: sceneKey, node: children })
+  const [exiting, setExiting] = useState(false)
+
+  useEffect(() => {
+    // Same scene — keep the displayed node in sync with the latest children.
+    if (sceneKey === shown.key) {
+      setShown({ key: sceneKey, node: children })
+      return
+    }
+    // Reduced motion (or no JS animation): swap instantly, no exit beat.
+    if (prefersReduced()) {
+      setShown({ key: sceneKey, node: children })
+      setExiting(false)
+      return
+    }
+    // New scene: play the outgoing exit, hold the beat, then swap in the new one
+    // (whose changed key remounts it so its entrance animation fires).
+    setExiting(true)
+    const id = setTimeout(() => {
+      setShown({ key: sceneKey, node: children })
+      setExiting(false)
+    }, STAGE_EXIT_MS + STAGE_GAP_MS)
+    return () => clearTimeout(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sceneKey, children])
+
+  const cls = [
+    'qz-stage',
+    exiting ? 'qz-scene-exit' : '',
+    anticipate && !exiting ? 'qz-stage-settling' : '',
+    className ?? '',
+  ].filter(Boolean).join(' ')
+
+  return (
+    <div key={shown.key} className={cls} style={style}>
+      {shown.node}
+    </div>
+  )
+}
 
 // ── CountUp ───────────────────────────────────────────────────────────────────
 // Rolls a number up to its target with an ease-out curve. On first mount it

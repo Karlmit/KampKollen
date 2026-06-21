@@ -11,7 +11,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { api } from '../api/client'
 import { sanitizeRichText } from '../utils'
 import { useTranslation } from 'react-i18next'
-import { CountUp, Confetti } from '../components/quiz/QuizFx'
+import { CountUp, Confetti, Stage } from '../components/quiz/QuizFx'
 
 // Renders the optional rich-text question description (bold/italic/underline)
 // shown beneath the question text. Re-sanitised at render as defence in depth.
@@ -1168,26 +1168,12 @@ export function QuizPage() {
             )
           })()}
 
-          {/* Question card — players/guests only; the QM has the question in the
-              consolidated card above, so it isn't repeated here. */}
-          {!isQM && (
-            <Card key={session.currentQuestionIndex} className="qz-question-in">
-              <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px', lineHeight: 1.4 }}>
-                {currentQ.text}
-              </p>
-              <QuestionDescription html={currentQ.description} />
-              {currentQ.imageUrl && (
-                <img src={currentQ.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginTop: 10, display: 'block' }} />
-              )}
-            </Card>
-          )}
+          {/* The participant question + answers move into the <Stage> below (in
+              the non-QM branch) so advancing plays a deliberate exit → beat →
+              entrance. The QM keeps the consolidated card above untouched. */}
 
-          {/* "Find the red thread" — this player's/team's own earlier answers */}
-          {!isQM && !isGuest && (currentQ.priorAnswers?.length ?? 0) > 0 && (
-            <PriorAnswersCard priorAnswers={currentQ.priorAnswers} />
-          )}
-
-          {/* Options — QM sees live distribution, guests see read-only, players see answer buttons */}
+          {/* Options — QM sees live distribution; participants see the staged
+              question + answer buttons (read-only for guests). */}
           {isQM ? (
             currentQ.isFreeText ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -1312,13 +1298,35 @@ export function QuizPage() {
                 })()}
               </div>
             )
-          ) : isGuest ? (
-            <Card padding="14px" style={{ textAlign: 'center', background: 'var(--surface)' }}>
-              <p style={{ fontFamily: 'var(--font-ui)', fontSize: '14px', color: 'var(--text-muted)' }}>
-                {t('quiz.watchingSign')}
-              </p>
-            </Card>
-          ) : currentQ.locked ? (
+          ) : (
+            <Stage
+              sceneKey={`q-${session.currentQuestionIndex}`}
+              anticipate={countdownSecs !== null}
+              style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
+            >
+              {/* Question card — players/guests only; the QM has it above. */}
+              <Card className="qz-question-in">
+                <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px', lineHeight: 1.4 }}>
+                  {currentQ.text}
+                </p>
+                <QuestionDescription html={currentQ.description} />
+                {currentQ.imageUrl && (
+                  <img src={currentQ.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginTop: 10, display: 'block' }} />
+                )}
+              </Card>
+
+              {/* "Find the red thread" — this player's/team's own earlier answers */}
+              {!isGuest && (currentQ.priorAnswers?.length ?? 0) > 0 && (
+                <PriorAnswersCard priorAnswers={currentQ.priorAnswers} />
+              )}
+
+              {isGuest ? (
+                <Card padding="14px" style={{ textAlign: 'center', background: 'var(--surface)' }}>
+                  <p style={{ fontFamily: 'var(--font-ui)', fontSize: '14px', color: 'var(--text-muted)' }}>
+                    {t('quiz.watchingSign')}
+                  </p>
+                </Card>
+              ) : currentQ.locked ? (
             <Card padding="14px" style={{ textAlign: 'center' }}>
               <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--text-muted)' }}>
                 {currentQ.isFreeText
@@ -1466,6 +1474,8 @@ export function QuizPage() {
                 </Button>
               )}
             </div>
+              )}
+            </Stage>
           )}
 
         </div>
@@ -1613,7 +1623,11 @@ export function QuizPage() {
             </span>
           </div>
 
-          <Card key={session.correctionIndex} className="qz-question-in">
+          <Stage
+            sceneKey={`c-${session.correctionIndex}`}
+            style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
+          >
+          <Card className="qz-question-in">
             <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '18px', lineHeight: 1.4 }}>{correctionQ.text}</p>
             <QuestionDescription html={correctionQ.description} />
             {correctionQ.imageUrl && <img src={correctionQ.imageUrl} alt="" style={{ width: '100%', objectFit: 'contain', borderRadius: 'var(--radius-sm)', marginTop: 8, display: 'block' }} />}
@@ -1768,6 +1782,7 @@ export function QuizPage() {
               })}
             </div>
           )}
+          </Stage>
 
         </div>
         )
