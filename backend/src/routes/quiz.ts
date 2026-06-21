@@ -1179,9 +1179,11 @@ export async function quizRoutes(app: FastifyInstance) {
   })
 
   // ── Take back an answer (player) ────────────────────────────────────────────
-  // Allowed only while the current question is still open: the quiz is ACTIVE,
-  // the question hasn't been locked, and the QM hasn't started the "next question"
-  // countdown yet. Clears the multiple-choice pick or every free-text field answer.
+  // Allowed while the current question is still open: the quiz is ACTIVE and the
+  // question hasn't been locked. This stays open during the "next question"
+  // countdown too — answering only truly closes at "Time's up!" (when the
+  // question locks), so players can still take back / re-enter while the red-card
+  // timer ticks. Clears the multiple-choice pick or every free-text field answer.
   app.post('/:ccId/answers/retract', { preHandler: requireAuth }, async (request, reply) => {
     const { ccId } = request.params as { ccId: string }
     const me = request.user as { id: string }
@@ -1191,10 +1193,6 @@ export async function quizRoutes(app: FastifyInstance) {
     const session = await prisma.quizSession.findUnique({ where: { competitionChallengeId: ccId } })
     if (!session || session.status !== 'ACTIVE') return reply.status(400).send({ error: 'Quiz not accepting changes' })
     if (session.questionLocked) return reply.status(400).send({ error: 'Question is locked' })
-
-    // Once the next-question countdown is running, answers are final.
-    const endsAt = countdownMap.get(ccId)
-    if (endsAt && endsAt > Date.now()) return reply.status(400).send({ error: 'Too late to take back' })
 
     const cc = await prisma.competitionChallenge.findUnique({ where: { id: ccId }, select: { challengeId: true } })
     const currentQ = await prisma.quizQuestion.findFirst({

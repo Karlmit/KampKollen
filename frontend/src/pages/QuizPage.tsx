@@ -779,9 +779,12 @@ export function QuizPage() {
     submitAnswer.mutate({ fields, teamId })
   }
 
-  // Answers can be taken back until the question is locked or the QM has started
-  // the next-question countdown. (canAct/answer-exists checks happen at each button.)
-  const canRetract = canAct && session.status === 'ACTIVE' && !currentQ?.locked && countdownSecs === null
+  // Answers can be taken back (and re-entered) right up until the question
+  // actually locks at "Time's up!". The next-question countdown auto-submits any
+  // typed free text as a safety net, but must NOT freeze answering — players can
+  // still take back / edit while the red-card timer ticks. (canAct/answer-exists
+  // checks happen at each button.)
+  const canRetract = canAct && session.status === 'ACTIVE' && !currentQ?.locked
 
   // The question card's body, shared by the answering and correction decks so the
   // single <Stage> can morph one into the other across the ACTIVE→CORRECTING flip.
