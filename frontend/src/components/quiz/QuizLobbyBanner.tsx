@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -12,7 +11,6 @@ export function QuizLobbyBanner() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set())
 
   const { data } = useQuery({
     queryKey: ['quizAnnouncements'],
@@ -23,9 +21,9 @@ export function QuizLobbyBanner() {
 
   if (!user) return null
 
-  // Hide announcements the user dismissed or for the quiz they're already viewing.
+  // Hide the announcement for the quiz the player is already viewing.
   const announcement = (data?.announcements ?? []).find(
-    a => !dismissed.has(a.ccId) && !location.pathname.includes(`/quiz/${a.ccId}`),
+    a => !location.pathname.includes(`/quiz/${a.ccId}`),
   )
   if (!announcement) return null
 
@@ -70,18 +68,6 @@ export function QuizLobbyBanner() {
             {t(cta)}
           </p>
         </div>
-        <button
-          type="button"
-          aria-label={t('common.cancel')}
-          onClick={e => { e.stopPropagation(); setDismissed(prev => new Set(prev).add(announcement.ccId)) }}
-          style={{
-            flexShrink: 0, width: 30, height: 30, borderRadius: '50%', border: 'none',
-            background: 'rgba(255,255,255,0.15)', color: '#fff', fontSize: '16px', lineHeight: 1,
-            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-        >
-          ✕
-        </button>
       </div>
     </div>
   )
