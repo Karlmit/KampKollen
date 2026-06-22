@@ -686,17 +686,21 @@ export function QuizPage() {
   })
 
   // Recompute & persist the saved scores from the current points — used after the
-  // QM edits points on an already-completed quiz so the leaderboard catches up.
+  // QM edits points so the running/final leaderboard catches up. The backend
+  // limits what it persists to already-finalized questions, so this is safe to
+  // call mid-quiz (it won't leak the live phase's not-yet-corrected answers).
   const recomputeScores = useMutation({
     mutationFn: () => api.quiz.recomputeScores(ccId!),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz', ccId] }),
   })
 
-  // Close the "edit scores" modal; on a finished quiz, push the corrected totals.
+  // Close the "edit scores" modal and push the corrected totals to the leaderboard
+  // so the running podium reflects the edit (no-op server-side when nothing is
+  // persisted mid-quiz in non-phase mode).
   const closeScoreEditor = useCallback(() => {
     setShowScoreEditor(false)
-    if (sessionStatus === 'COMPLETED') recomputeScores.mutate()
-  }, [sessionStatus, recomputeScores])
+    recomputeScores.mutate()
+  }, [recomputeScores])
 
   const readyMutation = useMutation({
     mutationFn: (teamId?: string) => api.quiz.markReady(ccId!, teamId),

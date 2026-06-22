@@ -166,7 +166,12 @@ function segmentContaining(segments: { start: number; end: number }[], idx: numb
   return segments.find(s => idx >= s.start && idx <= s.end) ?? { start: idx, end: idx }
 }
 
-async function computeAndSaveScores(ccId: string, actorId: string) {
+// `finalizedThrough`, when given, limits scoring to questions with order <= that
+// index — used when the QM edits an earlier question mid-quiz so the running
+// leaderboard picks up the change without leaking points from the current,
+// not-yet-corrected phase. Omitted (the default) counts every question, which is
+// correct at phase-end and completion where everything answered is already final.
+async function computeAndSaveScores(ccId: string, actorId: string, finalizedThrough?: number) {
   const cc = await prisma.competitionChallenge.findUnique({
     where: { id: ccId },
     include: {
@@ -183,6 +188,7 @@ async function computeAndSaveScores(ccId: string, actorId: string) {
   const playerPoints: Record<string, number> = {}
 
   for (const question of cc.challenge.quizQuestions) {
+    if (finalizedThrough != null && question.order > finalizedThrough) continue
     if (question.isFreeText) {
       // Free text: sum the QM-awarded points across every field answer.
       for (const field of question.fields) {
@@ -1121,7 +1127,30 @@ export async function quizRoutes(app: FastifyInstance) {
     const { ccId } = request.params as { ccId: string }
     const me = request.user as { id: string; role: string }
     if (!await isQM(me.id, ccId)) return reply.status(403).send({ error: 'QM or admin required' })
-    await computeAndSaveScores(ccId, me.id)
+
+    const session = await getOrCreateSession(ccId)
+    const cc = await prisma.competitionChallenge.findUnique({
+      where: { id: ccId },
+      select: { challenge: { select: { quizPhaseCorrection: true } } },
+    })
+    const phaseMode = cc?.challenge.quizPhaseCorrection ?? false
+
+    if (session.status === 'COMPLETED') {
+      // Everything is final — recompute the whole quiz.
+      await computeAndSaveScores(ccId, me.id)
+    } else if (phaseMode) {
+      // Mid-quiz in phase mode the running podium is driven by these saved
+      // scores, so an edit to an earlier phase must be pushed through — but only
+      // up to the last fully-corrected question, never the live phase, so we
+      // don't leak its not-yet-revealed answers.
+      const finalizedThrough = session.status === 'CORRECTING'
+        ? (session.correctAnswerVisible ? session.correctionIndex : session.correctionIndex - 1)
+        : session.currentQuestionIndex - 1 // ACTIVE: everything before the current phase
+      await computeAndSaveScores(ccId, me.id, finalizedThrough)
+    }
+    // Non-phase mid-quiz: saved scores aren't shown until completion (the live
+    // podium is computed from question data directly), so there's nothing to
+    // persist here — just rebroadcast so open clients re-read the edited points.
     broadcast(ccId)
     return { success: true }
   })
