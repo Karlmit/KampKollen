@@ -349,14 +349,19 @@ function CorrectAnswerSummary({ question }: { question: any }) {
 }
 
 // One respondent's free-text scoring card (per-field −/+, full-marks lock, lock).
-// Shared by the live correction view and the "edit scores" modal so both behave
-// identically. Callbacks keep it decoupled from the page's mutations.
-function RespondentScorer({ respondent, onSetPoints, onToggleLock, onMaxLock, maxLockBusy }: {
+// Shared by the live correction view and the "edit scores" modal. In `editMode`
+// (the QM's edit-previous-questions menu) any −/+/MAX press also locks the answer
+// in immediately, so there's no separate lock button and edits hit the scoreboard
+// right away. Callbacks keep it decoupled from the page's mutations.
+function RespondentScorer({ respondent, onSetPoints, onToggleLock, onMaxLock, maxLockBusy, editMode, onAdjust }: {
   respondent: { key: string; name: string; entries: { field: any; answer: any }[] }
   onSetPoints: (answerId: string, points: number) => void
   onToggleLock: (answerId: string) => void
   onMaxLock: (answerId: string, maxPoints: number) => void
   maxLockBusy?: boolean
+  editMode?: boolean
+  // Edit-mode handler: set points AND ensure the answer is locked in one step.
+  onAdjust?: (answerId: string, points: number, wasLocked: boolean) => void
 }) {
   const { t } = useTranslation()
   const r = respondent
@@ -377,6 +382,18 @@ function RespondentScorer({ respondent, onSetPoints, onToggleLock, onMaxLock, ma
         {r.entries.map(({ field, answer }) => {
           const pts = answer.points ?? 0
           const locked = !!answer.locked
+          // In edit mode the −/+ stay live even once locked (each press re-commits
+          // the new score), and only the value bounds disable them. In the live
+          // view a locked answer freezes until the QM unlocks it.
+          const minusDisabled = pts <= 0 || (!editMode && locked)
+          const plusDisabled = pts >= field.points || (!editMode && locked)
+          const maxDisabled = maxLockBusy || (!editMode && locked)
+          // Dim the MAX button only when it's inert (live view, already locked).
+          const maxDimmed = !editMode && locked
+          const setPts = (next: number) => {
+            if (editMode) onAdjust!(answer.id, next, locked)
+            else if (!locked) onSetPoints(answer.id, next)
+          }
           return (
             <div key={answer.id} style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingTop: 8, borderTop: '1px solid var(--border-light)' }}>
               <p style={{ fontFamily: 'var(--font-ui)', fontSize: '14px' }}>
@@ -386,50 +403,52 @@ function RespondentScorer({ respondent, onSetPoints, onToggleLock, onMaxLock, ma
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <button
                   type="button"
-                  onClick={() => !locked && onSetPoints(answer.id, Math.max(0, pts - 1))}
-                  disabled={pts <= 0 || locked}
-                  style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px solid var(--border-light)', background: 'var(--surface)', fontSize: '18px', cursor: (pts <= 0 || locked) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: (pts <= 0 || locked) ? 0.3 : 1, fontWeight: 700 }}
+                  onClick={() => setPts(Math.max(0, pts - 1))}
+                  disabled={minusDisabled}
+                  style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px solid var(--border-light)', background: 'var(--surface)', fontSize: '18px', cursor: minusDisabled ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: minusDisabled ? 0.3 : 1, fontWeight: 700 }}
                 >−</button>
                 <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: '15px', minWidth: 54, textAlign: 'center' }}>
                   {pts} / {field.points}
                 </span>
                 <button
                   type="button"
-                  onClick={() => !locked && onSetPoints(answer.id, Math.min(field.points, pts + 1))}
-                  disabled={locked || pts >= field.points}
-                  style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px solid var(--border-light)', background: 'var(--surface)', fontSize: '18px', cursor: (locked || pts >= field.points) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: (locked || pts >= field.points) ? 0.3 : 1, fontWeight: 700 }}
+                  onClick={() => setPts(Math.min(field.points, pts + 1))}
+                  disabled={plusDisabled}
+                  style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px solid var(--border-light)', background: 'var(--surface)', fontSize: '18px', cursor: plusDisabled ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: plusDisabled ? 0.3 : 1, fontWeight: 700 }}
                 >+</button>
                 <button
                   type="button"
                   title={t('quiz.freeTextMaxLock')}
                   aria-label={t('quiz.freeTextMaxLock')}
-                  onClick={() => !locked && onMaxLock(answer.id, field.points)}
-                  disabled={locked || maxLockBusy}
+                  onClick={() => { if (editMode) onAdjust!(answer.id, field.points, locked); else if (!locked) onMaxLock(answer.id, field.points) }}
+                  disabled={maxDisabled}
                   style={{
                     marginLeft: 'auto', padding: '4px 12px', borderRadius: 'var(--radius-sm)',
-                    cursor: locked ? 'not-allowed' : 'pointer',
-                    border: `1.5px solid ${locked ? 'var(--border-light)' : 'var(--accent-green)'}`,
-                    background: locked ? 'var(--surface)' : 'color-mix(in srgb, var(--accent-green) 12%, transparent)',
-                    color: locked ? 'var(--text-muted)' : 'var(--accent-green)',
+                    cursor: maxDisabled ? 'not-allowed' : 'pointer',
+                    border: `1.5px solid ${maxDimmed ? 'var(--border-light)' : 'var(--accent-green)'}`,
+                    background: maxDimmed ? 'var(--surface)' : 'color-mix(in srgb, var(--accent-green) 12%, transparent)',
+                    color: maxDimmed ? 'var(--text-muted)' : 'var(--accent-green)',
                     fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px',
-                    opacity: locked ? 0.3 : 1,
+                    opacity: maxDimmed ? 0.3 : 1,
                     transition: 'border-color 150ms, background 150ms, color 150ms',
                   }}
-                >{t('quiz.freeTextMaxLockLabel')}</button>
-                <button
-                  type="button"
-                  onClick={() => onToggleLock(answer.id)}
-                  style={{
-                    padding: '4px 12px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                    border: `1.5px solid ${locked ? 'var(--accent-green)' : 'var(--border-light)'}`,
-                    background: locked ? 'color-mix(in srgb, var(--accent-green) 12%, transparent)' : 'var(--surface)',
-                    color: locked ? 'var(--accent-green)' : 'var(--text-muted)',
-                    fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px',
-                    transition: 'border-color 150ms, background 150ms, color 150ms',
-                  }}
-                >
-                  {locked ? t('quiz.freeTextLockedStatus') : t('quiz.freeTextLock')}
-                </button>
+                >{editMode ? t('quiz.freeTextMaxShort') : t('quiz.freeTextMaxLockLabel')}</button>
+                {!editMode && (
+                  <button
+                    type="button"
+                    onClick={() => onToggleLock(answer.id)}
+                    style={{
+                      padding: '4px 12px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                      border: `1.5px solid ${locked ? 'var(--accent-green)' : 'var(--border-light)'}`,
+                      background: locked ? 'color-mix(in srgb, var(--accent-green) 12%, transparent)' : 'var(--surface)',
+                      color: locked ? 'var(--accent-green)' : 'var(--text-muted)',
+                      fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: '12px',
+                      transition: 'border-color 150ms, background 150ms, color 150ms',
+                    }}
+                  >
+                    {locked ? t('quiz.freeTextLockedStatus') : t('quiz.freeTextLock')}
+                  </button>
+                )}
               </div>
             </div>
           )
@@ -443,16 +462,15 @@ function RespondentScorer({ respondent, onSetPoints, onToggleLock, onMaxLock, ma
 // e.g. to fix an earlier score without losing your place in the live correction.
 // Edits go through the same per-answer endpoints; a quiz that's already finished
 // has its saved totals recomputed by the caller on close.
-function ScoreEditorModal({ open, onClose, questions, competition, isTeamComp, currentIndex, onSetPoints, onToggleLock, onMaxLock, maxLockBusy, footer }: {
+function ScoreEditorModal({ open, onClose, questions, competition, isTeamComp, currentIndex, onAdjust, maxLockBusy, footer }: {
   open: boolean
   onClose: () => void
   questions: any[]
   competition: any
   isTeamComp: boolean
   currentIndex: number
-  onSetPoints: (answerId: string, points: number) => void
-  onToggleLock: (answerId: string) => void
-  onMaxLock: (answerId: string, maxPoints: number) => void
+  // Set points AND lock the answer in one step — every −/+/MAX press commits.
+  onAdjust: (answerId: string, points: number, wasLocked: boolean) => void
   maxLockBusy?: boolean
   footer?: ReactNode
 }) {
@@ -515,7 +533,16 @@ function ScoreEditorModal({ open, onClose, questions, competition, isTeamComp, c
                 {respondents.length === 0 ? (
                   <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('quiz.freeTextNoAnswers')}</p>
                 ) : respondents.map(r => (
-                  <RespondentScorer key={r.key} respondent={r} onSetPoints={onSetPoints} onToggleLock={onToggleLock} onMaxLock={onMaxLock} maxLockBusy={maxLockBusy} />
+                  <RespondentScorer
+                    key={r.key}
+                    respondent={r}
+                    editMode
+                    onAdjust={onAdjust}
+                    onSetPoints={() => {}}
+                    onToggleLock={() => {}}
+                    onMaxLock={() => {}}
+                    maxLockBusy={maxLockBusy}
+                  />
                 ))}
               </div>
             )
@@ -639,6 +666,16 @@ export function QuizPage() {
     mutationFn: async ({ answerId, maxPoints }: { answerId: string; maxPoints: number }) => {
       await api.quiz.setFieldPoints(ccId!, answerId, maxPoints)
       await api.quiz.toggleFieldLock(ccId!, answerId)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz', ccId] }),
+  })
+
+  // Edit-previous-questions menu: set the points and make sure the answer is
+  // locked in, so a single −/+/MAX press immediately commits to the scoreboard.
+  const setPointsAndLock = useMutation({
+    mutationFn: async ({ answerId, points, wasLocked }: { answerId: string; points: number; wasLocked: boolean }) => {
+      await api.quiz.setFieldPoints(ccId!, answerId, points)
+      if (!wasLocked) await api.quiz.toggleFieldLock(ccId!, answerId)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['quiz', ccId] }),
   })
@@ -1228,10 +1265,8 @@ export function QuizPage() {
           competition={competition}
           isTeamComp={isTeamComp}
           currentIndex={session.status === 'CORRECTING' ? session.correctionIndex : session.status === 'COMPLETED' ? questions.length : session.currentQuestionIndex}
-          onSetPoints={(answerId, points) => setFieldPoints.mutate({ answerId, points })}
-          onToggleLock={(answerId) => toggleFieldLock.mutate(answerId)}
-          onMaxLock={(answerId, maxPoints) => maxAndLockField.mutate({ answerId, maxPoints })}
-          maxLockBusy={maxAndLockField.isPending}
+          onAdjust={(answerId, points, wasLocked) => setPointsAndLock.mutate({ answerId, points, wasLocked })}
+          maxLockBusy={setPointsAndLock.isPending}
           footer={<Button onClick={closeScoreEditor}>{t('quiz.editScoresDone')}</Button>}
         />
       )}

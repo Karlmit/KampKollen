@@ -811,6 +811,7 @@ const en = {
     freeTextLock: 'Lock',
     freeTextMaxLock: 'Award full points and lock',
     freeTextMaxLockLabel: 'Lock MAX',
+    freeTextMaxShort: 'MAX',
     freeTextUnlock: 'Unlock',
     freeTextLockedStatus: '✓ Locked',
     freeTextLockAllFirst: 'Lock all answers before proceeding',

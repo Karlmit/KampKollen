@@ -809,6 +809,7 @@ const sv = {
     freeTextLock: 'Lås',
     freeTextMaxLock: 'Ge full poäng och lås',
     freeTextMaxLockLabel: 'Lås MAX',
+    freeTextMaxShort: 'MAX',
     freeTextUnlock: 'Lås upp',
     freeTextLockedStatus: '✓ Låst',
     freeTextLockAllFirst: 'Lås alla svar innan du går vidare',
