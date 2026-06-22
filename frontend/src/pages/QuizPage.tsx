@@ -1765,19 +1765,15 @@ export function QuizPage() {
                 const allAnswers = (correctionQ.fields ?? []).flatMap((f: any) => f.answers ?? [])
                 const hasUnlocked = allAnswers.some((a: any) => !a.locked)
                 const allLocked = allFieldAnswersLocked(correctionQ)
-                // Any expected answers configured for this question? If so the QM
-                // may reveal them to everyone (otherwise there's nothing to show).
+                // Any expected answers configured for this question? If so, locking
+                // every answer reveals the answer key to everyone automatically
+                // (handled by the backend) — there's no manual reveal button.
                 const hasExpectedAnswers = (correctionQ.fields ?? []).some((f: any) => f.correctAnswer)
                 return (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {hasUnlocked && (
                       <Button size="sm" variant="success" disabled={lockAllFields.isPending} onClick={() => lockAllFields.mutate()}>
                         {t('quiz.freeTextLockAll')}
-                      </Button>
-                    )}
-                    {hasExpectedAnswers && !session.correctAnswerVisible && (
-                      <Button size="sm" variant="ghost" onClick={() => qmMutate(() => api.quiz.showAnswer(ccId!))}>
-                        {t('quiz.showAnswerToAll')}
                       </Button>
                     )}
                     {hasExpectedAnswers && session.correctAnswerVisible && (

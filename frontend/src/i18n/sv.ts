@@ -757,7 +757,6 @@ const sv = {
     phaseProgress: 'FAS {{current}} / {{total}}',
     correcting: 'RÄTTAR {{current}} / {{total}}',
     showAnswer: '🟢 Visa rätt svar',
-    showAnswerToAll: '🟢 Visa rätt svar för alla',
     answerShownToAll: '✓ Rätt svar visas för alla',
     expectedAnswer: 'Rätt svar',
     correctAnswer: 'Rätt svar',

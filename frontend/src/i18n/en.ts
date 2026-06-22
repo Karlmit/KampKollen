@@ -759,7 +759,6 @@ const en = {
     phaseProgress: 'PHASE {{current}} / {{total}}',
     correcting: 'CORRECTING {{current}} / {{total}}',
     showAnswer: '🟢 Show Correct Answer',
-    showAnswerToAll: '🟢 Show correct answer to all',
     answerShownToAll: '✓ Correct answer shown to all',
     expectedAnswer: 'Correct answer',
     correctAnswer: 'Correct answer',

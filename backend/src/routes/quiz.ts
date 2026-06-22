@@ -39,6 +39,30 @@ async function getOrCreateSession(ccId: string) {
   })
 }
 
+// Free-text answer keys reveal automatically during correction: the moment
+// every submitted field answer for the question being corrected is locked, the
+// editor's expected answer is shown to everyone — but only if one was actually
+// configured. Unlocking an answer hides it again, keeping the reveal in step
+// with the lock state. (Multiple-choice questions have no field answers; their
+// reveal stays the QM's explicit show-answer action.)
+async function syncFreeTextAnswerReveal(ccId: string, questionId: string) {
+  const session = await prisma.quizSession.findUnique({ where: { competitionChallengeId: ccId } })
+  if (!session || session.status !== 'CORRECTING') return
+
+  const fields = await prisma.quizField.findMany({
+    where: { questionId },
+    select: { correctAnswer: true, answers: { select: { locked: true } } },
+  })
+  const hasExpectedAnswer = fields.some(f => f.correctAnswer)
+  if (!hasExpectedAnswer) return
+
+  const answers = fields.flatMap(f => f.answers)
+  const visible = answers.length > 0 && answers.every(a => a.locked)
+  if (session.correctAnswerVisible !== visible) {
+    await prisma.quizSession.update({ where: { id: session.id }, data: { correctAnswerVisible: visible } })
+  }
+}
+
 // QM check by ccId: only isQuizMaster flag, no admin bypass.
 async function isQM(userId: string, ccId: string): Promise<boolean> {
   const cc = await prisma.competitionChallenge.findUnique({ where: { id: ccId }, select: { competitionId: true } })
@@ -1242,7 +1266,7 @@ export async function quizRoutes(app: FastifyInstance) {
     const me = request.user as { id: string; role: string }
     if (!await isQM(me.id, ccId)) return reply.status(403).send({ error: 'QM or admin required' })
 
-    const answer = await prisma.quizFieldAnswer.findUnique({ where: { id: answerId } })
+    const answer = await prisma.quizFieldAnswer.findUnique({ where: { id: answerId }, include: { field: { select: { questionId: true } } } })
     if (!answer) return reply.status(404).send({ error: 'Answer not found' })
 
     // Locking finalises scoring: an answer the QM never touched counts as 0.
@@ -1253,6 +1277,7 @@ export async function quizRoutes(app: FastifyInstance) {
       where: { id: answerId },
       data: { locked: willLock, ...(willLock && answer.points == null ? { points: 0 } : {}) },
     })
+    await syncFreeTextAnswerReveal(ccId, answer.field.questionId)
     broadcast(ccId)
     return { success: true }
   })
@@ -1278,6 +1303,7 @@ export async function quizRoutes(app: FastifyInstance) {
     // Any unscored answers count as 0 once locked (see single-lock endpoint).
     await prisma.quizFieldAnswer.updateMany({ where: { field: { questionId: question.id }, points: null }, data: { points: 0 } })
     await prisma.quizFieldAnswer.updateMany({ where: { field: { questionId: question.id } }, data: { locked: true } })
+    await syncFreeTextAnswerReveal(ccId, question.id)
     broadcast(ccId)
     return { success: true }
   })
